@@ -1,0 +1,88 @@
+# https://taskfile.dev
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  dev:
+    desc: Run backend with hot reload (air)
+    cmds:
+      - air
+
+  ui:dev:
+    desc: Run frontend dev server
+    dir: ui
+    cmds:
+      - bun run dev
+
+  start:
+    desc: Start backend and frontend in parallel
+    deps: [dev, ui:dev]
+
+  build:
+    desc: Compile binary
+    cmds:
+      - cmd: go build -o ./tmp/kollaber.exe ./cmd/app
+        platforms: [windows]
+      - cmd: go build -o ./tmp/kollaber ./cmd/app
+        platforms: [linux, darwin]
+
+  run:
+    desc: Build and run without hot reload
+    deps: [build]
+    cmds:
+      - cmd: ./tmp/kollaber.exe
+        platforms: [windows]
+      - cmd: ./tmp/kollaber
+        platforms: [linux, darwin]
+
+  db:up:
+    desc: Start PostgreSQL container
+    cmds:
+      - podman run -d
+          --name kollaber-db
+          --replace
+          -e POSTGRES_DB=kollaber
+          -e POSTGRES_USER=kollaber
+          -e POSTGRES_PASSWORD=kollaber
+          -p 5432:5432
+          -v kollaber-pgdata:/var/lib/postgresql/data
+          -v ./migrations:/docker-entrypoint-initdb.d:ro,z
+          postgres:16-alpine
+
+  db:down:
+    desc: Stop and remove PostgreSQL container
+    cmds:
+      - podman stop kollaber-db || true
+      - podman rm kollaber-db || true
+
+  db:logs:
+    desc: Tail PostgreSQL logs
+    cmds:
+      - podman logs -f kollaber-db
+
+  migrate:
+    desc: Run database migrations
+    cmds:
+      - for f in migrations/*.sql; do psql $DATABASE_URL -f $f; done
+
+  seed:
+    desc: Run seed data only
+    cmds:
+      - psql $DATABASE_URL -f migrations/002_seed.sql
+
+  generate:
+    desc: Run sqlc code generation
+    cmds:
+      - sqlc generate
+
+  tidy:
+    desc: Tidy go modules
+    cmds:
+      - go mod tidy
