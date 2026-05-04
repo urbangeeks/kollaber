@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { createEnvironment, getToken } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
@@ -53,7 +54,7 @@ export default function OnboardingPage() {
   if (step === "quickstart") {
     return (
       <div className="flex min-h-screen items-center justify-center p-8">
-        <Card className="w-full max-w-lg">
+        <Card className="w-full max-w-lg overflow-hidden">
           <CardHeader>
             <div className="flex items-center gap-2">
               <CheckCircle className="text-green-500 h-5 w-5" />
@@ -66,9 +67,25 @@ export default function OnboardingPage() {
               Install the CLI and send your first event.
             </p>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-xs font-medium uppercase tracking-wide">Install CLI</p>
-              <pre className="bg-muted rounded p-3 text-xs">go install github.com/urbangeeks/kollaber/cmd/kollaber@latest</pre>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">macOS / Linux</p>
+                <pre className="bg-muted rounded p-3 text-xs leading-relaxed overflow-x-auto">{`curl -sSfL https://raw.githubusercontent.com/urbangeeks/kollaber_devops/main/install.sh | sh`}</pre>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Go</p>
+                <pre className="bg-muted rounded p-3 text-xs">go install github.com/urbangeeks/kollaber/cmd/kollaber@latest</pre>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Windows and other platforms:{" "}
+                <Link href="/download" className="underline underline-offset-2 text-foreground">
+                  download page
+                </Link>
+              </p>
             </div>
 
             <div className="space-y-2">

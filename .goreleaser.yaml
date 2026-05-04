@@ -48,5 +48,5 @@ changelog:
 release:
   github:
     owner: urbangeeks
-    name: kollaber
+    name: kollaber_devops
   name_template: "v{{.Version}}"

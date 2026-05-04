@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-const REPO = "https://github.com/urbangeeks/kollaber"
+const REPO = "https://github.com/urbangeeks/kollaber_devops"
 const LATEST = `${REPO}/releases/latest`
 
 type Platform = {
