@@ -2,18 +2,13 @@ package middleware
 
 import (
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"strings"
 )
 
-const UserIDKey = "userID"
-const OrgIDKey = "orgID"
-
-func Auth() echo.MiddlewareFunc {
+func AdminOnly() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			header := c.Request().Header.Get("Authorization")
@@ -34,32 +29,11 @@ func Auth() echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid claims"})
 			}
 
-			sub, err := claims.GetSubject()
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid subject"})
-			}
-			userID, err := uuid.Parse(sub)
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid user id"})
+			if isAdmin, _ := claims["is_admin"].(bool); !isAdmin {
+				return c.JSON(http.StatusForbidden, echo.Map{"error": "admin access required"})
 			}
 
-			orgIDStr, _ := claims["org_id"].(string)
-			orgID, err := uuid.Parse(orgIDStr)
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid org id"})
-			}
-
-			c.Set(UserIDKey, userID)
-			c.Set(OrgIDKey, orgID)
 			return next(c)
 		}
 	}
-}
-
-func jwtSecret() string {
-	s := os.Getenv("JWT_SECRET")
-	if s == "" {
-		return "changeme-set-JWT_SECRET-in-env"
-	}
-	return s
 }

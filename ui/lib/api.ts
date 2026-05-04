@@ -1,29 +1,11 @@
+import { z } from "zod"
+import { environmentSchema, eventSchema, commentResponseSchema } from "./schemas"
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
 
-export type Environment = {
-  id: string
-  name: string
-  cluster_name: string
-  created_at: string
-}
-
-export type Event = {
-  id: string
-  type: "deploy" | "alert" | "note"
-  service: string
-  environment_id: string
-  timestamp: string
-  metadata: Record<string, unknown>
-  created_at: string
-}
-
-export type Comment = {
-  id: string
-  event_id: string
-  user_id: string
-  body: string
-  created_at: string
-}
+export type Environment = z.infer<typeof environmentSchema>
+export type Event = z.infer<typeof eventSchema>
+export type Comment = z.infer<typeof commentResponseSchema>
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null
@@ -38,7 +20,9 @@ export function removeToken() {
   localStorage.removeItem("token")
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T>
+async function request(path: string, schema: null, init?: RequestInit): Promise<unknown>
+async function request<T>(path: string, schema: z.ZodType<T> | null, init?: RequestInit): Promise<T | unknown> {
   const token = getToken()
   const res = await fetch(`${API}${path}`, {
     ...init,
@@ -52,32 +36,121 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error ?? res.statusText)
   }
-  return res.json()
+  const data = await res.json()
+  return schema ? schema.parse(data) : data
+}
+
+export async function register(email: string, password: string, orgName: string): Promise<string> {
+  const data = await request("/auth/register", z.object({ token: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ email, password, org_name: orgName }),
+  })
+  return (data as { token: string }).token
 }
 
 export async function login(email: string, password: string): Promise<string> {
-  const data = await request<{ token: string }>("/auth/login", {
+  const data = await request("/auth/login", z.object({ token: z.string() }), {
     method: "POST",
     body: JSON.stringify({ email, password }),
   })
-  return data.token
+  return (data as { token: string }).token
 }
 
 export function getEnvironments(): Promise<Environment[]> {
-  return request("/environments")
+  return request("/environments", z.array(environmentSchema)) as Promise<Environment[]>
 }
 
 export function getEvents(environmentId: string, limit = 50, offset = 0): Promise<Event[]> {
-  return request(`/events?environment_id=${environmentId}&limit=${limit}&offset=${offset}`)
+  return request(
+    `/events?environment_id=${environmentId}&limit=${limit}&offset=${offset}`,
+    z.array(eventSchema),
+  ) as Promise<Event[]>
+}
+
+export function createEnvironment(name: string, clusterName: string): Promise<Environment> {
+  return request("/environments", environmentSchema, {
+    method: "POST",
+    body: JSON.stringify({ name, cluster_name: clusterName }),
+  }) as Promise<Environment>
+}
+
+const orgStatSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  member_count: z.number(),
+  env_count: z.number(),
+  created_at: z.string(),
+})
+
+export type OrgStat = z.infer<typeof orgStatSchema>
+
+export async function createInvite(): Promise<string> {
+  const data = await request("/invites", z.object({ token: z.string() }), { method: "POST" })
+  return (data as { token: string }).token
+}
+
+export async function getInvite(token: string): Promise<{ org_name: string; expires_at: string }> {
+  return request(
+    `/invites/${token}`,
+    z.object({ org_name: z.string(), expires_at: z.string() }),
+  ) as Promise<{ org_name: string; expires_at: string }>
+}
+
+export async function acceptInvite(token: string, email: string, password: string): Promise<string> {
+  const data = await request(`/invites/${token}/accept`, z.object({ token: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  })
+  return (data as { token: string }).token
+}
+
+export type OrgItem = { id: string; name: string; slug: string }
+
+export function getMyOrgs(): Promise<OrgItem[]> {
+  return request("/auth/orgs", z.array(z.object({
+    id: z.string(), name: z.string(), slug: z.string(),
+  }))) as Promise<OrgItem[]>
+}
+
+export async function switchOrg(orgId: string): Promise<string> {
+  const data = await request("/auth/switch", z.object({ token: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ org_id: orgId }),
+  })
+  return (data as { token: string }).token
+}
+
+export async function joinInvite(token: string): Promise<string> {
+  const data = await request(`/invites/${token}/join`, z.object({ token: z.string() }), {
+    method: "POST",
+  })
+  return (data as { token: string }).token
+}
+
+export function getAdminOrgs(): Promise<OrgStat[]> {
+  return request("/admin/orgs", z.array(orgStatSchema)) as Promise<OrgStat[]>
+}
+
+export function isAdmin(): boolean {
+  if (typeof window === "undefined") return false
+  const token = getToken()
+  if (!token) return false
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return !!payload.is_admin
+  } catch {
+    return false
+  }
 }
 
 export function getComments(eventId: string): Promise<Comment[]> {
-  return request(`/events/${eventId}/comments`)
+  return request(`/events/${eventId}/comments`, z.array(commentResponseSchema)) as Promise<Comment[]>
 }
 
 export function createComment(eventId: string, body: string): Promise<Comment> {
-  return request(`/events/${eventId}/comments`, {
+  return request(`/events/${eventId}/comments`, commentResponseSchema, {
     method: "POST",
     body: JSON.stringify({ body }),
-  })
+  }) as Promise<Comment>
 }

@@ -1,21 +1,13 @@
-# Next.js template
+# Kollaber UI
 
-This is a Next.js template with shadcn/ui.
+Next.js frontend for Kollaber. See the [root README](../README.md) for setup instructions.
 
-## Adding components
-
-To add components to your app, run the following command:
+## Development
 
 ```bash
-npx shadcn@latest add button
+bun install
+bun run dev
 ```
 
-This will place the ui components in the `components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
-```
+Expects the API running at `http://localhost:8080` by default.  
+Override with `NEXT_PUBLIC_API_URL` in `.env.local`.

@@ -15,6 +15,24 @@ type CommentsHandler struct{ q *store.Queries }
 
 func NewCommentsHandler(q *store.Queries) *CommentsHandler { return &CommentsHandler{q} }
 
+type commentResponse struct {
+	ID        string `json:"id"`
+	EventID   string `json:"event_id"`
+	UserID    string `json:"user_id"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"created_at"`
+}
+
+func toCommentResponse(c store.Comment) commentResponse {
+	return commentResponse{
+		ID:        uuid.UUID(c.ID.Bytes).String(),
+		EventID:   uuid.UUID(c.EventID.Bytes).String(),
+		UserID:    uuid.UUID(c.UserID.Bytes).String(),
+		Body:      c.Body,
+		CreatedAt: c.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
 type createCommentRequest struct {
 	Body string `json:"body"`
 }
@@ -44,7 +62,7 @@ func (h *CommentsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create comment"})
 	}
 
-	return c.JSON(http.StatusCreated, comment)
+	return c.JSON(http.StatusCreated, toCommentResponse(comment))
 }
 
 func (h *CommentsHandler) List(c echo.Context) error {
@@ -57,9 +75,9 @@ func (h *CommentsHandler) List(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not fetch comments"})
 	}
-	if comments == nil {
-		comments = []store.Comment{}
+	out := make([]commentResponse, len(comments))
+	for i, cm := range comments {
+		out[i] = toCommentResponse(cm)
 	}
-
-	return c.JSON(http.StatusOK, comments)
+	return c.JSON(http.StatusOK, out)
 }

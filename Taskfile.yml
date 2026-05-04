@@ -26,20 +26,33 @@ tasks:
     deps: [dev, ui:dev]
 
   build:
-    desc: Compile binary
+    desc: Compile server binary
     cmds:
-      - cmd: go build -o ./tmp/kollaber.exe ./cmd/app
+      - cmd: go build -o ./tmp/server.exe ./cmd/app
         platforms: [windows]
-      - cmd: go build -o ./tmp/kollaber ./cmd/app
+      - cmd: go build -o ./tmp/server ./cmd/app
         platforms: [linux, darwin]
 
+  build:cli:
+    desc: Compile kollaber CLI binary
+    cmds:
+      - cmd: go build -o ./tmp/kollaber.exe ./cmd/kollaber
+        platforms: [windows]
+      - cmd: go build -o ./tmp/kollaber ./cmd/kollaber
+        platforms: [linux, darwin]
+
+  install:cli:
+    desc: Install kollaber CLI to GOPATH/bin
+    cmds:
+      - go install ./cmd/kollaber
+
   run:
-    desc: Build and run without hot reload
+    desc: Build and run server without hot reload
     deps: [build]
     cmds:
-      - cmd: ./tmp/kollaber.exe
+      - cmd: ./tmp/server.exe
         platforms: [windows]
-      - cmd: ./tmp/kollaber
+      - cmd: ./tmp/server
         platforms: [linux, darwin]
 
   db:up:
@@ -61,6 +74,13 @@ tasks:
     cmds:
       - podman stop kollaber-db || true
       - podman rm kollaber-db || true
+
+  db:reset:
+    desc: Wipe volume and restart PostgreSQL (fresh schema + seed)
+    cmds:
+      - task: db:down
+      - podman volume rm kollaber-pgdata || true
+      - task: db:up
 
   db:logs:
     desc: Tail PostgreSQL logs

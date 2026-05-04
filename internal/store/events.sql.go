@@ -44,19 +44,28 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 	return i, err
 }
 
-const listEvents = `-- name: ListEvents :many
-SELECT id, type, service, environment_id, timestamp, metadata, created_at FROM events
-ORDER BY timestamp DESC
-LIMIT $1 OFFSET $2
+const listEventsByEnvironment = `-- name: ListEventsByEnvironment :many
+SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at FROM events e
+JOIN environments env ON env.id = e.environment_id
+WHERE e.environment_id = $1 AND env.org_id = $2
+ORDER BY e.timestamp DESC
+LIMIT $3 OFFSET $4
 `
 
-type ListEventsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+type ListEventsByEnvironmentParams struct {
+	EnvironmentID pgtype.UUID `json:"environment_id"`
+	OrgID         pgtype.UUID `json:"org_id"`
+	Limit         int32       `json:"limit"`
+	Offset        int32       `json:"offset"`
 }
 
-func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEvents, arg.Limit, arg.Offset)
+func (q *Queries) ListEventsByEnvironment(ctx context.Context, arg ListEventsByEnvironmentParams) ([]Event, error) {
+	rows, err := q.db.Query(ctx, listEventsByEnvironment,
+		arg.EnvironmentID,
+		arg.OrgID,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -83,21 +92,22 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]Event
 	return items, nil
 }
 
-const listEventsByEnvironment = `-- name: ListEventsByEnvironment :many
-SELECT id, type, service, environment_id, timestamp, metadata, created_at FROM events
-WHERE environment_id = $1
-ORDER BY timestamp DESC
+const listEventsByOrg = `-- name: ListEventsByOrg :many
+SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at FROM events e
+JOIN environments env ON env.id = e.environment_id
+WHERE env.org_id = $1
+ORDER BY e.timestamp DESC
 LIMIT $2 OFFSET $3
 `
 
-type ListEventsByEnvironmentParams struct {
-	EnvironmentID pgtype.UUID `json:"environment_id"`
-	Limit         int32       `json:"limit"`
-	Offset        int32       `json:"offset"`
+type ListEventsByOrgParams struct {
+	OrgID  pgtype.UUID `json:"org_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
-func (q *Queries) ListEventsByEnvironment(ctx context.Context, arg ListEventsByEnvironmentParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEventsByEnvironment, arg.EnvironmentID, arg.Limit, arg.Offset)
+func (q *Queries) ListEventsByOrg(ctx context.Context, arg ListEventsByOrgParams) ([]Event, error) {
+	rows, err := q.db.Query(ctx, listEventsByOrg, arg.OrgID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

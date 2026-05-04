@@ -7,24 +7,28 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createEnvironment = `-- name: CreateEnvironment :one
-INSERT INTO environments (name, cluster_name)
-VALUES ($1, $2)
-RETURNING id, name, cluster_name, created_at
+INSERT INTO environments (org_id, name, cluster_name)
+VALUES ($1, $2, $3)
+RETURNING id, org_id, name, cluster_name, created_at
 `
 
 type CreateEnvironmentParams struct {
-	Name        string `json:"name"`
-	ClusterName string `json:"cluster_name"`
+	OrgID       pgtype.UUID `json:"org_id"`
+	Name        string      `json:"name"`
+	ClusterName string      `json:"cluster_name"`
 }
 
 func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error) {
-	row := q.db.QueryRow(ctx, createEnvironment, arg.Name, arg.ClusterName)
+	row := q.db.QueryRow(ctx, createEnvironment, arg.OrgID, arg.Name, arg.ClusterName)
 	var i Environment
 	err := row.Scan(
 		&i.ID,
+		&i.OrgID,
 		&i.Name,
 		&i.ClusterName,
 		&i.CreatedAt,
@@ -33,11 +37,13 @@ func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentPa
 }
 
 const listEnvironments = `-- name: ListEnvironments :many
-SELECT id, name, cluster_name, created_at FROM environments ORDER BY created_at ASC
+SELECT id, org_id, name, cluster_name, created_at FROM environments
+WHERE org_id = $1
+ORDER BY created_at ASC
 `
 
-func (q *Queries) ListEnvironments(ctx context.Context) ([]Environment, error) {
-	rows, err := q.db.Query(ctx, listEnvironments)
+func (q *Queries) ListEnvironments(ctx context.Context, orgID pgtype.UUID) ([]Environment, error) {
+	rows, err := q.db.Query(ctx, listEnvironments, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +53,7 @@ func (q *Queries) ListEnvironments(ctx context.Context) ([]Environment, error) {
 		var i Environment
 		if err := rows.Scan(
 			&i.ID,
+			&i.OrgID,
 			&i.Name,
 			&i.ClusterName,
 			&i.CreatedAt,

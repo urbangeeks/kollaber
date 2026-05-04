@@ -3,8 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { login, setToken } from "@/lib/api"
-import { loginSchema } from "@/lib/schemas"
+import { register, setToken } from "@/lib/api"
+import { registerSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,11 +12,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GitHubButton } from "@/components/github-button"
 import { Separator } from "@/components/ui/separator"
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter()
+  const [orgName, setOrgName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const [confirm, setConfirm] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<{
+    orgName?: string; email?: string; password?: string; confirm?: string
+  }>({})
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -24,21 +28,26 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
 
-    const result = loginSchema.safeParse({ email, password })
+    const result = registerSchema.safeParse({ orgName, email, password, confirm })
     if (!result.success) {
       const flat = result.error.flatten().fieldErrors
-      setFieldErrors({ email: flat.email?.[0], password: flat.password?.[0] })
+      setFieldErrors({
+        orgName: flat.orgName?.[0],
+        email: flat.email?.[0],
+        password: flat.password?.[0],
+        confirm: flat.confirm?.[0],
+      })
       return
     }
     setFieldErrors({})
 
     setLoading(true)
     try {
-      const token = await login(result.data.email, result.data.password)
+      const token = await register(result.data.email, result.data.password, result.data.orgName)
       setToken(token)
-      router.push("/dashboard")
+      router.push("/onboarding")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(err instanceof Error ? err.message : "Registration failed")
     } finally {
       setLoading(false)
     }
@@ -48,11 +57,11 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Kollaber</CardTitle>
+          <CardTitle className="text-2xl">Create account</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <GitHubButton label="Continue with GitHub" />
+            <GitHubButton label="Sign up with GitHub" />
             <div className="flex items-center gap-3">
               <Separator className="flex-1" />
               <span className="text-muted-foreground text-xs">or</span>
@@ -60,6 +69,18 @@ export default function LoginPage() {
             </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="orgName">Organization name</Label>
+              <Input
+                id="orgName"
+                type="text"
+                autoComplete="organization"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                required
+              />
+              {fieldErrors.orgName && <p className="text-destructive text-xs">{fieldErrors.orgName}</p>}
+            </div>
             <div className="space-y-1">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -77,21 +98,33 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
               {fieldErrors.password && <p className="text-destructive text-xs">{fieldErrors.password}</p>}
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+              />
+              {fieldErrors.confirm && <p className="text-destructive text-xs">{fieldErrors.confirm}</p>}
+            </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "Creating account…" : "Create account"}
             </Button>
             <p className="text-muted-foreground text-center text-sm">
-              Don't have an account?{" "}
-              <Link href="/register" className="text-foreground underline underline-offset-4">
-                Register
+              Already have an account?{" "}
+              <Link href="/login" className="text-foreground underline underline-offset-4">
+                Sign in
               </Link>
             </p>
           </form>

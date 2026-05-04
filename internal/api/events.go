@@ -9,12 +9,39 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
+	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
 type EventsHandler struct{ q *store.Queries }
 
 func NewEventsHandler(q *store.Queries) *EventsHandler { return &EventsHandler{q} }
+
+type eventResponse struct {
+	ID            string          `json:"id"`
+	Type          string          `json:"type"`
+	Service       string          `json:"service"`
+	EnvironmentID string          `json:"environment_id"`
+	Timestamp     string          `json:"timestamp"`
+	Metadata      json.RawMessage `json:"metadata"`
+	CreatedAt     string          `json:"created_at"`
+}
+
+func toEventResponse(e store.Event) eventResponse {
+	meta := json.RawMessage(e.Metadata)
+	if len(meta) == 0 {
+		meta = json.RawMessage(`{}`)
+	}
+	return eventResponse{
+		ID:            uuid.UUID(e.ID.Bytes).String(),
+		Type:          e.Type,
+		Service:       e.Service,
+		EnvironmentID: uuid.UUID(e.EnvironmentID.Bytes).String(),
+		Timestamp:     e.Timestamp.Time.Format("2006-01-02T15:04:05Z07:00"),
+		Metadata:      meta,
+		CreatedAt:     e.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
 
 type createEventRequest struct {
 	Type          string         `json:"type"`
@@ -52,19 +79,18 @@ func (h *EventsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create event"})
 	}
 
-	return c.JSON(http.StatusCreated, event)
+	return c.JSON(http.StatusCreated, toEventResponse(event))
 }
 
 func (h *EventsHandler) List(c echo.Context) error {
-	envIDStr := c.QueryParam("environment_id")
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
 	limit := parseInt32(c.QueryParam("limit"), 50, 200)
 	offset := parseInt32(c.QueryParam("offset"), 0, 0)
 
-	var (
-		events []store.Event
-		err    error
-	)
+	var events []store.Event
+	var err error
 
+	envIDStr := c.QueryParam("environment_id")
 	if envIDStr != "" {
 		envID, parseErr := uuid.Parse(envIDStr)
 		if parseErr != nil {
@@ -72,11 +98,13 @@ func (h *EventsHandler) List(c echo.Context) error {
 		}
 		events, err = h.q.ListEventsByEnvironment(context.Background(), store.ListEventsByEnvironmentParams{
 			EnvironmentID: pgtype.UUID{Bytes: envID, Valid: true},
+			OrgID:         pgtype.UUID{Bytes: orgID, Valid: true},
 			Limit:         limit,
 			Offset:        offset,
 		})
 	} else {
-		events, err = h.q.ListEvents(context.Background(), store.ListEventsParams{
+		events, err = h.q.ListEventsByOrg(context.Background(), store.ListEventsByOrgParams{
+			OrgID:  pgtype.UUID{Bytes: orgID, Valid: true},
 			Limit:  limit,
 			Offset: offset,
 		})
@@ -84,11 +112,12 @@ func (h *EventsHandler) List(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not fetch events"})
 	}
-	if events == nil {
-		events = []store.Event{}
-	}
 
-	return c.JSON(http.StatusOK, events)
+	out := make([]eventResponse, len(events))
+	for i, e := range events {
+		out[i] = toEventResponse(e)
+	}
+	return c.JSON(http.StatusOK, out)
 }
 
 func parseInt32(s string, defaultVal, max int32) int32 {

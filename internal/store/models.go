@@ -18,6 +18,7 @@ type Comment struct {
 
 type Environment struct {
 	ID          pgtype.UUID        `json:"id"`
+	OrgID       pgtype.UUID        `json:"org_id"`
 	Name        string             `json:"name"`
 	ClusterName string             `json:"cluster_name"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
@@ -33,9 +34,35 @@ type Event struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type Invite struct {
+	ID         pgtype.UUID        `json:"id"`
+	OrgID      pgtype.UUID        `json:"org_id"`
+	CreatedBy  pgtype.UUID        `json:"created_by"`
+	Token      string             `json:"token"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+type Org struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	Slug      string             `json:"slug"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type OrgMember struct {
+	OrgID     pgtype.UUID        `json:"org_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type User struct {
 	ID           pgtype.UUID        `json:"id"`
 	Email        string             `json:"email"`
 	PasswordHash string             `json:"password_hash"`
+	GithubID     *string            `json:"github_id"`
+	IsAdmin      bool               `json:"is_admin"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }

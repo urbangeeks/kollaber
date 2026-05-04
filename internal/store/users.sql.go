@@ -7,12 +7,39 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createGitHubUser = `-- name: CreateGitHubUser :one
+INSERT INTO users (email, github_id)
+VALUES ($1, $2)
+RETURNING id, email, password_hash, github_id, is_admin, created_at
+`
+
+type CreateGitHubUserParams struct {
+	Email    string  `json:"email"`
+	GithubID *string `json:"github_id"`
+}
+
+func (q *Queries) CreateGitHubUser(ctx context.Context, arg CreateGitHubUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createGitHubUser, arg.Email, arg.GithubID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash)
 VALUES ($1, $2)
-RETURNING id, email, password_hash, created_at
+RETURNING id, email, password_hash, github_id, is_admin, created_at
 `
 
 type CreateUserParams struct {
@@ -27,13 +54,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, created_at FROM users WHERE email = $1
+SELECT id, email, password_hash, github_id, is_admin, created_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -43,6 +72,67 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByGitHubID = `-- name: GetUserByGitHubID :one
+SELECT id, email, password_hash, github_id, is_admin, created_at FROM users WHERE github_id = $1
+`
+
+func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID *string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByGitHubID, githubID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password_hash, github_id, is_admin, created_at FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const linkGitHubID = `-- name: LinkGitHubID :one
+UPDATE users SET github_id = $1 WHERE email = $2 RETURNING id, email, password_hash, github_id, is_admin, created_at
+`
+
+type LinkGitHubIDParams struct {
+	GithubID *string `json:"github_id"`
+	Email    string  `json:"email"`
+}
+
+func (q *Queries) LinkGitHubID(ctx context.Context, arg LinkGitHubIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, linkGitHubID, arg.GithubID, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.GithubID,
+		&i.IsAdmin,
 		&i.CreatedAt,
 	)
 	return i, err

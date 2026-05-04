@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { type Event, type Comment, getComments, createComment } from "@/lib/api"
+import { commentSchema } from "@/lib/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,6 +22,7 @@ function formatTime(ts: string) {
 export function TimelineEvent({ event }: { event: Event }) {
   const [comments, setComments] = useState<Comment[] | null>(null)
   const [body, setBody] = useState("")
+  const [bodyError, setBodyError] = useState("")
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -36,10 +38,15 @@ export function TimelineEvent({ event }: { event: Event }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!body.trim()) return
+    const result = commentSchema.safeParse({ body: body.trim() })
+    if (!result.success) {
+      setBodyError(result.error.flatten().fieldErrors.body?.[0] ?? "Invalid comment")
+      return
+    }
+    setBodyError("")
     setSubmitting(true)
     try {
-      const comment = await createComment(event.id, body.trim())
+      const comment = await createComment(event.id, result.data.body)
       setComments((prev) => [...(prev ?? []), comment])
       setBody("")
     } finally {
@@ -57,7 +64,7 @@ export function TimelineEvent({ event }: { event: Event }) {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={variant as "default" | "destructive" | "secondary"}>{label}</Badge>
             <span className="font-medium">{event.service}</span>
-            {event.metadata?.version && (
+            {event.metadata?.version != null && (
               <span className="text-muted-foreground text-sm">{String(event.metadata.version)}</span>
             )}
             <span className="text-muted-foreground ml-auto text-xs">{formatTime(event.timestamp)}</span>
@@ -90,17 +97,20 @@ export function TimelineEvent({ event }: { event: Event }) {
               💬 {c.body}
             </p>
           ))}
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Textarea
-              rows={1}
-              placeholder="Add a comment…"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="min-h-0 resize-none"
-            />
-            <Button type="submit" size="sm" disabled={submitting || !body.trim()}>
-              Post
-            </Button>
+          <form onSubmit={handleSubmit} className="space-y-1">
+            <div className="flex gap-2">
+              <Textarea
+                rows={1}
+                placeholder="Add a comment…"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="min-h-0 resize-none"
+              />
+              <Button type="submit" size="sm" disabled={submitting || !body.trim()}>
+                Post
+              </Button>
+            </div>
+            {bodyError && <p className="text-destructive text-xs">{bodyError}</p>}
           </form>
         </div>
       )}
