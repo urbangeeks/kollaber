@@ -22,12 +22,6 @@ const platforms: Platform[] = [
   { label: "Windows (x86-64)",      os: "windows", arch: "amd64",  ext: "zip",    badge: "amd64"    },
 ]
 
-function assetURL({ os, arch, ext }: Platform) {
-  // goreleaser naming: kollaber_{version}_{Os}_{Arch}.tar.gz
-  // Using the /releases/latest/download/ redirect which resolves the version
-  const osName = os.charAt(0).toUpperCase() + os.slice(1)
-  return `${REPO}/releases/latest/download/kollaber_latest_${osName}_${arch}.${ext}`
-}
 
 export default function DownloadPage() {
   return (

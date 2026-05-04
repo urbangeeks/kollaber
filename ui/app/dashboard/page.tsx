@@ -34,9 +34,6 @@ const platforms: Platform[] = [
   { label: "Windows (x86-64)",      os: "Windows", arch: "amd64", ext: "zip",    badge: "amd64"    },
 ]
 
-function assetURL(p: Platform) {
-  return `${REPO}/releases/latest/download/kollaber_latest_${p.os}_${p.arch}.${p.ext}`
-}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -276,7 +273,7 @@ export default function DashboardPage() {
                     <span className="flex-1 text-sm">{p.label}</span>
                     <Badge variant="secondary" className="shrink-0">{p.badge}</Badge>
                     <Button size="sm" variant="outline" asChild>
-                      <a href={assetURL(p)} target="_blank" rel="noopener noreferrer">
+                      <a href={LATEST} target="_blank" rel="noopener noreferrer">
                         .{p.ext}
                       </a>
                     </Button>
