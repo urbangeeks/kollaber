@@ -144,6 +144,18 @@ export function isAdmin(): boolean {
   }
 }
 
+export function createEvent(
+  environmentId: string,
+  type: "deploy" | "alert" | "note",
+  service: string,
+  metadata: Record<string, string>,
+): Promise<Event> {
+  return request("/events", eventSchema, {
+    method: "POST",
+    body: JSON.stringify({ type, service, environment_id: environmentId, metadata }),
+  }) as Promise<Event>
+}
+
 export function getComments(eventId: string): Promise<Comment[]> {
   return request(`/events/${eventId}/comments`, z.array(commentResponseSchema)) as Promise<Comment[]>
 }
