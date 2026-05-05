@@ -76,7 +76,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create org membership"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), false)
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, false)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}
@@ -107,7 +107,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load org"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.IsAdmin)
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, user.IsAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}
@@ -119,7 +119,11 @@ func toPgtypeUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-func makeToken(userID, orgID string, isAdmin bool) (string, error) {
+func makeToken(userID, orgID, email string, isAdmin bool) (string, error) {
+	return makeTokenWithExpiry(userID, orgID, email, isAdmin, 24*time.Hour)
+}
+
+func makeTokenWithExpiry(userID, orgID, email string, isAdmin bool, ttl time.Duration) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = "changeme-set-JWT_SECRET-in-env"
@@ -127,11 +131,28 @@ func makeToken(userID, orgID string, isAdmin bool) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":      userID,
 		"org_id":   orgID,
+		"email":    email,
 		"is_admin": isAdmin,
-		"exp":      jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		"exp":      jwt.NewNumericDate(time.Now().Add(ttl)),
 		"iat":      jwt.NewNumericDate(time.Now()),
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
+}
+
+func (h *AuthHandler) GenerateCLIToken(c echo.Context) error {
+	userID := c.Get(middleware.UserIDKey).(uuid.UUID)
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	user, err := h.q.GetUserByID(context.Background(), pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
+	}
+
+	token, err := makeTokenWithExpiry(userID.String(), orgID.String(), user.Email, user.IsAdmin, 90*24*time.Hour)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"token": token})
 }
 
 func (h *AuthHandler) ListOrgs(c echo.Context) error {
@@ -187,7 +208,7 @@ func (h *AuthHandler) SwitchOrg(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), orgID.String(), user.IsAdmin)
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), orgID.String(), user.Email, user.IsAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}

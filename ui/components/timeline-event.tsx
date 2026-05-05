@@ -7,12 +7,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Rocket, Bell, StickyNote, MessageCircle } from "lucide-react"
+import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 
 const TYPE_CONFIG = {
   deploy: { icon: Rocket, label: "Deploy", variant: "default" },
   alert: { icon: Bell, label: "Alert", variant: "destructive" },
   note: { icon: StickyNote, label: "Note", variant: "secondary" },
+} as const
+
+const STATUS_CONFIG = {
+  success:     { label: "success",     icon: CheckCircle2, className: "text-green-600 dark:text-green-400" },
+  failure:     { label: "failure",     icon: XCircle,      className: "text-red-600 dark:text-red-400"   },
+  in_progress: { label: "in progress", icon: Loader2,      className: "text-amber-500 dark:text-amber-400" },
 } as const
 
 function formatTime(ts: string) {
@@ -27,6 +33,8 @@ export function TimelineEvent({ event }: { event: Event }) {
   const [submitting, setSubmitting] = useState(false)
 
   const { icon: Icon, label, variant } = TYPE_CONFIG[event.type]
+  const statusCfg = STATUS_CONFIG[event.status ?? "success"]
+  const StatusIcon = statusCfg.icon
 
   async function toggleComments() {
     if (!open && comments === null) {
@@ -67,6 +75,10 @@ export function TimelineEvent({ event }: { event: Event }) {
             {event.metadata?.version != null && (
               <span className="text-muted-foreground text-sm">{String(event.metadata.version)}</span>
             )}
+            <span className={`flex items-center gap-1 text-xs font-medium ${statusCfg.className}`}>
+              <StatusIcon className="h-3.5 w-3.5" />
+              {statusCfg.label}
+            </span>
             <span className="text-muted-foreground ml-auto text-xs">{formatTime(event.timestamp)}</span>
           </div>
           {Object.keys(event.metadata ?? {}).length > 0 && (

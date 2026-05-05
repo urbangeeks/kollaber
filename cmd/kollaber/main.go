@@ -128,11 +128,22 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate and save a token",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		token, _ := cmd.Flags().GetString("token")
+		if token != "" {
+			cfg := loadConfig()
+			cfg.Token = token
+			if err := saveConfig(cfg); err != nil {
+				return err
+			}
+			fmt.Println("Token saved.")
+			return nil
+		}
+
 		email, _ := cmd.Flags().GetString("email")
 		password, _ := cmd.Flags().GetString("password")
 
 		if email == "" || password == "" {
-			return fmt.Errorf("--email and --password are required")
+			return fmt.Errorf("provide --token (from the web UI) or both --email and --password")
 		}
 
 		res, err := do("POST", "/auth/login", map[string]string{"email": email, "password": password})
@@ -294,6 +305,7 @@ var deployCmd = &cobra.Command{
 }
 
 func init() {
+	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
 	loginCmd.Flags().String("email", "", "Email address")
 	loginCmd.Flags().String("password", "", "Password")
 

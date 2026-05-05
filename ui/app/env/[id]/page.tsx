@@ -1,9 +1,9 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getEvents, createEvent, getToken, type Event } from "@/lib/api"
+import { getEvents, createEvent, getServices, getToken, type Event, type EventFilters } from "@/lib/api"
 import { createEventSchema } from "@/lib/schemas"
 import { usePoll } from "@/hooks/use-poll"
 import { TimelineEvent } from "@/components/timeline-event"
@@ -22,6 +22,7 @@ import {
 import { ArrowLeft, Plus } from "lucide-react"
 
 type EventType = "deploy" | "alert" | "note"
+type EventStatus = "success" | "failure" | "in_progress"
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: "deploy", label: "Deploy" },
@@ -29,21 +30,50 @@ const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: "note",  label: "Note"   },
 ]
 
+const EVENT_STATUSES: { value: EventStatus; label: string }[] = [
+  { value: "success",     label: "Success"     },
+  { value: "failure",     label: "Failure"     },
+  { value: "in_progress", label: "In Progress" },
+]
+
 export default function EnvPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const [events, setEvents] = useState<Event[]>([])
+  const [topEvents, setTopEvents] = useState<Event[]>([])
+  const [moreEvents, setMoreEvents] = useState<Event[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState("")
+
+  const PAGE_SIZE = 50
+  const allEvents = [...topEvents, ...moreEvents]
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [type, setType] = useState<EventType>("note")
   const [service, setService] = useState("")
   const [version, setVersion] = useState("")
   const [message, setMessage] = useState("")
+  const [status, setStatus] = useState<EventStatus>("success")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const [filterType, setFilterType] = useState("")
+  const [filterStatus, setFilterStatus] = useState("")
+  const [filterService, setFilterService] = useState("")
+  const [knownServices, setKnownServices] = useState<string[]>([])
+
   const isAuthed = Boolean(getToken())
+
+  const activeFilters: EventFilters = {}
+  if (filterType)    activeFilters.type    = filterType
+  if (filterStatus)  activeFilters.status  = filterStatus
+  if (filterService) activeFilters.service = filterService
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setMoreEvents([])
+    setHasMore(false)
+  }, [filterType, filterStatus, filterService])
 
   usePoll(
     () => {
@@ -51,26 +81,47 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
         router.replace("/login")
         return
       }
-      getEvents(id)
-        .then(setEvents)
+      getEvents(id, PAGE_SIZE, 0, activeFilters)
+        .then((evts) => {
+          setTopEvents(evts)
+          // Only update hasMore from poll when no extra pages are loaded
+          setHasMore((prev) => moreEvents.length > 0 ? prev : evts.length === PAGE_SIZE)
+          getServices(id).then(setKnownServices).catch(() => {})
+        })
         .catch((err) => setError(err.message))
     },
     7000,
     isAuthed,
   )
 
+  async function handleLoadMore() {
+    const cursor = allEvents[allEvents.length - 1]?.timestamp
+    if (!cursor) return
+    setLoadingMore(true)
+    try {
+      const older = await getEvents(id, PAGE_SIZE, 0, { ...activeFilters, before: cursor })
+      setMoreEvents((prev) => [...prev, ...older])
+      setHasMore(older.length === PAGE_SIZE)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load more")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   function openDialog() {
     setType("note")
     setService("")
     setVersion("")
     setMessage("")
+    setStatus("success")
     setFieldErrors({})
     setDialogOpen(true)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const result = createEventSchema.safeParse({ type, service, version, message })
+    const result = createEventSchema.safeParse({ type, service, version, message, status })
     if (!result.success) {
       const flat = result.error.flatten().fieldErrors
       setFieldErrors(Object.fromEntries(Object.entries(flat).map(([k, v]) => [k, v?.[0] ?? ""])))
@@ -84,8 +135,8 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
     if ((type === "note" || type === "alert") && result.data.message) metadata.body = result.data.message
 
     try {
-      const event = await createEvent(id, type, result.data.service, metadata)
-      setEvents((prev) => [event, ...prev])
+      const event = await createEvent(id, type, result.data.service, metadata, result.data.status)
+      setTopEvents((prev) => [event, ...prev])
       setDialogOpen(false)
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} event created`)
     } catch (err) {
@@ -114,16 +165,76 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
 
         {error && <p className="text-destructive text-sm">{error}</p>}
 
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-xs font-medium">Type:</span>
+          {EVENT_TYPES.map((t) => (
+            <Button
+              key={t.value}
+              size="sm"
+              variant={filterType === t.value ? "secondary" : "ghost"}
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
+            >
+              {t.label}
+            </Button>
+          ))}
+          <span className="text-muted-foreground ml-2 text-xs font-medium">Status:</span>
+          {EVENT_STATUSES.map((s) => (
+            <Button
+              key={s.value}
+              size="sm"
+              variant={filterStatus === s.value ? "secondary" : "ghost"}
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
+            >
+              {s.label}
+            </Button>
+          ))}
+          {knownServices.length > 0 && (
+            <>
+              <span className="text-muted-foreground ml-2 text-xs font-medium">Service:</span>
+              <select
+                value={filterService}
+                onChange={(e) => setFilterService(e.target.value)}
+                className="border-input bg-background h-7 rounded-md border px-2 text-xs"
+              >
+                <option value="">All</option>
+                {knownServices.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {(filterType || filterStatus || filterService) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground h-7 px-2 text-xs"
+              onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
         <div className="space-y-4">
-          {events.map((event, i) => (
+          {allEvents.map((event, i) => (
             <div key={event.id}>
               <TimelineEvent event={event} />
-              {i < events.length - 1 && <Separator className="mt-4" />}
+              {i < allEvents.length - 1 && <Separator className="mt-4" />}
             </div>
           ))}
 
-          {events.length === 0 && !error && (
+          {allEvents.length === 0 && !error && (
             <p className="text-muted-foreground text-sm">No events yet.</p>
+          )}
+
+          {hasMore && (
+            <div className="pt-2 text-center">
+              <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
+                {loadingMore ? "Loading…" : "Load more"}
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -155,11 +266,17 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
               <Label htmlFor="event-service">Service</Label>
               <Input
                 id="event-service"
+                list="known-services"
                 placeholder="api-service"
                 value={service}
                 onChange={(e) => setService(e.target.value)}
                 autoFocus
               />
+              {knownServices.length > 0 && (
+                <datalist id="known-services">
+                  {knownServices.map((s) => <option key={s} value={s} />)}
+                </datalist>
+              )}
               {fieldErrors.service && <p className="text-destructive text-xs">{fieldErrors.service}</p>}
             </div>
 
@@ -189,6 +306,23 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
                 {fieldErrors.message && <p className="text-destructive text-xs">{fieldErrors.message}</p>}
               </div>
             )}
+
+            <div className="space-y-1">
+              <Label>Status</Label>
+              <div className="flex gap-2">
+                {EVENT_STATUSES.map((s) => (
+                  <Button
+                    key={s.value}
+                    type="button"
+                    size="sm"
+                    variant={status === s.value ? "default" : "outline"}
+                    onClick={() => setStatus(s.value)}
+                  >
+                    {s.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </form>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

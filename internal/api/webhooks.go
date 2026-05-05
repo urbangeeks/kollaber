@@ -2,9 +2,14 @@ package api
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -28,14 +33,40 @@ type genericWebhookPayload struct {
 	Workflow   string `json:"workflow"`
 }
 
+func verifyHMAC(secret string, body []byte, signature string) bool {
+	const prefix = "sha256="
+	if !strings.HasPrefix(signature, prefix) {
+		return false
+	}
+	sig, err := hex.DecodeString(signature[len(prefix):])
+	if err != nil {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	return hmac.Equal(mac.Sum(nil), sig)
+}
+
 func (h *WebhookHandler) Ingest(c echo.Context) error {
 	secret := os.Getenv("WEBHOOK_SECRET")
-	if secret != "" && c.Request().Header.Get("X-Kollaber-Secret") != secret {
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid webhook secret"})
+
+	body, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "could not read body"})
+	}
+
+	if secret != "" {
+		if sig := c.Request().Header.Get("X-Hub-Signature-256"); sig != "" {
+			if !verifyHMAC(secret, body, sig) {
+				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid webhook signature"})
+			}
+		} else if c.Request().Header.Get("X-Kollaber-Secret") != secret {
+			return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid webhook secret"})
+		}
 	}
 
 	var payload genericWebhookPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
 
@@ -71,6 +102,7 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 		Service:       payload.Service,
 		EnvironmentID: pgtype.UUID{Bytes: envID, Valid: true},
 		Metadata:      metaBytes,
+		Status:        "success",
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not ingest event"})

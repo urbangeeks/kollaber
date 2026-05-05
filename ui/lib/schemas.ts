@@ -31,6 +31,7 @@ export const createEventSchema = z.object({
   service: z.string().min(1, "Service name is required").max(100, "Too long"),
   version: z.string().max(100, "Too long").optional().default(""),
   message: z.string().max(500, "Too long").optional().default(""),
+  status: z.enum(["success", "failure", "in_progress"]).default("success"),
 })
 
 // --- API response schemas ---
@@ -49,6 +50,7 @@ export const eventSchema = z.object({
   environment_id: z.string(),
   timestamp: z.string(),
   metadata: z.record(z.string(), z.unknown()),
+  status: z.enum(["success", "failure", "in_progress"]).default("success"),
   created_at: z.string(),
 })
 
