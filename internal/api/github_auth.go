@@ -94,7 +94,7 @@ func (h *GitHubAuthHandler) Callback(c echo.Context) error {
 		})
 	}
 
-	jwt, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.IsAdmin)
+	jwt, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, user.IsAdmin)
 	if err != nil {
 		return c.Redirect(http.StatusTemporaryRedirect, base+"/login?error=token_error")
 	}

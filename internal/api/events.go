@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -24,6 +25,7 @@ type eventResponse struct {
 	EnvironmentID string          `json:"environment_id"`
 	Timestamp     string          `json:"timestamp"`
 	Metadata      json.RawMessage `json:"metadata"`
+	Status        string          `json:"status"`
 	CreatedAt     string          `json:"created_at"`
 }
 
@@ -39,6 +41,7 @@ func toEventResponse(e store.Event) eventResponse {
 		EnvironmentID: uuid.UUID(e.EnvironmentID.Bytes).String(),
 		Timestamp:     e.Timestamp.Time.Format("2006-01-02T15:04:05Z07:00"),
 		Metadata:      meta,
+		Status:        e.Status,
 		CreatedAt:     e.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
@@ -48,6 +51,7 @@ type createEventRequest struct {
 	Service       string         `json:"service"`
 	EnvironmentID uuid.UUID      `json:"environment_id"`
 	Metadata      map[string]any `json:"metadata"`
+	Status        string         `json:"status"`
 }
 
 func (h *EventsHandler) Create(c echo.Context) error {
@@ -63,6 +67,14 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	default:
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type must be deploy, alert, or note"})
 	}
+	if req.Status == "" {
+		req.Status = "success"
+	}
+	switch req.Status {
+	case "success", "failure", "in_progress":
+	default:
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "status must be success, failure, or in_progress"})
+	}
 
 	if req.Metadata == nil {
 		req.Metadata = map[string]any{}
@@ -74,6 +86,7 @@ func (h *EventsHandler) Create(c echo.Context) error {
 		Service:       req.Service,
 		EnvironmentID: pgtype.UUID{Bytes: req.EnvironmentID, Valid: true},
 		Metadata:      metaBytes,
+		Status:        req.Status,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create event"})
@@ -87,28 +100,37 @@ func (h *EventsHandler) List(c echo.Context) error {
 	limit := parseInt32(c.QueryParam("limit"), 50, 200)
 	offset := parseInt32(c.QueryParam("offset"), 0, 0)
 
-	var events []store.Event
-	var err error
+	filterType := c.QueryParam("type")
+	filterService := c.QueryParam("service")
+	filterStatus := c.QueryParam("status")
 
-	envIDStr := c.QueryParam("environment_id")
-	if envIDStr != "" {
-		envID, parseErr := uuid.Parse(envIDStr)
-		if parseErr != nil {
+	params := store.ListEventsFilterParams{
+		OrgID:   pgtype.UUID{Bytes: orgID, Valid: true},
+		Type:    filterType,
+		Service: filterService,
+		Status:  filterStatus,
+		Limit:   limit,
+		Offset:  offset,
+	}
+
+	if beforeStr := c.QueryParam("before"); beforeStr != "" {
+		t, err := time.Parse(time.RFC3339, beforeStr)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "before must be an RFC3339 timestamp"})
+		}
+		params.Before = &t
+	}
+
+	if envIDStr := c.QueryParam("environment_id"); envIDStr != "" {
+		envID, err := uuid.Parse(envIDStr)
+		if err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid environment_id"})
 		}
-		events, err = h.q.ListEventsByEnvironment(context.Background(), store.ListEventsByEnvironmentParams{
-			EnvironmentID: pgtype.UUID{Bytes: envID, Valid: true},
-			OrgID:         pgtype.UUID{Bytes: orgID, Valid: true},
-			Limit:         limit,
-			Offset:        offset,
-		})
-	} else {
-		events, err = h.q.ListEventsByOrg(context.Background(), store.ListEventsByOrgParams{
-			OrgID:  pgtype.UUID{Bytes: orgID, Valid: true},
-			Limit:  limit,
-			Offset: offset,
-		})
+		pgEnvID := pgtype.UUID{Bytes: envID, Valid: true}
+		params.EnvironmentID = &pgEnvID
 	}
+
+	events, err := h.q.ListEventsFiltered(context.Background(), params)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not fetch events"})
 	}

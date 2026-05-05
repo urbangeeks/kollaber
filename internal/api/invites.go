@@ -117,6 +117,7 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 	jwtToken, err := makeToken(
 		uuid.UUID(user.ID.Bytes).String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
+		user.Email,
 		false,
 	)
 	if err != nil {
@@ -150,10 +151,15 @@ func (h *InviteHandler) Join(c echo.Context) error {
 	})
 	if err == nil {
 		// already in org — just switch to it
+		existing, err := h.q.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
+		}
 		jwtToken, err := makeToken(
 			userID.String(),
 			uuid.UUID(invite.OrgID.Bytes).String(),
-			false,
+			existing.Email,
+			existing.IsAdmin,
 		)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
@@ -181,6 +187,7 @@ func (h *InviteHandler) Join(c echo.Context) error {
 	jwtToken, err := makeToken(
 		userID.String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
+		user.Email,
 		user.IsAdmin,
 	)
 	if err != nil {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getEnvironments, getToken, removeToken, isAdmin, createInvite, createEnvironment, type Environment } from "@/lib/api"
+import { getEnvironments, getToken, removeToken, isAdmin, getCurrentEmail, generateCLIToken, createInvite, createEnvironment, type Environment } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,6 +52,10 @@ export default function DashboardPage() {
   const [newClusterName, setNewClusterName] = useState("")
   const [newEnvErrors, setNewEnvErrors] = useState<{ name?: string; clusterName?: string }>({})
   const [newEnvLoading, setNewEnvLoading] = useState(false)
+
+  const [cliToken, setCliToken] = useState("")
+  const [cliTokenLoading, setCliTokenLoading] = useState(false)
+  const [cliTokenCopied, setCliTokenCopied] = useState(false)
 
   useEffect(() => {
     if (!getToken()) {
@@ -145,10 +149,13 @@ export default function DashboardPage() {
               <UserPlus className="mr-1.5 h-4 w-4" />
               Invite teammate
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setDownloadOpen(true)}>
+            <Button variant="ghost" size="sm" onClick={() => { setCliToken(""); setDownloadOpen(true) }}>
               <Download className="mr-1.5 h-4 w-4" />
               Download CLI
             </Button>
+            <span className="text-muted-foreground max-w-[180px] truncate text-xs">
+              {getCurrentEmail()}
+            </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               Sign out
             </Button>
@@ -286,6 +293,50 @@ export default function DashboardPage() {
               <pre className="bg-muted overflow-x-auto rounded p-3 text-xs">
                 go install github.com/urbangeeks/kollaber/cmd/kollaber@latest
               </pre>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide">Authenticate CLI</p>
+              <p className="text-muted-foreground text-xs">
+                If you signed in with GitHub, use a token instead of a password.
+              </p>
+              {cliToken ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Input value={`kollaber login --token ${cliToken}`} readOnly className="font-mono text-xs" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(`kollaber login --token ${cliToken}`)
+                        setCliTokenCopied(true)
+                        toast.success("Copied")
+                        setTimeout(() => setCliTokenCopied(false), 2000)
+                      }}
+                    >
+                      {cliTokenCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground text-xs">Valid for 90 days. Treat it like a password.</p>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={cliTokenLoading}
+                  onClick={async () => {
+                    setCliTokenLoading(true)
+                    try {
+                      setCliToken(await generateCLIToken())
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Failed to generate token")
+                    } finally {
+                      setCliTokenLoading(false)
+                    }
+                  }}
+                >
+                  {cliTokenLoading ? "Generating…" : "Generate CLI token"}
+                </Button>
+              )}
             </div>
           </div>
           <DialogFooter>

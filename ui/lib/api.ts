@@ -60,11 +60,20 @@ export function getEnvironments(): Promise<Environment[]> {
   return request("/environments", z.array(environmentSchema)) as Promise<Environment[]>
 }
 
-export function getEvents(environmentId: string, limit = 50, offset = 0): Promise<Event[]> {
-  return request(
-    `/events?environment_id=${environmentId}&limit=${limit}&offset=${offset}`,
-    z.array(eventSchema),
-  ) as Promise<Event[]>
+export type EventFilters = {
+  type?: string
+  service?: string
+  status?: string
+  before?: string
+}
+
+export function getEvents(environmentId: string, limit = 50, offset = 0, filters: EventFilters = {}): Promise<Event[]> {
+  const params = new URLSearchParams({ environment_id: environmentId, limit: String(limit), offset: String(offset) })
+  if (filters.type)    params.set("type",    filters.type)
+  if (filters.service) params.set("service", filters.service)
+  if (filters.status)  params.set("status",  filters.status)
+  if (filters.before)  params.set("before",  filters.before)
+  return request(`/events?${params}`, z.array(eventSchema)) as Promise<Event[]>
 }
 
 export function createEnvironment(name: string, clusterName: string): Promise<Environment> {
@@ -132,16 +141,23 @@ export function getAdminOrgs(): Promise<OrgStat[]> {
   return request("/admin/orgs", z.array(orgStatSchema)) as Promise<OrgStat[]>
 }
 
-export function isAdmin(): boolean {
-  if (typeof window === "undefined") return false
+function decodeToken(): Record<string, unknown> | null {
+  if (typeof window === "undefined") return null
   const token = getToken()
-  if (!token) return false
+  if (!token) return null
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    return !!payload.is_admin
+    return JSON.parse(atob(token.split(".")[1]))
   } catch {
-    return false
+    return null
   }
+}
+
+export function isAdmin(): boolean {
+  return !!decodeToken()?.is_admin
+}
+
+export function getCurrentEmail(): string {
+  return (decodeToken()?.email as string) ?? ""
 }
 
 export function createEvent(
@@ -149,11 +165,21 @@ export function createEvent(
   type: "deploy" | "alert" | "note",
   service: string,
   metadata: Record<string, string>,
+  status: "success" | "failure" | "in_progress" = "success",
 ): Promise<Event> {
   return request("/events", eventSchema, {
     method: "POST",
-    body: JSON.stringify({ type, service, environment_id: environmentId, metadata }),
+    body: JSON.stringify({ type, service, environment_id: environmentId, metadata, status }),
   }) as Promise<Event>
+}
+
+export async function generateCLIToken(): Promise<string> {
+  const data = await request("/auth/token", z.object({ token: z.string() }), { method: "POST" })
+  return (data as { token: string }).token
+}
+
+export function getServices(environmentId: string): Promise<string[]> {
+  return request(`/services?environment_id=${environmentId}`, z.array(z.string())) as Promise<string[]>
 }
 
 export function getComments(eventId: string): Promise<Comment[]> {

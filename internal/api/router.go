@@ -25,6 +25,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	webhooks := NewWebhookHandler(q)
 	admin := NewAdminHandler(q)
 	invites := NewInviteHandler(q)
+	services := NewServicesHandler(q)
 
 	e.POST("/auth/register", auth.Register)
 	e.POST("/auth/login", auth.Login)
@@ -34,6 +35,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	authProtected := e.Group("/auth", middleware.Auth())
 	authProtected.GET("/orgs", auth.ListOrgs)
 	authProtected.POST("/switch", auth.SwitchOrg)
+	authProtected.POST("/token", auth.GenerateCLIToken)
 	e.GET("/invites/:token", invites.Get)
 	e.POST("/invites/:token/accept", invites.Accept)
 
@@ -46,6 +48,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	protected.GET("/events", events.List)
 	protected.POST("/events/:id/comments", comments.Create)
 	protected.GET("/events/:id/comments", comments.List)
+	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)
 

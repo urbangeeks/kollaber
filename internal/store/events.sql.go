@@ -12,9 +12,9 @@ import (
 )
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (type, service, environment_id, metadata)
-VALUES ($1, $2, $3, $4)
-RETURNING id, type, service, environment_id, timestamp, metadata, created_at
+INSERT INTO events (type, service, environment_id, metadata, status)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, type, service, environment_id, timestamp, metadata, created_at, status
 `
 
 type CreateEventParams struct {
@@ -22,6 +22,7 @@ type CreateEventParams struct {
 	Service       string      `json:"service"`
 	EnvironmentID pgtype.UUID `json:"environment_id"`
 	Metadata      []byte      `json:"metadata"`
+	Status        string      `json:"status"`
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error) {
@@ -30,6 +31,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.Service,
 		arg.EnvironmentID,
 		arg.Metadata,
+		arg.Status,
 	)
 	var i Event
 	err := row.Scan(
@@ -40,12 +42,13 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.Timestamp,
 		&i.Metadata,
 		&i.CreatedAt,
+		&i.Status,
 	)
 	return i, err
 }
 
 const listEventsByEnvironment = `-- name: ListEventsByEnvironment :many
-SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at FROM events e
+SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at, e.status FROM events e
 JOIN environments env ON env.id = e.environment_id
 WHERE e.environment_id = $1 AND env.org_id = $2
 ORDER BY e.timestamp DESC
@@ -81,6 +84,7 @@ func (q *Queries) ListEventsByEnvironment(ctx context.Context, arg ListEventsByE
 			&i.Timestamp,
 			&i.Metadata,
 			&i.CreatedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -93,7 +97,7 @@ func (q *Queries) ListEventsByEnvironment(ctx context.Context, arg ListEventsByE
 }
 
 const listEventsByOrg = `-- name: ListEventsByOrg :many
-SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at FROM events e
+SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at, e.status FROM events e
 JOIN environments env ON env.id = e.environment_id
 WHERE env.org_id = $1
 ORDER BY e.timestamp DESC
@@ -123,10 +127,43 @@ func (q *Queries) ListEventsByOrg(ctx context.Context, arg ListEventsByOrgParams
 			&i.Timestamp,
 			&i.Metadata,
 			&i.CreatedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServicesByEnvironment = `-- name: ListServicesByEnvironment :many
+SELECT DISTINCT e.service FROM events e
+JOIN environments env ON env.id = e.environment_id
+WHERE e.environment_id = $1 AND env.org_id = $2
+ORDER BY e.service
+`
+
+type ListServicesByEnvironmentParams struct {
+	EnvironmentID pgtype.UUID `json:"environment_id"`
+	OrgID         pgtype.UUID `json:"org_id"`
+}
+
+func (q *Queries) ListServicesByEnvironment(ctx context.Context, arg ListServicesByEnvironmentParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listServicesByEnvironment, arg.EnvironmentID, arg.OrgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var service string
+		if err := rows.Scan(&service); err != nil {
+			return nil, err
+		}
+		items = append(items, service)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
