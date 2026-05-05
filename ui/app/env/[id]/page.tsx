@@ -2,18 +2,46 @@
 
 import { use, useState } from "react"
 import { useRouter } from "next/navigation"
-import { getEvents, getToken, type Event } from "@/lib/api"
+import { toast } from "sonner"
+import { getEvents, createEvent, getToken, type Event } from "@/lib/api"
+import { createEventSchema } from "@/lib/schemas"
 import { usePoll } from "@/hooks/use-poll"
 import { TimelineEvent } from "@/components/timeline-event"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { ArrowLeft, Plus } from "lucide-react"
+
+type EventType = "deploy" | "alert" | "note"
+
+const EVENT_TYPES: { value: EventType; label: string }[] = [
+  { value: "deploy", label: "Deploy" },
+  { value: "alert", label: "Alert" },
+  { value: "note",  label: "Note"   },
+]
 
 export default function EnvPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [error, setError] = useState("")
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [type, setType] = useState<EventType>("note")
+  const [service, setService] = useState("")
+  const [version, setVersion] = useState("")
+  const [message, setMessage] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
 
   const isAuthed = Boolean(getToken())
 
@@ -31,6 +59,42 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
     isAuthed,
   )
 
+  function openDialog() {
+    setType("note")
+    setService("")
+    setVersion("")
+    setMessage("")
+    setFieldErrors({})
+    setDialogOpen(true)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const result = createEventSchema.safeParse({ type, service, version, message })
+    if (!result.success) {
+      const flat = result.error.flatten().fieldErrors
+      setFieldErrors(Object.fromEntries(Object.entries(flat).map(([k, v]) => [k, v?.[0] ?? ""])))
+      return
+    }
+    setFieldErrors({})
+    setSubmitting(true)
+
+    const metadata: Record<string, string> = {}
+    if (type === "deploy" && result.data.version) metadata.version = result.data.version
+    if ((type === "note" || type === "alert") && result.data.message) metadata.body = result.data.message
+
+    try {
+      const event = await createEvent(id, type, result.data.service, metadata)
+      setEvents((prev) => [event, ...prev])
+      setDialogOpen(false)
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} event created`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create event")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen p-8">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -39,7 +103,13 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl font-semibold">Timeline</h1>
-          <span className="text-muted-foreground ml-auto text-xs">Refreshes every 7s</span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-muted-foreground text-xs">Refreshes every 7s</span>
+            <Button size="sm" onClick={openDialog}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New event
+            </Button>
+          </div>
         </div>
 
         {error && <p className="text-destructive text-sm">{error}</p>}
@@ -57,6 +127,77 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
           )}
         </div>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New event</DialogTitle>
+          </DialogHeader>
+          <form id="new-event-form" onSubmit={handleSubmit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>Type</Label>
+              <div className="flex gap-2">
+                {EVENT_TYPES.map((t) => (
+                  <Button
+                    key={t.value}
+                    type="button"
+                    size="sm"
+                    variant={type === t.value ? "default" : "outline"}
+                    onClick={() => setType(t.value)}
+                  >
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="event-service">Service</Label>
+              <Input
+                id="event-service"
+                placeholder="api-service"
+                value={service}
+                onChange={(e) => setService(e.target.value)}
+                autoFocus
+              />
+              {fieldErrors.service && <p className="text-destructive text-xs">{fieldErrors.service}</p>}
+            </div>
+
+            {type === "deploy" && (
+              <div className="space-y-1">
+                <Label htmlFor="event-version">Version</Label>
+                <Input
+                  id="event-version"
+                  placeholder="v1.2.3"
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                />
+                {fieldErrors.version && <p className="text-destructive text-xs">{fieldErrors.version}</p>}
+              </div>
+            )}
+
+            {(type === "note" || type === "alert") && (
+              <div className="space-y-1">
+                <Label htmlFor="event-message">Message</Label>
+                <Textarea
+                  id="event-message"
+                  placeholder={type === "alert" ? "Describe the alert…" : "Add a note…"}
+                  rows={3}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                />
+                {fieldErrors.message && <p className="text-destructive text-xs">{fieldErrors.message}</p>}
+              </div>
+            )}
+          </form>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" form="new-event-form" disabled={submitting}>
+              {submitting ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

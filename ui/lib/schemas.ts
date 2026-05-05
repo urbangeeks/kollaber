@@ -26,6 +26,13 @@ export const commentSchema = z.object({
   body: z.string().min(1, "Comment cannot be empty").max(2000, "Comment is too long"),
 })
 
+export const createEventSchema = z.object({
+  type: z.enum(["deploy", "alert", "note"]),
+  service: z.string().min(1, "Service name is required").max(100, "Too long"),
+  version: z.string().max(100, "Too long").optional().default(""),
+  message: z.string().max(500, "Too long").optional().default(""),
+})
+
 // --- API response schemas ---
 
 export const environmentSchema = z.object({
