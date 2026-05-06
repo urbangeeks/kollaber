@@ -36,6 +36,7 @@ async function request<T>(path: string, schema: z.ZodType<T> | null, init?: Requ
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error ?? res.statusText)
   }
+  if (res.status === 204 || res.headers.get("content-length") === "0") return undefined
   const data = await res.json()
   return schema ? schema.parse(data) : data
 }
@@ -152,6 +153,59 @@ export async function joinInvite(token: string): Promise<string> {
     method: "POST",
   })
   return (data as { token: string }).token
+}
+
+export type Member = {
+  id: string
+  email: string
+  role: "owner" | "admin" | "member" | "viewer"
+  joined_at: string
+}
+
+export type PendingInvite = {
+  token: string
+  role: "admin" | "member" | "viewer"
+  created_by_email: string
+  created_at: string
+  expires_at: string
+}
+
+const memberSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  role: z.enum(["owner", "admin", "member", "viewer"]),
+  joined_at: z.string(),
+})
+
+const pendingInviteSchema = z.object({
+  token: z.string(),
+  role: z.enum(["admin", "member", "viewer"]),
+  created_by_email: z.string(),
+  created_at: z.string(),
+  expires_at: z.string(),
+})
+
+export function getMembers(): Promise<Member[]> {
+  return request("/members", z.array(memberSchema)) as Promise<Member[]>
+}
+
+export function updateMemberRole(userID: string, role: "admin" | "member" | "viewer"): Promise<void> {
+  return request(`/members/${userID}`, null, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  }) as Promise<void>
+}
+
+export function removeMember(userID: string): Promise<void> {
+  return request(`/members/${userID}`, null, { method: "DELETE" }) as Promise<void>
+}
+
+export function getPendingInvites(): Promise<PendingInvite[]> {
+  return request("/members/invites", z.array(pendingInviteSchema)) as Promise<PendingInvite[]>
+}
+
+export function revokeInvite(token: string): Promise<void> {
+  return request(`/members/invites/${token}`, null, { method: "DELETE" }) as Promise<void>
 }
 
 export function getAdminOrgs(): Promise<OrgStat[]> {
