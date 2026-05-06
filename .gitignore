@@ -1,0 +1,44 @@
+# ── Binaries ────────────────────────────────────────────────────────────────
+/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# compiled CLI binary sitting next to source
+/cmd/kollaber/kollaber
+
+# ── Go tooling ───────────────────────────────────────────────────────────────
+*.test
+*.out
+vendor/
+coverage.txt
+
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Next.js / Node ───────────────────────────────────────────────────────────
+ui/.next/
+ui/out/
+ui/node_modules/
+ui/.env
+ui/.env.*
+!ui/.env.example
+ui/tsconfig.tsbuildinfo
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.png
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+docker/postgres-data/
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+image.png
