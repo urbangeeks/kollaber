@@ -55,6 +55,10 @@ type createEnvRequest struct {
 func (h *EnvironmentsHandler) Create(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
 
+	if err := requireAdmin(c); err != nil {
+		return err
+	}
+
 	var req createEnvRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
@@ -73,4 +77,65 @@ func (h *EnvironmentsHandler) Create(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, toEnvResponse(env))
+}
+
+type updateEnvRequest struct {
+	Name        string `json:"name"`
+	ClusterName string `json:"cluster_name"`
+}
+
+func (h *EnvironmentsHandler) Update(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	if err := requireAdmin(c); err != nil {
+		return err
+	}
+
+	envID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid environment id"})
+	}
+
+	var req updateEnvRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "name is required"})
+	}
+
+	env, err := h.q.UpdateEnvironment(context.Background(), store.UpdateEnvironmentParams{
+		ID:          pgtype.UUID{Bytes: envID, Valid: true},
+		OrgID:       pgtype.UUID{Bytes: orgID, Valid: true},
+		Name:        req.Name,
+		ClusterName: req.ClusterName,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not update environment"})
+	}
+
+	return c.JSON(http.StatusOK, toEnvResponse(env))
+}
+
+func (h *EnvironmentsHandler) Delete(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	if err := requireAdmin(c); err != nil {
+		return err
+	}
+
+	envID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid environment id"})
+	}
+
+	err = h.q.DeleteEnvironment(context.Background(), store.DeleteEnvironmentParams{
+		ID:    pgtype.UUID{Bytes: envID, Valid: true},
+		OrgID: pgtype.UUID{Bytes: orgID, Valid: true},
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not delete environment"})
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }

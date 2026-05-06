@@ -14,10 +14,13 @@ WHERE om.user_id = $1
 LIMIT 1;
 
 -- name: ListOrgsByUserID :many
-SELECT o.* FROM orgs o
+SELECT o.*, om.role FROM orgs o
 JOIN org_members om ON om.org_id = o.id
 WHERE om.user_id = $1
 ORDER BY o.created_at ASC;
+
+-- name: UpdateOrg :one
+UPDATE orgs SET name = $2, slug = $3 WHERE id = $1 RETURNING *;
 
 -- name: GetOrgMember :one
 SELECT * FROM org_members WHERE org_id = $1 AND user_id = $2;

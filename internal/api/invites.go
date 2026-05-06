@@ -15,14 +15,33 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
 type InviteHandler struct{ q *store.Queries }
 
 func NewInviteHandler(q *store.Queries) *InviteHandler { return &InviteHandler{q} }
 
+type createInviteRequest struct {
+	Role string `json:"role"`
+}
+
 func (h *InviteHandler) Create(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
 	userID := c.Get(middleware.UserIDKey).(uuid.UUID)
+
+	if err := requireAdmin(c); err != nil {
+		return err
+	}
+
+	var req createInviteRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	role := req.Role
+	if role == "" {
+		role = "member"
+	}
+	if role != "admin" && role != "member" && role != "viewer" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "role must be admin, member, or viewer"})
+	}
 
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -34,6 +53,7 @@ func (h *InviteHandler) Create(c echo.Context) error {
 		OrgID:     pgtype.UUID{Bytes: orgID, Valid: true},
 		CreatedBy: pgtype.UUID{Bytes: userID, Valid: true},
 		Token:     token,
+		Role:      role,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create invite"})
@@ -56,6 +76,7 @@ func (h *InviteHandler) Get(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, echo.Map{
 		"org_name":   invite.OrgName,
+		"role":       invite.Role,
 		"expires_at": invite.ExpiresAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
@@ -105,7 +126,7 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 	if err := h.q.CreateOrgMember(ctx, store.CreateOrgMemberParams{
 		OrgID:  invite.OrgID,
 		UserID: user.ID,
-		Role:   "member",
+		Role:   invite.Role,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not join org"})
 	}
@@ -118,6 +139,7 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 		uuid.UUID(user.ID.Bytes).String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
 		user.Email,
+		invite.Role,
 		false,
 	)
 	if err != nil {
@@ -145,7 +167,7 @@ func (h *InviteHandler) Join(c echo.Context) error {
 	}
 
 	// already a member?
-	_, err = h.q.GetOrgMember(ctx, store.GetOrgMemberParams{
+	existingMember, err := h.q.GetOrgMember(ctx, store.GetOrgMemberParams{
 		OrgID:  invite.OrgID,
 		UserID: pgtype.UUID{Bytes: userID, Valid: true},
 	})
@@ -159,6 +181,7 @@ func (h *InviteHandler) Join(c echo.Context) error {
 			userID.String(),
 			uuid.UUID(invite.OrgID.Bytes).String(),
 			existing.Email,
+			existingMember.Role,
 			existing.IsAdmin,
 		)
 		if err != nil {
@@ -170,7 +193,7 @@ func (h *InviteHandler) Join(c echo.Context) error {
 	if err := h.q.CreateOrgMember(ctx, store.CreateOrgMemberParams{
 		OrgID:  invite.OrgID,
 		UserID: pgtype.UUID{Bytes: userID, Valid: true},
-		Role:   "member",
+		Role:   invite.Role,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not join org"})
 	}
@@ -188,6 +211,7 @@ func (h *InviteHandler) Join(c echo.Context) error {
 		userID.String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
 		user.Email,
+		invite.Role,
 		user.IsAdmin,
 	)
 	if err != nil {

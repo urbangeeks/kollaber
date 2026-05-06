@@ -36,6 +36,21 @@ func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentPa
 	return i, err
 }
 
+const deleteEnvironment = `-- name: DeleteEnvironment :exec
+DELETE FROM environments
+WHERE id = $1 AND org_id = $2
+`
+
+type DeleteEnvironmentParams struct {
+	ID    pgtype.UUID `json:"id"`
+	OrgID pgtype.UUID `json:"org_id"`
+}
+
+func (q *Queries) DeleteEnvironment(ctx context.Context, arg DeleteEnvironmentParams) error {
+	_, err := q.db.Exec(ctx, deleteEnvironment, arg.ID, arg.OrgID)
+	return err
+}
+
 const listEnvironments = `-- name: ListEnvironments :many
 SELECT id, org_id, name, cluster_name, created_at FROM environments
 WHERE org_id = $1
@@ -66,4 +81,36 @@ func (q *Queries) ListEnvironments(ctx context.Context, orgID pgtype.UUID) ([]En
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateEnvironment = `-- name: UpdateEnvironment :one
+UPDATE environments
+SET name = $3, cluster_name = $4
+WHERE id = $1 AND org_id = $2
+RETURNING id, org_id, name, cluster_name, created_at
+`
+
+type UpdateEnvironmentParams struct {
+	ID          pgtype.UUID `json:"id"`
+	OrgID       pgtype.UUID `json:"org_id"`
+	Name        string      `json:"name"`
+	ClusterName string      `json:"cluster_name"`
+}
+
+func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error) {
+	row := q.db.QueryRow(ctx, updateEnvironment,
+		arg.ID,
+		arg.OrgID,
+		arg.Name,
+		arg.ClusterName,
+	)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Name,
+		&i.ClusterName,
+		&i.CreatedAt,
+	)
+	return i, err
 }

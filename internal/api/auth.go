@@ -76,7 +76,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create org membership"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, false)
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, "owner", false)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}
@@ -107,7 +107,15 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load org"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, user.IsAdmin)
+	member, err := h.q.GetOrgMember(context.Background(), store.GetOrgMemberParams{
+		OrgID:  org.ID,
+		UserID: user.ID,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load membership"})
+	}
+
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, member.Role, user.IsAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}
@@ -119,11 +127,11 @@ func toPgtypeUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-func makeToken(userID, orgID, email string, isAdmin bool) (string, error) {
-	return makeTokenWithExpiry(userID, orgID, email, isAdmin, 24*time.Hour)
+func makeToken(userID, orgID, email, role string, isAdmin bool) (string, error) {
+	return makeTokenWithExpiry(userID, orgID, email, role, isAdmin, 24*time.Hour)
 }
 
-func makeTokenWithExpiry(userID, orgID, email string, isAdmin bool, ttl time.Duration) (string, error) {
+func makeTokenWithExpiry(userID, orgID, email, role string, isAdmin bool, ttl time.Duration) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = "changeme-set-JWT_SECRET-in-env"
@@ -132,6 +140,7 @@ func makeTokenWithExpiry(userID, orgID, email string, isAdmin bool, ttl time.Dur
 		"sub":      userID,
 		"org_id":   orgID,
 		"email":    email,
+		"role":     role,
 		"is_admin": isAdmin,
 		"exp":      jwt.NewNumericDate(time.Now().Add(ttl)),
 		"iat":      jwt.NewNumericDate(time.Now()),
@@ -148,7 +157,15 @@ func (h *AuthHandler) GenerateCLIToken(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
 	}
 
-	token, err := makeTokenWithExpiry(userID.String(), orgID.String(), user.Email, user.IsAdmin, 90*24*time.Hour)
+	member, err := h.q.GetOrgMember(context.Background(), store.GetOrgMemberParams{
+		OrgID:  pgtype.UUID{Bytes: orgID, Valid: true},
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load membership"})
+	}
+
+	token, err := makeTokenWithExpiry(userID.String(), orgID.String(), user.Email, member.Role, user.IsAdmin, 90*24*time.Hour)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}
@@ -165,6 +182,7 @@ func (h *AuthHandler) ListOrgs(c echo.Context) error {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 		Slug string `json:"slug"`
+		Role string `json:"role"`
 	}
 	out := make([]orgItem, len(orgs))
 	for i, o := range orgs {
@@ -172,9 +190,94 @@ func (h *AuthHandler) ListOrgs(c echo.Context) error {
 			ID:   uuid.UUID(o.ID.Bytes).String(),
 			Name: o.Name,
 			Slug: o.Slug,
+			Role: o.Role,
 		}
 	}
 	return c.JSON(http.StatusOK, out)
+}
+
+type createOrgRequest struct {
+	Name string `json:"name"`
+}
+
+func (h *AuthHandler) CreateOrg(c echo.Context) error {
+	userID := c.Get(middleware.UserIDKey).(uuid.UUID)
+
+	var req createOrgRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "name is required"})
+	}
+
+	ctx := context.Background()
+
+	org, err := h.q.CreateOrg(ctx, store.CreateOrgParams{
+		Name: req.Name,
+		Slug: uniqueSlug(slugify(req.Name)),
+	})
+	if err != nil {
+		return c.JSON(http.StatusConflict, echo.Map{"error": "org name already taken"})
+	}
+
+	if err := h.q.CreateOrgMember(ctx, store.CreateOrgMemberParams{
+		OrgID:  org.ID,
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+		Role:   "owner",
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create org membership"})
+	}
+
+	user, err := h.q.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
+	}
+
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, "owner", user.IsAdmin)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
+	}
+	return c.JSON(http.StatusCreated, echo.Map{"token": token, "org_id": uuid.UUID(org.ID.Bytes).String(), "org_name": org.Name})
+}
+
+type renameOrgRequest struct {
+	Name string `json:"name"`
+}
+
+func (h *AuthHandler) RenameOrg(c echo.Context) error {
+	userID := c.Get(middleware.UserIDKey).(uuid.UUID)
+
+	orgID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid org_id"})
+	}
+
+	member, err := h.q.GetOrgMember(context.Background(), store.GetOrgMemberParams{
+		OrgID:  pgtype.UUID{Bytes: orgID, Valid: true},
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+	})
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return c.JSON(http.StatusForbidden, echo.Map{"error": "only admins can rename an org"})
+	}
+
+	var req renameOrgRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "name is required"})
+	}
+
+	org, err := h.q.UpdateOrg(context.Background(), store.UpdateOrgParams{
+		ID:   pgtype.UUID{Bytes: orgID, Valid: true},
+		Name: req.Name,
+		Slug: slugify(req.Name),
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not rename org"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"id": uuid.UUID(org.ID.Bytes).String(), "name": org.Name, "slug": org.Slug})
 }
 
 type switchOrgRequest struct {
@@ -195,7 +298,7 @@ func (h *AuthHandler) SwitchOrg(c echo.Context) error {
 	}
 
 	// verify membership
-	_, err = h.q.GetOrgMember(context.Background(), store.GetOrgMemberParams{
+	membership, err := h.q.GetOrgMember(context.Background(), store.GetOrgMemberParams{
 		OrgID:  pgtype.UUID{Bytes: orgID, Valid: true},
 		UserID: pgtype.UUID{Bytes: userID, Valid: true},
 	})
@@ -208,7 +311,7 @@ func (h *AuthHandler) SwitchOrg(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})
 	}
 
-	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), orgID.String(), user.Email, user.IsAdmin)
+	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), orgID.String(), user.Email, membership.Role, user.IsAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create token"})
 	}

@@ -21,19 +21,25 @@ func (q *Queries) AcceptInvite(ctx context.Context, token string) error {
 }
 
 const createInvite = `-- name: CreateInvite :one
-INSERT INTO invites (org_id, created_by, token)
-VALUES ($1, $2, $3)
-RETURNING id, org_id, created_by, token, expires_at, accepted_at, created_at
+INSERT INTO invites (org_id, created_by, token, role)
+VALUES ($1, $2, $3, $4)
+RETURNING id, org_id, created_by, token, expires_at, accepted_at, created_at, role
 `
 
 type CreateInviteParams struct {
 	OrgID     pgtype.UUID `json:"org_id"`
 	CreatedBy pgtype.UUID `json:"created_by"`
 	Token     string      `json:"token"`
+	Role      string      `json:"role"`
 }
 
 func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error) {
-	row := q.db.QueryRow(ctx, createInvite, arg.OrgID, arg.CreatedBy, arg.Token)
+	row := q.db.QueryRow(ctx, createInvite,
+		arg.OrgID,
+		arg.CreatedBy,
+		arg.Token,
+		arg.Role,
+	)
 	var i Invite
 	err := row.Scan(
 		&i.ID,
@@ -43,12 +49,13 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Inv
 		&i.ExpiresAt,
 		&i.AcceptedAt,
 		&i.CreatedAt,
+		&i.Role,
 	)
 	return i, err
 }
 
 const getInviteByToken = `-- name: GetInviteByToken :one
-SELECT i.id, i.org_id, i.token, i.expires_at, i.accepted_at, i.created_at, o.name AS org_name
+SELECT i.id, i.org_id, i.token, i.role, i.expires_at, i.accepted_at, i.created_at, o.name AS org_name
 FROM invites i
 JOIN orgs o ON o.id = i.org_id
 WHERE i.token = $1
@@ -58,6 +65,7 @@ type GetInviteByTokenRow struct {
 	ID         pgtype.UUID        `json:"id"`
 	OrgID      pgtype.UUID        `json:"org_id"`
 	Token      string             `json:"token"`
+	Role       string             `json:"role"`
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
@@ -71,6 +79,7 @@ func (q *Queries) GetInviteByToken(ctx context.Context, token string) (GetInvite
 		&i.ID,
 		&i.OrgID,
 		&i.Token,
+		&i.Role,
 		&i.ExpiresAt,
 		&i.AcceptedAt,
 		&i.CreatedAt,

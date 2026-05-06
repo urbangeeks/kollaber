@@ -12,6 +12,7 @@ import (
 
 const UserIDKey = "userID"
 const OrgIDKey = "orgID"
+const RoleKey = "role"
 
 func Auth() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -49,8 +50,11 @@ func Auth() echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid org id"})
 			}
 
+			role, _ := claims["role"].(string)
+
 			c.Set(UserIDKey, userID)
 			c.Set(OrgIDKey, orgID)
+			c.Set(RoleKey, role)
 			return next(c)
 		}
 	}

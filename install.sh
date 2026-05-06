@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-REPO="urbangeeks/kollaber_devops"
+REPO="urbangeeks/kollaber"
 BINARY="kollaber"
 INSTALL_DIR="/usr/local/bin"
 

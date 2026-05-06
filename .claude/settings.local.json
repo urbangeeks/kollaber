@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr *)",
+      "Bash(go get *)",
+      "Bash(go build *)",
+      "Bash(go mod *)",
+      "Bash(sqlc version *)",
+      "Bash(sqlc generate *)",
+      "Bash(task *)",
+      "Bash(bunx shadcn@latest add card input label badge separator textarea)",
+      "Bash(bun run *)",
+      "Bash(psql *)",
+      "Bash(python3 -c 'import bcrypt; h=b'\\\\''$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'\\\\''; print\\(bcrypt.checkpw\\(b'\\\\''password'\\\\'', h\\)\\)')",
+      "Bash(git ls-tree *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(bunx shadcn *)",
+      "Bash(xargs cat *)",
+      "Bash(git *)",
+      "Bash(chmod +x /home/jnixon/Dev/kollaber/install.sh)",
+      "Bash(bash -n /home/jnixon/Dev/kollaber/install.sh)"
+    ]
+  }
+}

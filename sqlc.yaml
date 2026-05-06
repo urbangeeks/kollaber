@@ -4,6 +4,7 @@ sql:
     schema:
       - "migrations/001_init.sql"
       - "migrations/003_event_status.sql"
+      - "migrations/004_roles.sql"
     queries: "db/queries"
     gen:
       go:
