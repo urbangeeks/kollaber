@@ -88,6 +88,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 text-sm font-medium text-white/70 md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
+            <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
           <div className="flex items-center gap-4">
             <Button asChild variant="ghost" className="hidden text-white/70 hover:text-white md:inline-flex">
