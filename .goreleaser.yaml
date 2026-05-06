@@ -3,50 +3,50 @@ version: 2
 project_name: kollaber
 
 before:
-  hooks:
-    - go mod tidy
+    hooks:
+        - go mod tidy
 
 builds:
-  - id: kollaber
-    main: ./cmd/kollaber
-    binary: kollaber
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
-    ldflags:
-      - -s -w -X main.version={{.Version}}
+    - id: kollaber
+      main: ./cmd/kollaber
+      binary: kollaber
+      env:
+          - CGO_ENABLED=0
+      goos:
+          - linux
+          - darwin
+          - windows
+      goarch:
+          - amd64
+          - arm64
+      ignore:
+          - goos: windows
+            goarch: arm64
+      ldflags:
+          - -s -w -X main.version={{.Version}}
 
 archives:
-  - id: kollaber
-    builds: [kollaber]
-    name_template: "kollaber_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-    formats: [tar.gz]
+    - id: kollaber
+      builds: [kollaber]
+      name_template: 'kollaber_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+      format_overrides:
+          - goos: windows
+            formats: [zip]
+      formats: [tar.gz]
 
 checksum:
-  name_template: "kollaber_{{ .Version }}_checksums.txt"
+    name_template: 'kollaber_{{ .Version }}_checksums.txt'
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+    sort: asc
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
+            - '^chore:'
 
 release:
-  github:
-    owner: urbangeeks
-    name: kollaber_devops
-  name_template: "v{{.Version}}"
+    github:
+        owner: urbangeeks
+        name: kollaber
+    name_template: 'v{{.Version}}'

@@ -76,6 +76,7 @@ func (h *GitHubAuthHandler) Callback(c echo.Context) error {
 		return c.Redirect(http.StatusTemporaryRedirect, base+"/login?error=user_error")
 	}
 
+	role := "owner"
 	org, orgErr := h.q.GetOrgByUserID(ctx, user.ID)
 	if orgErr != nil {
 		// new user — auto-create an org from their email
@@ -92,9 +93,16 @@ func (h *GitHubAuthHandler) Callback(c echo.Context) error {
 			UserID: user.ID,
 			Role:   "owner",
 		})
+	} else {
+		if m, err := h.q.GetOrgMember(ctx, store.GetOrgMemberParams{
+			OrgID:  org.ID,
+			UserID: user.ID,
+		}); err == nil {
+			role = m.Role
+		}
 	}
 
-	jwt, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, user.IsAdmin)
+	jwt, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, role, user.IsAdmin)
 	if err != nil {
 		return c.Redirect(http.StatusTemporaryRedirect, base+"/login?error=token_error")
 	}

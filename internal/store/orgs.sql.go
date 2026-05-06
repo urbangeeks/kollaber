@@ -91,26 +91,35 @@ func (q *Queries) GetOrgMember(ctx context.Context, arg GetOrgMemberParams) (Org
 }
 
 const listOrgsByUserID = `-- name: ListOrgsByUserID :many
-SELECT o.id, o.name, o.slug, o.created_at FROM orgs o
+SELECT o.id, o.name, o.slug, o.created_at, om.role FROM orgs o
 JOIN org_members om ON om.org_id = o.id
 WHERE om.user_id = $1
 ORDER BY o.created_at ASC
 `
 
-func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]Org, error) {
+type ListOrgsByUserIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	Slug      string             `json:"slug"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Role      string             `json:"role"`
+}
+
+func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]ListOrgsByUserIDRow, error) {
 	rows, err := q.db.Query(ctx, listOrgsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Org
+	var items []ListOrgsByUserIDRow
 	for rows.Next() {
-		var i Org
+		var i ListOrgsByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
 			&i.Slug,
 			&i.CreatedAt,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}
@@ -120,4 +129,26 @@ func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]O
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateOrg = `-- name: UpdateOrg :one
+UPDATE orgs SET name = $2, slug = $3 WHERE id = $1 RETURNING id, name, slug, created_at
+`
+
+type UpdateOrgParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+	Slug string      `json:"slug"`
+}
+
+func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) (Org, error) {
+	row := q.db.QueryRow(ctx, updateOrg, arg.ID, arg.Name, arg.Slug)
+	var i Org
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+	)
+	return i, err
 }

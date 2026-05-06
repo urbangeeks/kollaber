@@ -94,8 +94,11 @@ const orgStatSchema = z.object({
 
 export type OrgStat = z.infer<typeof orgStatSchema>
 
-export async function createInvite(): Promise<string> {
-  const data = await request("/invites", z.object({ token: z.string() }), { method: "POST" })
+export async function createInvite(role: "admin" | "member" | "viewer" = "member"): Promise<string> {
+  const data = await request("/invites", z.object({ token: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ role }),
+  })
   return (data as { token: string }).token
 }
 
@@ -114,12 +117,26 @@ export async function acceptInvite(token: string, email: string, password: strin
   return (data as { token: string }).token
 }
 
-export type OrgItem = { id: string; name: string; slug: string }
+export type OrgItem = { id: string; name: string; slug: string; role: string }
 
 export function getMyOrgs(): Promise<OrgItem[]> {
   return request("/auth/orgs", z.array(z.object({
-    id: z.string(), name: z.string(), slug: z.string(),
+    id: z.string(), name: z.string(), slug: z.string(), role: z.string(),
   }))) as Promise<OrgItem[]>
+}
+
+export async function createOrg(name: string): Promise<{ token: string; org_id: string; org_name: string }> {
+  return request("/auth/orgs", z.object({ token: z.string(), org_id: z.string(), org_name: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  }) as Promise<{ token: string; org_id: string; org_name: string }>
+}
+
+export async function renameOrg(id: string, name: string): Promise<{ id: string; name: string; slug: string }> {
+  return request(`/auth/orgs/${id}`, z.object({ id: z.string(), name: z.string(), slug: z.string() }), {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  }) as Promise<{ id: string; name: string; slug: string }>
 }
 
 export async function switchOrg(orgId: string): Promise<string> {
@@ -160,6 +177,12 @@ export function getCurrentEmail(): string {
   return (decodeToken()?.email as string) ?? ""
 }
 
+export function getCurrentRole(): "owner" | "admin" | "member" | "viewer" | null {
+  const role = decodeToken()?.role
+  if (role === "owner" || role === "admin" || role === "member" || role === "viewer") return role
+  return null
+}
+
 export function createEvent(
   environmentId: string,
   type: "deploy" | "alert" | "note",
@@ -176,6 +199,17 @@ export function createEvent(
 export async function generateCLIToken(): Promise<string> {
   const data = await request("/auth/token", z.object({ token: z.string() }), { method: "POST" })
   return (data as { token: string }).token
+}
+
+export function updateEnvironment(id: string, name: string, clusterName: string): Promise<Environment> {
+  return request(`/environments/${id}`, environmentSchema, {
+    method: "PUT",
+    body: JSON.stringify({ name, cluster_name: clusterName }),
+  }) as Promise<Environment>
+}
+
+export async function deleteEnvironment(id: string): Promise<void> {
+  await request(`/environments/${id}`, null, { method: "DELETE" })
 }
 
 export function getServices(environmentId: string): Promise<string[]> {

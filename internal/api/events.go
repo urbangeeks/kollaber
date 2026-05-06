@@ -55,6 +55,10 @@ type createEventRequest struct {
 }
 
 func (h *EventsHandler) Create(c echo.Context) error {
+	if err := requireMember(c); err != nil {
+		return err
+	}
+
 	var req createEventRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})

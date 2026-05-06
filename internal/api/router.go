@@ -36,6 +36,8 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	authProtected.GET("/orgs", auth.ListOrgs)
 	authProtected.POST("/switch", auth.SwitchOrg)
 	authProtected.POST("/token", auth.GenerateCLIToken)
+	authProtected.POST("/orgs", auth.CreateOrg)
+	authProtected.PUT("/orgs/:id", auth.RenameOrg)
 	e.GET("/invites/:token", invites.Get)
 	e.POST("/invites/:token/accept", invites.Accept)
 
@@ -44,6 +46,8 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	protected := e.Group("", middleware.Auth())
 	protected.GET("/environments", envs.List)
 	protected.POST("/environments", envs.Create)
+	protected.PUT("/environments/:id", envs.Update)
+	protected.DELETE("/environments/:id", envs.Delete)
 	protected.POST("/events", events.Create)
 	protected.GET("/events", events.List)
 	protected.POST("/events/:id/comments", comments.Create)

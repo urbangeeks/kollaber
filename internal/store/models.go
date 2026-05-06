@@ -43,6 +43,7 @@ type Invite struct {
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	Role       string             `json:"role"`
 }
 
 type Org struct {

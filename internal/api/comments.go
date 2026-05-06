@@ -38,6 +38,10 @@ type createCommentRequest struct {
 }
 
 func (h *CommentsHandler) Create(c echo.Context) error {
+	if err := requireMember(c); err != nil {
+		return err
+	}
+
 	eventID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid event id"})

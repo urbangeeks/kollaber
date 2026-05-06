@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createEnvironment, getToken } from "@/lib/api"
+import { createEnvironment, generateCLIToken, getToken } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, Copy, Check } from "lucide-react"
 
 type Step = "create-env" | "quickstart"
 
@@ -18,10 +18,15 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("create-env")
   const [name, setName] = useState("")
   const [clusterName, setClusterName] = useState("")
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; clusterName?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string
+    clusterName?: string
+  }>({})
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [envName, setEnvName] = useState("")
+  const [cliToken, setCliToken] = useState("")
+  const [copied, setCopied] = useState(false)
 
   if (!getToken()) {
     router.replace("/login")
@@ -35,73 +40,129 @@ export default function OnboardingPage() {
     const result = createEnvSchema.safeParse({ name, clusterName })
     if (!result.success) {
       const flat = result.error.flatten().fieldErrors
-      setFieldErrors({ name: flat.name?.[0], clusterName: flat.clusterName?.[0] })
+      setFieldErrors({
+        name: flat.name?.[0],
+        clusterName: flat.clusterName?.[0],
+      })
       return
     }
     setFieldErrors({})
     setLoading(true)
     try {
-      const env = await createEnvironment(result.data.name, result.data.clusterName)
+      const env = await createEnvironment(
+        result.data.name,
+        result.data.clusterName
+      )
       setEnvName(env.name)
+      const tok = await generateCLIToken()
+      setCliToken(tok)
       setStep("quickstart")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create environment")
+      setError(
+        err instanceof Error ? err.message : "Failed to create environment"
+      )
     } finally {
       setLoading(false)
     }
   }
 
+  async function handleCopy(text: string) {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (step === "quickstart") {
+    const loginCmd = `kollaber login --token ${cliToken}`
+    const deployCmd = `kollaber deploy --env ${envName} --service api --version v1.0.0`
+    const noteCmd = `kollaber note --env ${envName} "Deployed to production"`
+
     return (
-      <div className="flex min-h-screen items-center justify-center p-8">
-        <Card className="w-full max-w-lg overflow-hidden">
+      <div className="flex min-h-screen items-start justify-center overflow-y-auto p-8 py-16">
+        <Card className="w-full max-w-lg">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <CheckCircle className="text-green-500 h-5 w-5" />
+              <CheckCircle className="h-5 w-5 text-green-500" />
               <CardTitle>You&apos;re set up!</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground text-sm">
-              Your <span className="text-foreground font-medium">{envName}</span> environment is ready.
-              Install the CLI and send your first event.
+          <CardContent className="space-y-5">
+            <p className="text-sm text-muted-foreground">
+              Your{" "}
+              <span className="font-medium text-foreground">{envName}</span>{" "}
+              environment is ready. Install the CLI and send your first event.
             </p>
 
             <div className="space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide">Install CLI</p>
+              <p className="text-xs font-medium tracking-wide uppercase">
+                Install CLI
+              </p>
 
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">macOS / Linux</p>
-                <pre className="bg-muted rounded p-3 text-xs leading-relaxed overflow-x-auto">{`curl -sSfL https://raw.githubusercontent.com/urbangeeks/kollaber_devops/main/install.sh | sh`}</pre>
+                <pre className="overflow-x-auto rounded bg-muted p-3 text-xs leading-relaxed">{`curl -sSfL https://raw.githubusercontent.com/urbangeeks/kollaber/main/install.sh | sh`}</pre>
               </div>
 
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Go</p>
-                <pre className="bg-muted rounded p-3 text-xs">go install github.com/urbangeeks/kollaber/cmd/kollaber@latest</pre>
+                <pre className="rounded bg-muted p-3 text-xs">
+                  go install github.com/urbangeeks/kollaber/cmd/kollaber@latest
+                </pre>
               </div>
 
               <p className="text-xs text-muted-foreground">
                 Windows and other platforms:{" "}
-                <Link href="/download" className="underline underline-offset-2 text-foreground">
+                <Link
+                  href="/download"
+                  className="text-foreground underline underline-offset-2"
+                >
                   download page
                 </Link>
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide">Send a deploy event</p>
-              <pre className="bg-muted rounded p-3 text-xs leading-relaxed">
-{`kollaber login --email you@example.com --password yourpassword
-kollaber deploy --env ${envName} --service api --version v1.0.0`}
+              <p className="text-xs font-medium tracking-wide uppercase">
+                Authenticate
+              </p>
+              <div className="flex items-center gap-2 rounded bg-muted p-3">
+                <code className="flex-1 truncate text-xs">{loginCmd}</code>
+                <button
+                  onClick={() => handleCopy(loginCmd)}
+                  className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This token is valid for 90 days.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium tracking-wide uppercase">
+                Send a deploy event
+              </p>
+              <pre className="rounded bg-muted p-3 text-xs leading-relaxed">
+                {deployCmd}
               </pre>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide">Add a note</p>
-              <pre className="bg-muted rounded p-3 text-xs">{`kollaber note --env ${envName} "Deployed to production"`}</pre>
+              <p className="text-xs font-medium tracking-wide uppercase">
+                Add a note
+              </p>
+              <pre className="rounded bg-muted p-3 text-xs">{noteCmd}</pre>
             </div>
 
-            <Button className="w-full" onClick={() => router.push("/dashboard")}>
+            <Button
+              className="w-full"
+              onClick={() => router.push("/dashboard")}
+            >
               Go to dashboard
             </Button>
           </CardContent>
@@ -125,21 +186,30 @@ kollaber deploy --env ${envName} --service api --version v1.0.0`}
                 placeholder="prod"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
+                autoFocus
               />
-              {fieldErrors.name && <p className="text-destructive text-xs">{fieldErrors.name}</p>}
+              {fieldErrors.name && (
+                <p className="text-xs text-destructive">{fieldErrors.name}</p>
+              )}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="clusterName">Cluster name <span className="text-muted-foreground">(optional)</span></Label>
+              <Label htmlFor="clusterName">
+                Cluster name{" "}
+                <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input
                 id="clusterName"
                 placeholder="prod-cluster"
                 value={clusterName}
                 onChange={(e) => setClusterName(e.target.value)}
               />
-              {fieldErrors.clusterName && <p className="text-destructive text-xs">{fieldErrors.clusterName}</p>}
+              {fieldErrors.clusterName && (
+                <p className="text-xs text-destructive">
+                  {fieldErrors.clusterName}
+                </p>
+              )}
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating…" : "Create environment"}
             </Button>
