@@ -10,7 +10,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Stage 2: build the Go binary (with embedded frontend)
-FROM golang:1.23-alpine AS go-builder
+FROM golang:1.26-alpine AS go-builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
