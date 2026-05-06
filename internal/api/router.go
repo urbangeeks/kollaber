@@ -80,14 +80,19 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	// Serve embedded frontend — SPA fallback to index.html for unknown routes
 	staticFS, _ := fs.Sub(ui.FS, "dist")
 	fileServer := http.FileServer(http.FS(staticFS))
-	e.GET("/*", func(c echo.Context) error {
+	spaHandler := func(c echo.Context) error {
 		path := strings.TrimPrefix(c.Request().URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
 		if _, err := staticFS.Open(path); err != nil {
 			c.Request().URL.Path = "/"
 		}
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
-	})
+	}
+	e.GET("/", spaHandler)
+	e.GET("/*", spaHandler)
 
 	return e
 }
