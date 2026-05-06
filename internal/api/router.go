@@ -26,6 +26,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	admin := NewAdminHandler(q)
 	invites := NewInviteHandler(q)
 	services := NewServicesHandler(q)
+	members := NewMembersHandler(q)
 
 	e.POST("/auth/register", auth.Register)
 	e.POST("/auth/login", auth.Login)
@@ -55,6 +56,11 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)
+	protected.GET("/members", members.List)
+	protected.PATCH("/members/:userID", members.UpdateRole)
+	protected.DELETE("/members/:userID", members.Remove)
+	protected.GET("/members/invites", members.ListInvites)
+	protected.DELETE("/members/invites/:token", members.RevokeInvite)
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)

@@ -43,6 +43,7 @@ import {
   Trash2,
   Pencil,
   TriangleAlert,
+  Users,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -365,6 +366,12 @@ export default function DashboardPage() {
               >
                 <UserPlus className="mr-1.5 h-4 w-4" />
                 Invite teammate
+              </Button>
+            )}
+            {isAdminOrOwner && (
+              <Button variant="outline" size="sm" onClick={() => router.push("/settings/members")}>
+                <Users className="mr-1.5 h-4 w-4" />
+                Members
               </Button>
             )}
             <Button
