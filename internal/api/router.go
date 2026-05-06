@@ -1,20 +1,30 @@
 package api
 
 import (
+	"io/fs"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/store"
+	"github.com/urbangeeks/kollaber/ui"
 )
 
 func NewRouter(q *store.Queries) *echo.Echo {
 	e := echo.New()
 	e.Use(echomw.Logger())
 	e.Use(echomw.Recover())
+	origins := []string{"http://localhost:3000"}
+	if v := os.Getenv("CORS_ORIGINS"); v != "" {
+		origins = strings.Split(v, ",")
+	}
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000"},
+		AllowOrigins: origins,
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAuthorization},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE"},
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 	}))
 
 	auth := NewAuthHandler(q)
@@ -27,6 +37,8 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	invites := NewInviteHandler(q)
 	services := NewServicesHandler(q)
 	members := NewMembersHandler(q)
+
+	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
 	e.POST("/auth/register", auth.Register)
 	e.POST("/auth/login", auth.Login)
@@ -64,6 +76,18 @@ func NewRouter(q *store.Queries) *echo.Echo {
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)
+
+	// Serve embedded frontend — SPA fallback to index.html for unknown routes
+	staticFS, _ := fs.Sub(ui.FS, "dist")
+	fileServer := http.FileServer(http.FS(staticFS))
+	e.GET("/*", func(c echo.Context) error {
+		path := strings.TrimPrefix(c.Request().URL.Path, "/")
+		if _, err := staticFS.Open(path); err != nil {
+			c.Request().URL.Path = "/"
+		}
+		fileServer.ServeHTTP(c.Response(), c.Request())
+		return nil
+	})
 
 	return e
 }

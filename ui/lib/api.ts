@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { environmentSchema, eventSchema, commentResponseSchema } from "./schemas"
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+const API = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>

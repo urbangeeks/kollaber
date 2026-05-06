@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kollaber.fullname" . }}-api
+  labels:
+    {{- include "kollaber.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kollaber.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "kollaber.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: api
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.api.port | quote }}
+            - name: FRONTEND_URL
+              value: {{ .Values.urls.frontend | quote }}
+            - name: CORS_ORIGINS
+              value: {{ .Values.urls.frontend | quote }}
+            - name: GITHUB_REDIRECT_URL
+              value: {{ .Values.githubRedirectUrl | default (printf "%s/auth/github/callback" .Values.urls.api) | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: jwt-secret
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: db-password
+            - name: DATABASE_URL
+              {{- if .Values.externalDatabaseUrl }}
+              value: {{ .Values.externalDatabaseUrl | quote }}
+              {{- else }}
+              value: "postgres://kollaber:$(DB_PASSWORD)@{{ include "kollaber.fullname" . }}-postgres:5432/kollaber"
+              {{- end }}
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: github-client-id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: github-client-secret
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: webhook-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          {{- with .Values.api.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

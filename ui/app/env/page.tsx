@@ -1,7 +1,7 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { getEvents, createEvent, getServices, getToken, type Event, type EventFilters } from "@/lib/api"
 import { createEventSchema } from "@/lib/schemas"
@@ -36,8 +36,9 @@ const EVENT_STATUSES: { value: EventStatus; label: string }[] = [
   { value: "in_progress", label: "In Progress" },
 ]
 
-export default function EnvPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+function EnvPageInner() {
+  const searchParams = useSearchParams()
+  const id = searchParams.get("id") ?? ""
   const router = useRouter()
   const [topEvents, setTopEvents] = useState<Event[]>([])
   const [moreEvents, setMoreEvents] = useState<Event[]>([])
@@ -69,7 +70,6 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
   if (filterStatus)  activeFilters.status  = filterStatus
   if (filterService) activeFilters.service = filterService
 
-  // Reset pagination when filters change
   useEffect(() => {
     setMoreEvents([])
     setHasMore(false)
@@ -81,10 +81,10 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
         router.replace("/login")
         return
       }
+      if (!id) return
       getEvents(id, PAGE_SIZE, 0, activeFilters)
         .then((evts) => {
           setTopEvents(evts)
-          // Only update hasMore from poll when no extra pages are loaded
           setHasMore((prev) => moreEvents.length > 0 ? prev : evts.length === PAGE_SIZE)
           getServices(id).then(setKnownServices).catch(() => {})
         })
@@ -334,4 +334,8 @@ export default function EnvPage({ params }: { params: Promise<{ id: string }> })
       </Dialog>
     </div>
   )
+}
+
+export default function EnvPage() {
+  return <Suspense><EnvPageInner /></Suspense>
 }

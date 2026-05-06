@@ -172,7 +172,8 @@ func (h *InviteHandler) Join(c echo.Context) error {
 		UserID: pgtype.UUID{Bytes: userID, Valid: true},
 	})
 	if err == nil {
-		// already in org — just switch to it
+		// already in org — consume the invite and switch to it
+		_ = h.q.AcceptInvite(ctx, token)
 		existing, err := h.q.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load user"})

@@ -14,11 +14,22 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	pool, err := db.New(context.Background())
+	ctx := context.Background()
+
+	pool, err := db.New(ctx)
 	if err != nil {
 		log.Fatalf("database: %v", err)
 	}
 	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+
+	if os.Getenv("MIGRATE_ONLY") == "true" {
+		log.Println("migrations complete, exiting")
+		return
+	}
 
 	q := store.New(pool)
 

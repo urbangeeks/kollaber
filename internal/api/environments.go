@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -69,8 +70,8 @@ func (h *EnvironmentsHandler) Create(c echo.Context) error {
 
 	env, err := h.q.CreateEnvironment(context.Background(), store.CreateEnvironmentParams{
 		OrgID:       pgtype.UUID{Bytes: orgID, Valid: true},
-		Name:        req.Name,
-		ClusterName: req.ClusterName,
+		Name:        strings.ToLower(strings.TrimSpace(req.Name)),
+		ClusterName: strings.ToLower(strings.TrimSpace(req.ClusterName)),
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create environment"})
@@ -107,8 +108,8 @@ func (h *EnvironmentsHandler) Update(c echo.Context) error {
 	env, err := h.q.UpdateEnvironment(context.Background(), store.UpdateEnvironmentParams{
 		ID:          pgtype.UUID{Bytes: envID, Valid: true},
 		OrgID:       pgtype.UUID{Bytes: orgID, Valid: true},
-		Name:        req.Name,
-		ClusterName: req.ClusterName,
+		Name:        strings.ToLower(strings.TrimSpace(req.Name)),
+		ClusterName: strings.ToLower(strings.TrimSpace(req.ClusterName)),
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not update environment"})

@@ -265,7 +265,7 @@ export default function DashboardPage() {
     setInviteLink("")
     try {
       const token = await createInvite(forRole)
-      setInviteLink(`${window.location.origin}/invite/${token}`)
+      setInviteLink(`${window.location.origin}/invite?token=${token}`)
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to create invite"
@@ -281,7 +281,6 @@ export default function DashboardPage() {
     setCopied(false)
     setInviteRole("member")
     setInviteOpen(true)
-    handleGenerateInvite("member")
   }
 
   async function handleCopy() {
@@ -393,7 +392,7 @@ export default function DashboardPage() {
             <Card
               key={env.id}
               className="cursor-pointer transition-colors hover:bg-muted/50"
-              onClick={() => router.push(`/env/${env.id}`)}
+              onClick={() => router.push(`/env?id=${env.id}`)}
             >
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <Server className="h-5 w-5 text-muted-foreground" />
@@ -516,10 +515,7 @@ export default function DashboardPage() {
                 {(["admin", "member", "viewer"] as const).map((r) => (
                   <button
                     key={r}
-                    onClick={() => {
-                      setInviteRole(r)
-                      handleGenerateInvite(r)
-                    }}
+                    onClick={() => { setInviteRole(r); setInviteLink("") }}
                     className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
                       inviteRole === r
                         ? r === "admin"
@@ -550,7 +546,11 @@ export default function DashboardPage() {
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
-            ) : null}
+            ) : (
+              <Button size="sm" variant="outline" disabled={inviteLoading} onClick={() => handleGenerateInvite()}>
+                Generate link
+              </Button>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteOpen(false)}>
