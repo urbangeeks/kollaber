@@ -23,6 +23,10 @@ coverage.txt
 ui/.next/
 ui/out/
 ui/node_modules/
+
+# ── Embedded frontend build output ───────────────────────────────────────────
+ui/dist/*
+!ui/dist/placeholder.txt
 ui/.env
 ui/.env.*
 !ui/.env.example

@@ -1,7 +1,7 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getInvite, acceptInvite, joinInvite, setToken, getToken } from "@/lib/api"
 import { loginSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type InviteInfo = { org_name: string; expires_at: string }
 
-export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params)
+function InvitePageInner() {
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token") ?? ""
   const router = useRouter()
   const [invite, setInvite] = useState<InviteInfo | null>(null)
   const [loadError, setLoadError] = useState("")
@@ -24,6 +25,10 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const isLoggedIn = Boolean(getToken())
 
   useEffect(() => {
+    if (!token) {
+      setLoadError("No invite token provided")
+      return
+    }
     getInvite(token)
       .then(setInvite)
       .catch((err) => setLoadError(err instanceof Error ? err.message : "Invalid invite"))
@@ -143,4 +148,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       </Card>
     </div>
   )
+}
+
+export default function InvitePage() {
+  return <Suspense><InvitePageInner /></Suspense>
 }

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: kollaber
+description: Collaboration layer for infrastructure teams
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - devops
+  - deployments
+  - timeline
+  - observability
+home: https://github.com/urbangeeks/kollaber
+sources:
+  - https://github.com/urbangeeks/kollaber

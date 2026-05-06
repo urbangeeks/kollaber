@@ -1,0 +1,27 @@
+# Stage 1: build the Next.js static export
+FROM node:20-alpine AS ui-builder
+WORKDIR /ui
+COPY ui/package.json ui/bun.lock* ./
+RUN npm install --frozen-lockfile 2>/dev/null || npm install
+COPY ui/ .
+# Empty API URL = relative paths — served from same origin as the Go binary
+ENV NEXT_PUBLIC_API_URL=""
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# Stage 2: build the Go binary (with embedded frontend)
+FROM golang:1.23-alpine AS go-builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# Copy the built frontend into the embed target directory
+COPY --from=ui-builder /ui/dist ./ui/dist
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app ./cmd/app
+
+# Stage 3: minimal final image
+FROM scratch
+COPY --from=go-builder /app /app
+COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+EXPOSE 8080
+ENTRYPOINT ["/app"]

@@ -1,5 +1,361 @@
-import { redirect } from "next/navigation"
+"use client"
 
-export default function Home() {
-  redirect("/dashboard")
+import Link from "next/link"
+import {
+  ArrowRight,
+  Activity,
+  ShieldCheck,
+  Zap,
+  Users,
+  Layers,
+  Webhook,
+  CheckCircle2,
+} from "lucide-react"
+import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { BorderBeam } from "@/components/ui/border-beam"
+import { NumberTicker } from "@/components/ui/number-ticker"
+import { Button } from "@/components/ui/button"
+
+const FEATURES = [
+  {
+    icon: Activity,
+    title: "Deploy Tracking",
+    desc: "Every CI/CD run is automatically recorded in your shared team timeline.",
+  },
+  {
+    icon: Zap,
+    title: "Alert Correlation",
+    desc: "Overlay CloudWatch, Datadog, or PagerDuty alerts directly onto your releases.",
+  },
+  {
+    icon: Users,
+    title: "Team Notes",
+    desc: "Context matters. Drop manual markers for maintenance or configuration changes.",
+  },
+  {
+    icon: Webhook,
+    title: "CLI + Webhooks",
+    desc: "First-class CLI tool and flexible webhooks for any tool in your stack.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Role-Based Access",
+    desc: "Granular permissions for viewing, editing, and managing your infrastructure map.",
+  },
+  {
+    icon: Layers,
+    title: "Single Binary Deploy",
+    desc: "No complex infrastructure. A single Go binary is all you need to get running.",
+  },
+]
+
+const STATS = [
+  { label: "binary to deploy", value: 1, prefix: "" },
+  { label: "min to integrate", value: 5, prefix: "< " },
+  { label: "role tiers available", value: 4, prefix: "" },
+]
+
+const STEPS = [
+  {
+    step: "01",
+    title: "Deploy Kollaber",
+    body: "Spin up the single binary or use our managed cloud instance in seconds.",
+  },
+  {
+    step: "02",
+    title: "Push your first event",
+    body: "Use the CLI or CI/CD plugins to send your first deploy markers.",
+  },
+  {
+    step: "03",
+    title: "Invite your team",
+    body: "Collaborate on a single source of truth for your entire infra lifecycle.",
+  },
+]
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#60a5fa]/30 font-sans antialiased">
+
+      {/* 1. STICKY NAV */}
+      <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">
+        <div className="container mx-auto flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
+            <span className="text-xl font-bold tracking-tight">Kollaber</span>
+          </div>
+          <div className="hidden items-center gap-8 text-sm font-medium text-white/70 md:flex">
+            <a href="#features" className="transition-colors hover:text-white">Features</a>
+            <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost" className="hidden text-white/70 hover:text-white md:inline-flex">
+              <Link href="/login">Sign in</Link>
+            </Button>
+            <Button asChild className="rounded-full bg-white text-black hover:bg-neutral-200">
+              <Link href="/register">Get started free</Link>
+            </Button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="container mx-auto px-6">
+
+        {/* 2. HERO */}
+        <section className="relative flex flex-col items-center pt-24 pb-20 text-center md:pt-32">
+          <BlurFade delay={0.1}>
+            <div className="mb-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+              </span>
+              Now in early access
+            </div>
+          </BlurFade>
+
+          <BlurFade delay={0.2}>
+            <h1 className="max-w-4xl text-5xl font-bold tracking-tight md:text-7xl">
+              The shared timeline for{" "}
+              <AnimatedGradientText colorFrom="#60a5fa" colorTo="#a78bfa" speed={0.6}>
+                infrastructure
+              </AnimatedGradientText>{" "}
+              teams
+            </h1>
+          </BlurFade>
+
+          <BlurFade delay={0.3}>
+            <p className="mt-8 max-w-2xl text-lg leading-relaxed text-white/50 md:text-xl">
+              Stop correlating incidents in Slack. Capture deploys, alerts, and
+              manual notes in one collaborative view designed for modern DevOps teams.
+            </p>
+          </BlurFade>
+
+          <BlurFade delay={0.4} className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
+            <Button asChild size="lg" className="group rounded-full bg-white px-8 text-black hover:bg-neutral-200">
+              <Link href="/register">
+                Start for free
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+            >
+              <a href="#how-it-works">See how it works</a>
+            </Button>
+          </BlurFade>
+
+          {/* Terminal window */}
+          <BlurFade delay={0.6} className="mt-20 w-full max-w-3xl overflow-hidden rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
+            <div className="relative">
+              <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={8} />
+              <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                  <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                  <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+                </div>
+                <div className="mx-auto font-mono text-[11px] text-white/30">bash — kollaber</div>
+              </div>
+              <div className="p-6 text-left font-mono text-sm leading-relaxed">
+                <div>
+                  <span className="text-white/40">$</span>{" "}
+                  <span className="text-green-400">kollaber deploy --env production --service api</span>
+                </div>
+                <div className="text-white/40">Analyzing infrastructure state...</div>
+                <div className="text-blue-400">→ Detected release v2.4.1 (hash: 8f2a1b)</div>
+                <div className="text-white">✓ Snapshot captured</div>
+                <div className="text-purple-400">✓ Timeline updated for team #platform-ops</div>
+                <div className="mt-2 text-white/40">
+                  View at:{" "}
+                  <span className="text-white/60">https://kollaber.sh/t/8f2a1b</span>
+                </div>
+              </div>
+            </div>
+          </BlurFade>
+        </section>
+
+        {/* 3. SOCIAL PROOF BAR */}
+        {/* <section className="py-20 text-center">
+          <BlurFade inView>
+            <p className="text-sm font-medium uppercase tracking-widest text-white/30">
+              Trusted by teams at
+            </p>
+            <div className="mt-10 flex flex-wrap justify-center gap-8 opacity-40 grayscale md:gap-16">
+              {["HYPERCORE", "DATASTRIDE", "CLOUDARC", "VERTEXT", "SYNTHETIC"].map((name) => (
+                <span key={name} className="text-xl font-bold tracking-tighter">{name}</span>
+              ))}
+            </div>
+          </BlurFade>
+          <div className="mt-20 h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </section> */}
+
+        {/* 4. STATS ROW */}
+        <section className="py-20">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+            {STATS.map((stat, i) => (
+              <BlurFade key={stat.label} delay={i * 0.1} inView className="text-center">
+                <div className="text-5xl font-bold tracking-tighter md:text-7xl">
+                  {stat.prefix}
+                  <NumberTicker value={stat.value} className="text-white" />
+                </div>
+                <p className="mt-2 text-sm font-medium uppercase leading-loose tracking-widest text-white/40">
+                  {stat.label}
+                </p>
+              </BlurFade>
+            ))}
+          </div>
+        </section>
+
+        {/* 5. FEATURES GRID */}
+        <section id="features" className="py-24">
+          <BlurFade inView className="mb-16 text-center">
+            <h2 className="text-3xl font-bold md:text-4xl">
+              Everything you need to{" "}
+              <span className="text-[#60a5fa]">debug faster</span>
+            </h2>
+          </BlurFade>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature, i) => (
+              <BlurFade
+                key={feature.title}
+                delay={i * 0.07}
+                inView
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8"
+              >
+                <BorderBeam
+                  delay={i * 2}
+                  colorFrom="#60a5fa"
+                  colorTo="#a78bfa"
+                  duration={10}
+                  size={40}
+                />
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#60a5fa]/10 text-[#60a5fa]">
+                  <feature.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mb-2 font-bold">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-white/50">{feature.desc}</p>
+              </BlurFade>
+            ))}
+          </div>
+        </section>
+
+        {/* 6. HOW IT WORKS */}
+        <section id="how-it-works" className="py-24">
+          <BlurFade inView className="mb-16 text-center">
+            <h2 className="text-3xl font-bold md:text-4xl">Up and running in minutes</h2>
+          </BlurFade>
+          <div className="grid grid-cols-1 gap-16 lg:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <BlurFade key={s.step} delay={i * 0.15} inView>
+                <div className="text-6xl font-bold tracking-tighter text-white/5">{s.step}</div>
+                <h3 className="mt-4 text-xl font-bold">{s.title}</h3>
+                <p className="mt-4 leading-relaxed text-white/50">{s.body}</p>
+              </BlurFade>
+            ))}
+          </div>
+        </section>
+
+        {/* 7. CODE BLOCK SECTION */}
+        <section className="grid items-center gap-16 py-24 lg:grid-cols-2">
+          <BlurFade inView>
+            <h2 className="text-3xl font-bold md:text-5xl">
+              Integrate in <br />one command.
+            </h2>
+            <p className="mt-6 text-lg leading-relaxed text-white/50">
+              Kollaber was built for developers. Our API and CLI are designed to
+              fit into your existing workflows without adding friction.
+            </p>
+            <div className="mt-8 flex flex-col gap-4">
+              {[
+                "Zero-config ingestion",
+                "Supports GH Actions, GitLab, and Jenkins",
+                "Secure-by-default architecture",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-3 text-white/70">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </BlurFade>
+
+          <BlurFade delay={0.2} inView className="rounded-xl border border-white/10 bg-[#0d0d0d] p-1 shadow-2xl">
+            <div className="rounded-lg bg-white/5 p-6 font-mono text-sm leading-relaxed">
+              <div className="mb-4 text-white/30">{"// Fetch environment timeline"}</div>
+              <div className="text-white">
+                <span className="text-[#a78bfa]">kollaber</span>{" "}
+                timeline
+                <span className="text-blue-400"> --env</span>{" "}
+                production
+                <span className="text-blue-400"> --limit</span>{" "}
+                3
+              </div>
+              <div className="mt-6 border-t border-white/10 pt-4 text-white/40">
+                <div className="flex justify-between">
+                  <span className="text-green-500">DEPLOY</span>
+                  <span>14:20:01</span>
+                </div>
+                <div className="mb-4 text-white">v2.4.0 published by @alice</div>
+                <div className="flex justify-between">
+                  <span className="text-red-400">ALERT</span>
+                  <span>14:25:12</span>
+                </div>
+                <div className="mb-4 text-white">HTTP 500 spike in us-east-1</div>
+                <div className="flex justify-between">
+                  <span className="text-blue-400">NOTE</span>
+                  <span>14:26:05</span>
+                </div>
+                <div className="text-white">@bob: Investigating gateway timeouts</div>
+              </div>
+            </div>
+          </BlurFade>
+        </section>
+
+        {/* 8. CTA CARD */}
+        <section className="py-24">
+          <BlurFade inView className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-8 py-20 text-center md:px-20">
+            <BorderBeam duration={12} size={400} colorFrom="#60a5fa" colorTo="#a78bfa" />
+            <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
+              Stop flying blind on your infrastructure
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/50">
+              Join DevOps teams using Kollaber to bring clarity to their production environments.
+            </p>
+            <div className="mt-10">
+              <Button asChild size="lg" className="group rounded-full bg-white px-10 text-black hover:bg-neutral-200">
+                <Link href="/register">
+                  Create free account
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </Button>
+            </div>
+          </BlurFade>
+        </section>
+      </main>
+
+      {/* 9. FOOTER */}
+      <footer className="mt-20 border-t border-white/10 py-12">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-6 md:flex-row">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded-sm bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
+            <span className="font-bold text-white/40">Kollaber</span>
+            <span className="text-xs text-white/20">© 2025 Kollaber Inc.</span>
+          </div>
+          <div className="flex items-center gap-8 text-sm font-medium text-white/30">
+            {["Status", "Terms", "Privacy", "Twitter"].map((label) => (
+              <a key={label} href="#" className="transition-colors hover:text-white">{label}</a>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 text-sm font-medium text-white/30">
+            <Link href="/login" className="transition-colors hover:text-white">Sign in</Link>
+            <Link href="/register" className="transition-colors hover:text-white">Sign up</Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
 }

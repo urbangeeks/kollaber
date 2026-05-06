@@ -1,0 +1,88 @@
+## Kollaber Helm Chart Values
+## Ref: https://github.com/urbangeeks/kollaber
+
+# -- Number of API replicas
+replicaCount: 1
+
+image:
+  api:
+    repository: ghcr.io/urbangeeks/kollaber-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  ui:
+    repository: ghcr.io/urbangeeks/kollaber-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+api:
+  port: 8080
+  resources: {}
+  # resources:
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   limits:
+  #     cpu: 500m
+  #     memory: 256Mi
+
+ui:
+  port: 3000
+  resources: {}
+
+# -- External-facing URLs
+urls:
+  # Public URL of the API (accessed by users' browsers)
+  api: http://localhost:8080
+  # Public URL of the frontend
+  frontend: http://localhost:3000
+
+# -- Secret values — provide via --set or an external secret manager
+secret:
+  # JWT signing secret — required, generate with: openssl rand -hex 32
+  jwtSecret: ""
+  # Postgres password
+  dbPassword: kollaber
+  # GitHub OAuth credentials (optional)
+  githubClientId: ""
+  githubClientSecret: ""
+  # Webhook HMAC secret (optional)
+  webhookSecret: ""
+
+# -- External PostgreSQL connection string
+# If set, the built-in postgres is not needed.
+# Example: postgres://user:pass@my-rds-host:5432/kollaber
+externalDatabaseUrl: ""
+
+# -- GitHub OAuth redirect URL (optional)
+githubRedirectUrl: ""
+
+service:
+  api:
+    type: ClusterIP
+    port: 80
+  ui:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # annotations:
+  #   kubernetes.io/ingress.class: nginx
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  #
+  # Single host routing both API (/api/*) and UI (/*):
+  host: kollaber.example.com
+  tls: []
+  # tls:
+  #   - secretName: kollaber-tls
+  #     hosts:
+  #       - kollaber.example.com
+
+# -- Migration job runs before every install/upgrade
+migrate:
+  enabled: true

@@ -19,14 +19,21 @@ tasks:
     desc: Run frontend dev server
     dir: ui
     cmds:
-      - bun run dev
+      - npm run dev
 
   start:
-    desc: Start backend and frontend in parallel
+    desc: Start backend and frontend dev servers in parallel
     deps: [dev, ui:dev]
 
+  build:ui:
+    desc: Build frontend static export into ui/dist
+    dir: ui
+    cmds:
+      - npm run build
+
   build:
-    desc: Compile server binary
+    desc: Compile single-binary server (embeds frontend)
+    deps: [build:ui]
     cmds:
       - cmd: go build -o ./tmp/server.exe ./cmd/app
         platforms: [windows]
@@ -47,7 +54,7 @@ tasks:
       - go install ./cmd/kollaber
 
   run:
-    desc: Build and run server without hot reload
+    desc: Build full binary (UI + server) and run it
     deps: [build]
     cmds:
       - cmd: ./tmp/server.exe
@@ -58,7 +65,7 @@ tasks:
   db:up:
     desc: Start PostgreSQL container
     cmds:
-      - podman run -d
+      - docker run -d
           --name kollaber-db
           --replace
           -e POSTGRES_DB=kollaber
@@ -66,36 +73,34 @@ tasks:
           -e POSTGRES_PASSWORD=kollaber
           -p 5432:5432
           -v kollaber-pgdata:/var/lib/postgresql/data
-          -v ./migrations:/docker-entrypoint-initdb.d:ro,z
           postgres:16-alpine
 
   db:down:
     desc: Stop and remove PostgreSQL container
     cmds:
-      - podman stop kollaber-db || true
-      - podman rm kollaber-db || true
+      - docker stop kollaber-db || true
+      - docker rm kollaber-db || true
 
   db:reset:
-    desc: Wipe volume and restart PostgreSQL (fresh schema + seed)
+    desc: Wipe volume and restart PostgreSQL
     cmds:
       - task: db:down
-      - podman volume rm kollaber-pgdata || true
+      - docker volume rm kollaber-pgdata || true
       - task: db:up
 
   db:logs:
     desc: Tail PostgreSQL logs
     cmds:
-      - podman logs -f kollaber-db
+      - docker logs -f kollaber-db
 
   migrate:
-    desc: Run database migrations
+    desc: Run migrations via the app binary (MIGRATE_ONLY mode)
+    deps: [build]
     cmds:
-      - for f in migrations/*.sql; do psql $DATABASE_URL -f $f; done
-
-  seed:
-    desc: Run seed data only
-    cmds:
-      - psql $DATABASE_URL -f migrations/002_seed.sql
+      - cmd: MIGRATE_ONLY=true ./tmp/server.exe
+        platforms: [windows]
+      - cmd: MIGRATE_ONLY=true ./tmp/server
+        platforms: [linux, darwin]
 
   generate:
     desc: Run sqlc code generation
