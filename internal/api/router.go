@@ -35,6 +35,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 
 	auth := NewAuthHandler(q)
 	gh := NewGitHubAuthHandler(q)
+	otp := NewOTPHandler(q)
 	envs := NewEnvironmentsHandler(q)
 	events := NewEventsHandler(q)
 	comments := NewCommentsHandler(q)
@@ -48,6 +49,8 @@ func NewRouter(q *store.Queries) *echo.Echo {
 
 	e.POST("/auth/register", auth.Register)
 	e.POST("/auth/login", auth.Login)
+	e.POST("/auth/otp/send", otp.Send)
+	e.POST("/auth/otp/verify", otp.Verify)
 	e.GET("/auth/github", gh.Redirect)
 	e.GET("/auth/github/callback", gh.Callback)
 

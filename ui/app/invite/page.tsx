@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getInvite, acceptInvite, joinInvite, setToken, getToken } from "@/lib/api"
-import { loginSchema } from "@/lib/schemas"
+import { getInvite, acceptInvite, joinInvite, sendOTP, setToken, getToken } from "@/lib/api"
+import { otpEmailSchema, otpCodeSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,31 +13,30 @@ type InviteInfo = { org_name: string; expires_at: string }
 
 function InvitePageInner() {
   const searchParams = useSearchParams()
-  const token = searchParams.get("token") ?? ""
+  const inviteToken = searchParams.get("token") ?? ""
   const router = useRouter()
   const [invite, setInvite] = useState<InviteInfo | null>(null)
   const [loadError, setLoadError] = useState("")
+  const [step, setStep] = useState<"email" | "code">("email")
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const [code, setCode] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [codeError, setCodeError] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const isLoggedIn = Boolean(getToken())
 
   useEffect(() => {
-    if (!token) {
-      setLoadError("No invite token provided")
-      return
-    }
-    getInvite(token)
+    if (!inviteToken) { setLoadError("No invite token provided"); return }
+    getInvite(inviteToken)
       .then(setInvite)
       .catch((err) => setLoadError(err instanceof Error ? err.message : "Invalid invite"))
-  }, [token])
+  }, [inviteToken])
 
   async function handleJoin() {
     setLoading(true)
     try {
-      const jwt = await joinInvite(token)
+      const jwt = await joinInvite(inviteToken)
       setToken(jwt)
       router.push("/dashboard")
     } catch (err) {
@@ -47,21 +46,38 @@ function InvitePageInner() {
     }
   }
 
-  async function handleRegisterAndJoin(e: React.FormEvent) {
+  async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-
-    const result = loginSchema.safeParse({ email, password })
+    const result = otpEmailSchema.safeParse({ email })
     if (!result.success) {
-      const flat = result.error.flatten().fieldErrors
-      setFieldErrors({ email: flat.email?.[0], password: flat.password?.[0] })
+      setEmailError(result.error.flatten().fieldErrors.email?.[0] ?? "")
       return
     }
-    setFieldErrors({})
-
+    setEmailError("")
     setLoading(true)
     try {
-      const jwt = await acceptInvite(token, result.data.email, result.data.password)
+      await sendOTP(result.data.email)
+      setStep("code")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send code")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAccept(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    const result = otpCodeSchema.safeParse({ code })
+    if (!result.success) {
+      setCodeError(result.error.flatten().fieldErrors.code?.[0] ?? "")
+      return
+    }
+    setCodeError("")
+    setLoading(true)
+    try {
+      const jwt = await acceptInvite(inviteToken, email, result.data.code)
       setToken(jwt)
       router.push("/dashboard")
     } catch (err) {
@@ -100,47 +116,74 @@ function InvitePageInner() {
           {isLoggedIn ? (
             <>
               <p className="text-muted-foreground text-sm">
-                You&apos;re signed in. Click below to join <span className="text-foreground font-medium">{invite.org_name}</span> and switch to it.
+                You&apos;re signed in. Click below to join{" "}
+                <span className="text-foreground font-medium">{invite.org_name}</span> and switch to it.
               </p>
               {error && <p className="text-destructive text-sm">{error}</p>}
               <Button className="w-full" onClick={handleJoin} disabled={loading}>
                 {loading ? "Joining…" : `Join ${invite.org_name}`}
               </Button>
             </>
-          ) : (
+          ) : step === "email" ? (
             <>
               <p className="text-muted-foreground text-sm">
-                Create an account to join <span className="text-foreground font-medium">{invite.org_name}</span>.
+                Create an account to join{" "}
+                <span className="text-foreground font-medium">{invite.org_name}</span>.
               </p>
-              <form onSubmit={handleRegisterAndJoin} className="space-y-4">
+              <form onSubmit={handleSendCode} className="space-y-4">
                 <div className="space-y-1">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     autoComplete="email"
+                    autoFocus
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
-                  {fieldErrors.email && <p className="text-destructive text-xs">{fieldErrors.email}</p>}
+                  {emailError && <p className="text-destructive text-xs">{emailError}</p>}
                 </div>
+                {error && <p className="text-destructive text-sm">{error}</p>}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Sending…" : "Send code"}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-sm">
+                We sent a 6-digit code to{" "}
+                <span className="text-foreground font-medium">{email}</span>.
+              </p>
+              <form onSubmit={handleAccept} className="space-y-4">
                 <div className="space-y-1">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="code">Code</Label>
                   <Input
-                    id="password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    maxLength={6}
+                    placeholder="123456"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                     required
                   />
-                  {fieldErrors.password && <p className="text-destructive text-xs">{fieldErrors.password}</p>}
+                  {codeError && <p className="text-destructive text-xs">{codeError}</p>}
                 </div>
                 {error && <p className="text-destructive text-sm">{error}</p>}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Joining…" : `Join ${invite.org_name}`}
                 </Button>
+                <button
+                  type="button"
+                  className="text-muted-foreground w-full text-center text-sm hover:text-foreground"
+                  onClick={() => { setStep("email"); setCode(""); setError("") }}
+                >
+                  Use a different email
+                </button>
               </form>
             </>
           )}

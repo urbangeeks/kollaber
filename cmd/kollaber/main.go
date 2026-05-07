@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -131,10 +133,16 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate and save a token",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		apiFlag, _ := cmd.Flags().GetString("api")
 		token, _ := cmd.Flags().GetString("token")
+
+		// Save a pre-generated CLI token (GitHub OAuth users or dashboard tokens).
 		if token != "" {
 			cfg := loadConfig()
 			cfg.Token = token
+			if apiFlag != "" {
+				cfg.APIURL = apiFlag
+			}
 			if err := saveConfig(cfg); err != nil {
 				return err
 			}
@@ -143,17 +151,45 @@ var loginCmd = &cobra.Command{
 		}
 
 		email, _ := cmd.Flags().GetString("email")
-		password, _ := cmd.Flags().GetString("password")
-
-		if email == "" || password == "" {
-			return fmt.Errorf("provide --token (from the web UI) or both --email and --password")
+		if email == "" {
+			return fmt.Errorf("provide --token (from the web UI) or --email to sign in with a code")
 		}
 
-		res, err := do("POST", "/auth/login", map[string]string{"email": email, "password": password})
+		// Persist API URL before making requests so do() picks it up.
+		if apiFlag != "" {
+			cfg := loadConfig()
+			cfg.APIURL = apiFlag
+			_ = saveConfig(cfg)
+		}
+
+		// Send OTP.
+		res, err := do("POST", "/auth/otp/send", map[string]string{"email": email})
 		if err != nil {
 			return err
 		}
-		var tok struct{ Token string `json:"token"` }
+		res.Body.Close()
+		if res.StatusCode >= 400 {
+			return fmt.Errorf("failed to send code (HTTP %d)", res.StatusCode)
+		}
+
+		fmt.Printf("Code sent to %s. Check your inbox.\n", email)
+		fmt.Print("Enter code: ")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		code := strings.TrimSpace(scanner.Text())
+		if len(code) == 0 {
+			return fmt.Errorf("no code entered")
+		}
+
+		// Verify OTP.
+		res, err = do("POST", "/auth/otp/verify", map[string]string{"email": email, "code": code})
+		if err != nil {
+			return err
+		}
+		var tok struct {
+			Token   string `json:"token"`
+			NewUser bool   `json:"new_user"`
+		}
 		if err := decodeOK(res, &tok); err != nil {
 			return err
 		}
@@ -308,9 +344,9 @@ var deployCmd = &cobra.Command{
 }
 
 func init() {
+	loginCmd.Flags().String("api", "", "API base URL (e.g. https://kollaber.io) — saved to config")
 	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
-	loginCmd.Flags().String("email", "", "Email address")
-	loginCmd.Flags().String("password", "", "Password")
+	loginCmd.Flags().String("email", "", "Email address (sends a one-time code)")
 
 	timelineCmd.Flags().String("env", "", "Environment name or ID")
 	timelineCmd.Flags().Int("limit", 20, "Max events to show")
