@@ -119,9 +119,12 @@ func findEnv(name string) (environment, error) {
 
 // --- commands ---
 
+var version = "dev" // overridden at build time via -ldflags "-X main.version=..."
+
 var rootCmd = &cobra.Command{
-	Use:   "kollaber",
-	Short: "Kollaber CLI — infrastructure event timeline",
+	Use:     "kollaber",
+	Short:   "Kollaber CLI — infrastructure event timeline",
+	Version: version,
 }
 
 var loginCmd = &cobra.Command{
