@@ -13,6 +13,27 @@ import { CheckCircle, Copy, Check } from "lucide-react"
 
 type Step = "create-env" | "quickstart"
 
+function CopyBlock({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <div className="flex items-center gap-2 rounded bg-muted p-3">
+      <code className="flex-1 overflow-x-auto whitespace-pre text-xs leading-relaxed">{text}</code>
+      <button
+        onClick={copy}
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        title="Copy"
+      >
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  )
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>("create-env")
@@ -26,7 +47,6 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [envName, setEnvName] = useState("")
   const [cliToken, setCliToken] = useState("")
-  const [copied, setCopied] = useState(false)
 
   if (!getToken()) {
     router.replace("/login")
@@ -66,12 +86,6 @@ export default function OnboardingPage() {
     }
   }
 
-  async function handleCopy(text: string) {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   if (step === "quickstart") {
     const loginCmd = `kollaber login --token ${cliToken}`
     const deployCmd = `kollaber deploy --env ${envName} --service api --version v1.0.0`
@@ -97,66 +111,36 @@ export default function OnboardingPage() {
               <p className="text-xs font-medium tracking-wide uppercase">
                 Install CLI
               </p>
-
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">macOS / Linux</p>
-                <pre className="overflow-x-auto rounded bg-muted p-3 text-xs leading-relaxed">{`curl -sSfL https://raw.githubusercontent.com/urbangeeks/kollaber/main/install.sh | sh`}</pre>
+                <CopyBlock text="curl -sSfL https://raw.githubusercontent.com/urbangeeks/kollaber/master/install.sh | sh" />
               </div>
-
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Go</p>
-                <pre className="rounded bg-muted p-3 text-xs">
-                  go install github.com/urbangeeks/kollaber/cmd/kollaber@latest
-                </pre>
+                <CopyBlock text="go install github.com/urbangeeks/kollaber/cmd/kollaber@latest" />
               </div>
-
               <p className="text-xs text-muted-foreground">
                 Windows and other platforms:{" "}
-                <Link
-                  href="/download"
-                  className="text-foreground underline underline-offset-2"
-                >
+                <Link href="/download" className="text-foreground underline underline-offset-2">
                   download page
                 </Link>
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium tracking-wide uppercase">
-                Authenticate
-              </p>
-              <div className="flex items-center gap-2 rounded bg-muted p-3">
-                <code className="flex-1 truncate text-xs">{loginCmd}</code>
-                <button
-                  onClick={() => handleCopy(loginCmd)}
-                  className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                This token is valid for 90 days.
-              </p>
+              <p className="text-xs font-medium tracking-wide uppercase">Authenticate</p>
+              <CopyBlock text={loginCmd} />
+              <p className="text-xs text-muted-foreground">This token is valid for 90 days.</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium tracking-wide uppercase">
-                Send a deploy event
-              </p>
-              <pre className="rounded bg-muted p-3 text-xs leading-relaxed">
-                {deployCmd}
-              </pre>
+              <p className="text-xs font-medium tracking-wide uppercase">Send a deploy event</p>
+              <CopyBlock text={deployCmd} />
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium tracking-wide uppercase">
-                Add a note
-              </p>
-              <pre className="rounded bg-muted p-3 text-xs">{noteCmd}</pre>
+              <p className="text-xs font-medium tracking-wide uppercase">Add a note</p>
+              <CopyBlock text={noteCmd} />
             </div>
 
             <Button
