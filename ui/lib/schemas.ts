@@ -7,6 +7,14 @@ export const loginSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 })
 
+export const otpEmailSchema = z.object({
+  email: z.email("Enter a valid email"),
+})
+
+export const otpCodeSchema = z.object({
+  code: z.string().length(6, "Enter the 6-digit code"),
+})
+
 export const registerSchema = z.object({
   orgName: z.string().min(2, "Organization name must be at least 2 characters"),
   email: z.email("Enter a valid email"),
@@ -15,6 +23,11 @@ export const registerSchema = z.object({
 }).refine((d) => d.password === d.confirm, {
   message: "Passwords do not match",
   path: ["confirm"],
+})
+
+export const otpRegisterSchema = z.object({
+  orgName: z.string().min(2, "Organization name must be at least 2 characters"),
+  email: z.email("Enter a valid email"),
 })
 
 export const createEnvSchema = z.object({

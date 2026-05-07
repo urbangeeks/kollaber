@@ -110,10 +110,28 @@ export async function getInvite(token: string): Promise<{ org_name: string; expi
   ) as Promise<{ org_name: string; expires_at: string }>
 }
 
-export async function acceptInvite(token: string, email: string, password: string): Promise<string> {
+export async function sendOTP(email: string): Promise<void> {
+  await request("/auth/otp/send", null, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function verifyOTP(email: string, code: string, orgName?: string): Promise<{ token: string; new_user: boolean }> {
+  return request(
+    "/auth/otp/verify",
+    z.object({ token: z.string(), new_user: z.boolean() }),
+    {
+      method: "POST",
+      body: JSON.stringify({ email, code, org_name: orgName ?? "" }),
+    },
+  ) as Promise<{ token: string; new_user: boolean }>
+}
+
+export async function acceptInvite(token: string, email: string, code: string): Promise<string> {
   const data = await request(`/invites/${token}/accept`, z.object({ token: z.string() }), {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, code }),
   })
   return (data as { token: string }).token
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/store"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type InviteHandler struct{ q *store.Queries }
@@ -82,8 +81,8 @@ func (h *InviteHandler) Get(c echo.Context) error {
 }
 
 type acceptInviteRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email string `json:"email"`
+	Code  string `json:"code"`
 }
 
 func (h *InviteHandler) Accept(c echo.Context) error {
@@ -104,20 +103,26 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
-	if req.Email == "" || len(req.Password) < 8 {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "email and password (min 8 chars) required"})
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not hash password"})
+	if req.Email == "" || req.Code == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "email and code are required"})
 	}
 
 	ctx := context.Background()
 
+	otpRow, err := h.q.GetValidOTPCode(ctx, store.GetValidOTPCodeParams{
+		Email: req.Email,
+		Code:  req.Code,
+	})
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid or expired code"})
+	}
+	if err := h.q.MarkOTPCodeUsed(ctx, otpRow.ID); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not mark code used"})
+	}
+
 	user, err := h.q.CreateUser(ctx, store.CreateUserParams{
 		Email:        req.Email,
-		PasswordHash: string(hash),
+		PasswordHash: "",
 	})
 	if err != nil {
 		return c.JSON(http.StatusConflict, echo.Map{"error": "email already registered"})
