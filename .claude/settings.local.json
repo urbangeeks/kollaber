@@ -37,7 +37,8 @@
       "Bash(fuser -k 3000/tcp)",
       "Bash(curl -sI https://raw.githubusercontent.com/urbangeeks/kollaber/main/install.sh)",
       "Bash(curl -s https://api.github.com/repos/urbangeeks/kollaber)",
-      "Bash(curl -sI https://raw.githubusercontent.com/urbangeeks/kollaber/master/install.sh)"
+      "Bash(curl -sI https://raw.githubusercontent.com/urbangeeks/kollaber/master/install.sh)",
+      "Bash(/tmp/kollaber-test --version)"
     ]
   }
 }
