@@ -77,17 +77,37 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)
 
-	// Serve embedded frontend — SPA fallback to index.html for unknown routes
+	// Serve embedded frontend — SPA fallback for Next.js App Router static export.
+	// Next.js exports pages as path.html files, not path/index.html, so we must
+	// resolve routes explicitly rather than relying on http.FileServer directory handling.
 	staticFS, _ := fs.Sub(ui.FS, "dist")
 	fileServer := http.FileServer(http.FS(staticFS))
 	spaHandler := func(c echo.Context) error {
 		path := strings.TrimPrefix(c.Request().URL.Path, "/")
-		if path == "" {
-			path = "index.html"
+
+		// 1. Exact file match (JS, CSS, images, fonts, etc.) — serve directly.
+		if path != "" {
+			if f, err := staticFS.Open(path); err == nil {
+				stat, _ := f.Stat()
+				f.Close()
+				if stat != nil && !stat.IsDir() {
+					fileServer.ServeHTTP(c.Response(), c.Request())
+					return nil
+				}
+			}
 		}
-		if _, err := staticFS.Open(path); err != nil {
-			c.Request().URL.Path = "/"
+
+		// 2. Next.js page — try path.html (e.g. auth/callback → auth/callback.html).
+		if path != "" {
+			if _, err := staticFS.Open(path + ".html"); err == nil {
+				c.Request().URL.Path = "/" + path + ".html"
+				fileServer.ServeHTTP(c.Response(), c.Request())
+				return nil
+			}
 		}
+
+		// 3. Root / SPA fallback.
+		c.Request().URL.Path = "/index.html"
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
 	}
