@@ -618,7 +618,7 @@ export default function DashboardPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Input
-                      value={`kollaber login --api ${typeof window !== "undefined" ? window.location.origin : "https://kollaber.io"} --token ${cliToken}`}
+                      value={`kollaber login --api ${process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://kollaber.io")} --token ${cliToken}`}
                       readOnly
                       className="font-mono text-xs"
                     />
@@ -627,7 +627,7 @@ export default function DashboardPage() {
                       variant="outline"
                       onClick={async () => {
                         await navigator.clipboard.writeText(
-                          `kollaber login --api ${typeof window !== "undefined" ? window.location.origin : "https://kollaber.io"} --token ${cliToken}`
+                          `kollaber login --api ${process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://kollaber.io")} --token ${cliToken}`
                         )
                         setCliTokenCopied(true)
                         toast.success("Copied")
