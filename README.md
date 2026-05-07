@@ -48,9 +48,9 @@ go install github.com/urbangeeks/kollaber/cmd/kollaber@latest
 Usage:
 
 ```bash
-# Authenticate (email/password or a token from Settings → API Tokens)
-kollaber login --email you@example.com --password yourpassword
-kollaber login --token <cli-token>
+# Authenticate — --api points the CLI at your Kollaber instance
+kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
+kollaber login --api https://kollaber.io --token <cli-token>
 
 # List environments
 kollaber envs

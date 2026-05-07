@@ -225,10 +225,10 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
             <SubSection title="kollaber login">
               <p>Authenticate and save a token to <InlineCode>~/.kollaber/config.json</InlineCode>.</p>
               <Code>{`# Email + password
-kollaber login --email you@example.com --password yourpassword
+kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
 
 # CLI token from Settings → API Tokens (for GitHub OAuth users)
-kollaber login --token <your-token>`}</Code>
+kollaber login --api https://kollaber.io --token <your-token>`}</Code>
             </SubSection>
 
             <SubSection title="kollaber envs">
