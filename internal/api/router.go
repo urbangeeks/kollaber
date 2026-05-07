@@ -78,39 +78,36 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	adminGroup.GET("/orgs", admin.ListOrgs)
 
 	// Serve embedded frontend — SPA fallback for Next.js App Router static export.
-	// Next.js exports pages as path.html files, not path/index.html, so we must
-	// resolve routes explicitly rather than relying on http.FileServer directory handling.
+	// Uses http.ServeFileFS (Go 1.22+) to serve files directly without the redirect
+	// behaviour of http.FileServer (which redirects /index.html→/ and dirs→dir/).
 	staticFS, _ := fs.Sub(ui.FS, "dist")
-	fileServer := http.FileServer(http.FS(staticFS))
+	serve := func(c echo.Context, name string) error {
+		http.ServeFileFS(c.Response(), c.Request(), staticFS, name)
+		return nil
+	}
 	spaHandler := func(c echo.Context) error {
 		path := strings.TrimPrefix(c.Request().URL.Path, "/")
 
-		// 1. Exact file match (JS, CSS, images, fonts, etc.) — serve directly.
+		// 1. Exact file (JS, CSS, images, fonts, etc.) — serve directly.
 		if path != "" {
 			if f, err := staticFS.Open(path); err == nil {
 				stat, _ := f.Stat()
 				f.Close()
 				if stat != nil && !stat.IsDir() {
-					fileServer.ServeHTTP(c.Response(), c.Request())
-					return nil
+					return serve(c, path)
 				}
 			}
 		}
 
-		// 2. Next.js page — try path.html (e.g. auth/callback → auth/callback.html).
+		// 2. Next.js exported page — try path.html (e.g. auth/callback.html).
 		if path != "" {
 			if _, err := staticFS.Open(path + ".html"); err == nil {
-				c.Request().URL.Path = "/" + path + ".html"
-				fileServer.ServeHTTP(c.Response(), c.Request())
-				return nil
+				return serve(c, path+".html")
 			}
 		}
 
-		// 3. Root / SPA fallback — use "/" not "/index.html" because http.FileServer
-		// redirects /index.html → / which would cause an infinite loop.
-		c.Request().URL.Path = "/"
-		fileServer.ServeHTTP(c.Response(), c.Request())
-		return nil
+		// 3. SPA fallback — serve root index.html for any unmatched route.
+		return serve(c, "index.html")
 	}
 	e.GET("/", spaHandler)
 	e.GET("/*", spaHandler)
