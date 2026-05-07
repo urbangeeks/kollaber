@@ -27,6 +27,12 @@ func NewRouter(q *store.Queries) *echo.Echo {
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 	}))
 
+	staticFS, _ := fs.Sub(ui.FS, "dist")
+	serve := func(c echo.Context, name string) error {
+		http.ServeFileFS(c.Response(), c.Request(), staticFS, name)
+		return nil
+	}
+
 	auth := NewAuthHandler(q)
 	gh := NewGitHubAuthHandler(q)
 	envs := NewEnvironmentsHandler(q)
@@ -54,6 +60,12 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	e.GET("/invites/:token", invites.Get)
 	e.POST("/invites/:token/accept", invites.Accept)
 
+	// Explicit frontend routes that must never hit auth middleware
+	e.GET("/auth/callback", func(c echo.Context) error {
+		http.ServeFileFS(c.Response(), c.Request(), staticFS, "auth/callback.html")
+		return nil
+	})
+
 	e.POST("/webhooks/events", webhooks.Ingest)
 
 	protected := e.Group("", middleware.Auth())
@@ -80,11 +92,6 @@ func NewRouter(q *store.Queries) *echo.Echo {
 	// Serve embedded frontend — SPA fallback for Next.js App Router static export.
 	// Uses http.ServeFileFS (Go 1.22+) to serve files directly without the redirect
 	// behaviour of http.FileServer (which redirects /index.html→/ and dirs→dir/).
-	staticFS, _ := fs.Sub(ui.FS, "dist")
-	serve := func(c echo.Context, name string) error {
-		http.ServeFileFS(c.Response(), c.Request(), staticFS, name)
-		return nil
-	}
 	spaHandler := func(c echo.Context) error {
 		path := strings.TrimPrefix(c.Request().URL.Path, "/")
 
