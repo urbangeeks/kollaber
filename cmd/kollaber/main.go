@@ -131,10 +131,14 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate and save a token",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		apiFlag, _ := cmd.Flags().GetString("api")
 		token, _ := cmd.Flags().GetString("token")
 		if token != "" {
 			cfg := loadConfig()
 			cfg.Token = token
+			if apiFlag != "" {
+				cfg.APIURL = apiFlag
+			}
 			if err := saveConfig(cfg); err != nil {
 				return err
 			}
@@ -147,6 +151,12 @@ var loginCmd = &cobra.Command{
 
 		if email == "" || password == "" {
 			return fmt.Errorf("provide --token (from the web UI) or both --email and --password")
+		}
+
+		if apiFlag != "" {
+			cfg := loadConfig()
+			cfg.APIURL = apiFlag
+			_ = saveConfig(cfg)
 		}
 
 		res, err := do("POST", "/auth/login", map[string]string{"email": email, "password": password})
@@ -308,6 +318,7 @@ var deployCmd = &cobra.Command{
 }
 
 func init() {
+	loginCmd.Flags().String("api", "", "API base URL (e.g. https://kollaber.io) — saved to config")
 	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
 	loginCmd.Flags().String("email", "", "Email address")
 	loginCmd.Flags().String("password", "", "Password")
