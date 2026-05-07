@@ -154,7 +154,7 @@ export default function DocsPage() {
                 Install the CLI (see <a href="#cli" className="text-[#60a5fa] hover:underline">CLI Reference</a>) and
                 run:
               </p>
-              <Code>{`kollaber login --email you@example.com --password yourpassword
+              <Code>{`kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
 kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <p>
                 Head back to the dashboard — your deploy event will appear in the timeline immediately.
