@@ -106,8 +106,9 @@ func NewRouter(q *store.Queries) *echo.Echo {
 			}
 		}
 
-		// 3. Root / SPA fallback.
-		c.Request().URL.Path = "/index.html"
+		// 3. Root / SPA fallback — use "/" not "/index.html" because http.FileServer
+		// redirects /index.html → / which would cause an infinite loop.
+		c.Request().URL.Path = "/"
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
 	}
