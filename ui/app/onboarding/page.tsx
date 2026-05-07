@@ -87,7 +87,8 @@ export default function OnboardingPage() {
   }
 
   if (step === "quickstart") {
-    const loginCmd = `kollaber login --token ${cliToken}`
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://kollaber.io")
+    const loginCmd = `kollaber login --api ${apiBase} --token ${cliToken}`
     const deployCmd = `kollaber deploy --env ${envName} --service api --version v1.0.0`
     const noteCmd = `kollaber note --env ${envName} "Deployed to production"`
 
