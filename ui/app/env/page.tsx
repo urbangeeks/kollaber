@@ -212,8 +212,8 @@ function EnvPageInner() {
             </Button>
           ))}
           {knownServices.length > 0 && (
-            <>
-              <span className="text-muted-foreground ml-2 text-xs font-medium">Service:</span>
+            <div className="ml-2 flex items-center gap-2">
+              <span className="text-muted-foreground text-xs font-medium">Service:</span>
               <select
                 value={filterService}
                 onChange={(e) => setFilterService(e.target.value)}
@@ -224,7 +224,7 @@ function EnvPageInner() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-            </>
+            </div>
           )}
           {(filterType || filterStatus || filterService) && (
             <Button
