@@ -7,10 +7,10 @@ import {
   Bell,
   Zap,
   Users,
-  Filter,
   Webhook,
   CheckCircle2,
   Container,
+  Check,
 } from "lucide-react"
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { BlurFade } from "@/components/ui/blur-fade"
@@ -75,6 +75,50 @@ const STEPS = [
   },
 ]
 
+const PLANS = [
+  {
+    id: "free",
+    name: "Free",
+    price: "$0",
+    per: "forever",
+    description: "For small teams getting started.",
+    cta: "Get started",
+    highlight: false,
+    features: ["Up to 5 members", "2 environments", "30-day history", "Webhook ingestion", "CLI tool", "Email notifications"],
+  },
+  {
+    id: "team",
+    name: "Team",
+    price: "$12",
+    per: "seat/mo",
+    description: "Growing teams that need more room.",
+    cta: "Start free trial",
+    highlight: false,
+    features: ["Up to 25 members", "Unlimited environments", "Unlimited history", "AI event summaries", "Slack & Teams alerts", "Email support"],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "$24",
+    per: "seat/mo",
+    description: "Engineering orgs running on Kubernetes.",
+    cta: "Start free trial",
+    highlight: true,
+    badge: "Most popular",
+    features: ["Unlimited members", "Unlimited environments", "Unlimited history", "AI summaries + postmortems", "Kubernetes watcher", "SSO · Audit logs", "Priority support"],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Custom",
+    per: "",
+    description: "Dedicated support and custom contracts.",
+    cta: "Contact us",
+    highlight: false,
+    features: ["Everything in Pro", "Volume seat pricing", "Dedicated Slack channel", "SLA guarantees", "Custom data retention", "On-prem option"],
+  },
+]
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#60a5fa]/30 font-sans antialiased">
@@ -89,7 +133,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 text-sm font-medium text-white/70 md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
-            <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+            <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
           <div className="flex items-center gap-4">
@@ -318,7 +362,64 @@ export default function LandingPage() {
           </BlurFade>
         </section>
 
-        {/* 8. CTA CARD */}
+        {/* 8. PRICING */}
+        <section id="pricing" className="py-24">
+          <BlurFade inView className="mb-16 text-center">
+            <h2 className="text-3xl font-bold md:text-4xl">Simple, transparent pricing</h2>
+            <p className="mt-4 text-white/50">Start free. Scale as your team grows. No per-environment charges.</p>
+          </BlurFade>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {PLANS.map((plan, i) => (
+              <BlurFade
+                key={plan.id}
+                delay={i * 0.07}
+                inView
+                className={`relative flex flex-col overflow-hidden rounded-2xl border p-8 ${
+                  plan.highlight
+                    ? "border-[#a78bfa]/50 bg-[#a78bfa]/5"
+                    : "border-white/10 bg-white/5"
+                }`}
+              >
+                {plan.highlight && (
+                  <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={10} />
+                )}
+                {plan.badge && (
+                  <span className="mb-4 inline-block self-start rounded-full border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#a78bfa]">
+                    {plan.badge}
+                  </span>
+                )}
+                <p className="text-sm font-semibold text-white/60">{plan.name}</p>
+                <div className="mt-2 flex items-end gap-1">
+                  <span className="text-4xl font-bold">{plan.price}</span>
+                  {plan.per && <span className="mb-1 text-sm text-white/40">{plan.per}</span>}
+                </div>
+                <p className="mt-2 text-sm text-white/40">{plan.description}</p>
+
+                <ul className="mt-6 flex-1 space-y-2">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-white/60">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-500" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={plan.id === "enterprise" ? "mailto:hello@kollaber.io" : "/register"}
+                  className={`mt-8 block rounded-full py-2 text-center text-sm font-medium transition-colors ${
+                    plan.highlight
+                      ? "bg-white text-black hover:bg-neutral-200"
+                      : "border border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
+              </BlurFade>
+            ))}
+          </div>
+        </section>
+
+        {/* 9. CTA CARD */}
         <section className="py-24">
           <BlurFade inView className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-8 py-20 text-center md:px-20">
             <BorderBeam duration={12} size={400} colorFrom="#60a5fa" colorTo="#a78bfa" />
@@ -349,7 +450,7 @@ export default function LandingPage() {
             <span className="text-xs text-white/20">© 2026 Kollaber Inc.</span>
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-white/30">
-            <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+            <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
             {["Terms", "Privacy"].map((label) => (
               <a key={label} href="#" className="transition-colors hover:text-white">{label}</a>
