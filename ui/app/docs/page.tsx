@@ -3,7 +3,9 @@ import Link from "next/link"
 const NAV = [
   { id: "getting-started", label: "Getting Started" },
   { id: "dashboard", label: "Dashboard" },
+  { id: "notifications", label: "Notifications" },
   { id: "cli", label: "CLI Reference" },
+  { id: "kubernetes", label: "Kubernetes" },
   { id: "webhooks", label: "Webhooks" },
   { id: "api", label: "API Reference" },
 ]
@@ -205,6 +207,42 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
             </SubSection>
           </Section>
 
+          {/* ── Notifications ── */}
+          <Section id="notifications" title="Notifications">
+            <p>
+              Kollaber can email you when events are recorded on your timeline. Notifications are opt-in and
+              configurable per event type, per organization.
+            </p>
+
+            <SubSection title="Configuring your preferences">
+              <p>
+                Go to <strong className="text-white">Dashboard → Notifications</strong> (or navigate directly to{" "}
+                <InlineCode>/settings/notifications</InlineCode>). Check the event types you want to be notified about:
+              </p>
+              <ul className="mt-2 space-y-1 pl-4 text-sm">
+                <li><strong className="text-white">Deployments</strong> — emailed when a <InlineCode>deploy</InlineCode> event is recorded</li>
+                <li><strong className="text-white">Alerts</strong> — emailed when an <InlineCode>alert</InlineCode> event is recorded</li>
+                <li><strong className="text-white">Notes</strong> — emailed when a <InlineCode>note</InlineCode> is added to the timeline</li>
+              </ul>
+              <p className="mt-3">
+                Preferences are saved per organization — if you belong to multiple orgs, each has its own settings.
+                Members who have not configured preferences receive no emails by default.
+              </p>
+            </SubSection>
+
+            <SubSection title="How it works">
+              <p>
+                When any event is created (via the CLI, webhook, or UI), Kollaber looks up all org members who have
+                opted in for that event type and sends them an email via Resend. The email includes the event type,
+                service name, and environment name.
+              </p>
+              <p>
+                Notification delivery is non-blocking — it does not affect the response time of the API call that
+                created the event.
+              </p>
+            </SubSection>
+          </Section>
+
           {/* ── CLI ── */}
           <Section id="cli" title="CLI Reference">
             <p>
@@ -264,6 +302,86 @@ kollaber login --api https://kollaber.io --token <your-token>`}</Code>
                 <div className="flex gap-3"><Badge>--env</Badge><span>Environment name or UUID (required)</span></div>
                 <div className="flex gap-3"><Badge>--limit</Badge><span>Number of events to fetch (default 20)</span></div>
               </div>
+            </SubSection>
+          </Section>
+
+          {/* ── Kubernetes ── */}
+          <Section id="kubernetes" title="Kubernetes">
+            <p>
+              The <strong className="text-white">kube-watcher</strong> is a lightweight agent that watches your
+              Kubernetes cluster and automatically fires events to your Kollaber timeline — no manual CLI calls or
+              CI steps needed.
+            </p>
+            <ul className="mt-2 space-y-1 pl-4 text-sm">
+              <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment completes a rollout, capturing the image tag and replica count</li>
+              <li><span className="text-red-400 font-mono">ALERT</span> — fired when a pod enters <InlineCode>CrashLoopBackOff</InlineCode>, capturing the pod and container name</li>
+            </ul>
+
+            <SubSection title="Deploy with Helm">
+              <p>
+                The watcher runs as a <InlineCode>Deployment</InlineCode> inside your cluster using a{" "}
+                <InlineCode>ServiceAccount</InlineCode> with read-only access to Deployments and Pods.
+                Install one release per cluster:
+              </p>
+              <Code>{`helm install kollaber-watcher ./charts/kube-watcher \\
+  --set kollaber.env=prod \\
+  --set kollaber.api=https://kollaber.io \\
+  --set kollaber.token=<cli-token>`}</Code>
+              <p>
+                Get your CLI token from the dashboard under <strong className="text-white">Settings → CLI Token</strong>.
+              </p>
+            </SubSection>
+
+            <SubSection title="Helm values">
+              <div className="mt-2 space-y-2 text-sm">
+                <div className="flex gap-3"><Badge>kollaber.env</Badge><span>Kollaber environment name to map events to (required)</span></div>
+                <div className="flex gap-3"><Badge>kollaber.api</Badge><span>Kollaber API base URL (required)</span></div>
+                <div className="flex gap-3"><Badge>kollaber.token</Badge><span>CLI token — from Settings → CLI Token</span></div>
+                <div className="flex gap-3"><Badge>kollaber.existingSecret</Badge><span>Use an existing <InlineCode>Secret</InlineCode> with key <InlineCode>token</InlineCode> instead of creating one</span></div>
+                <div className="flex gap-3"><Badge>watchNamespace</Badge><span>Limit to a single namespace; empty = all namespaces</span></div>
+              </div>
+            </SubSection>
+
+            <SubSection title="Multiple clusters">
+              <p>
+                Install a separate Helm release for each cluster, pointing each one at the matching Kollaber environment:
+              </p>
+              <Code>{`helm install kollaber-watcher-prod    ./charts/kube-watcher --set kollaber.env=prod    ...
+helm install kollaber-watcher-staging ./charts/kube-watcher --set kollaber.env=staging ...`}</Code>
+              <p>
+                Events from each cluster will appear in their respective environment timelines in the dashboard.
+              </p>
+            </SubSection>
+
+            <SubSection title="Using an existing secret">
+              <p>
+                If you manage secrets externally (Vault, Sealed Secrets, External Secrets Operator), skip secret
+                creation by pointing at your own:
+              </p>
+              <Code>{`# Your secret must have a key named "token"
+kubectl create secret generic my-kollaber-token --from-literal=token=<cli-token>
+
+helm install kollaber-watcher ./charts/kube-watcher \\
+  --set kollaber.env=prod \\
+  --set kollaber.api=https://kollaber.io \\
+  --set kollaber.existingSecret=my-kollaber-token`}</Code>
+            </SubSection>
+
+            <SubSection title="Running locally (out-of-cluster)">
+              <p>
+                The watcher binary also works outside the cluster using your local kubeconfig — useful for testing:
+              </p>
+              <Code>{`go install github.com/urbangeeks/kollaber/cmd/kube-watcher@latest
+
+kube-watcher \\
+  --kubeconfig ~/.kube/config \\
+  --env prod \\
+  --api https://kollaber.io \\
+  --token <cli-token>`}</Code>
+              <p className="text-sm">
+                The binary tries in-cluster config first. If it is not running inside a pod it falls back to{" "}
+                <InlineCode>--kubeconfig</InlineCode> (or <InlineCode>~/.kube/config</InlineCode> by default).
+              </p>
             </SubSection>
           </Section>
 

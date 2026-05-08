@@ -1,0 +1,31 @@
+kollaber:
+  # Kollaber environment name to map events to (required)
+  env: ""
+  # Kollaber API base URL (required)
+  api: ""
+  # Kollaber CLI token — set this or use existingSecret
+  token: ""
+  # Name of an existing Secret with key "token" instead of creating one
+  existingSecret: ""
+
+# Kubernetes namespace to watch. Empty string = all namespaces.
+watchNamespace: ""
+
+image:
+  repository: ghcr.io/urbangeeks/kollaber/kube-watcher
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -45,6 +45,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	invites := NewInviteHandler(q)
 	services := NewServicesHandler(q)
 	members := NewMembersHandler(q)
+	notifications := NewNotificationsHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -74,6 +75,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 
 	protected := e.Group("", middleware.Auth())
 	protected.GET("/environments", envs.List)
+	protected.GET("/environments/stats", envs.Stats)
 	protected.POST("/environments", envs.Create)
 	protected.PUT("/environments/:id", envs.Update)
 	protected.DELETE("/environments/:id", envs.Delete)
@@ -89,6 +91,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.DELETE("/members/:userID", members.Remove)
 	protected.GET("/members/invites", members.ListInvites)
 	protected.DELETE("/members/invites/:token", members.RevokeInvite)
+	protected.GET("/settings/notifications", notifications.Get)
+	protected.PUT("/settings/notifications", notifications.Put)
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)
