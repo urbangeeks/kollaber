@@ -51,6 +51,23 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, arg DeleteEnvironmentPa
 	return err
 }
 
+const getEnvironmentByID = `-- name: GetEnvironmentByID :one
+SELECT id, org_id, name, cluster_name, created_at FROM environments WHERE id = $1
+`
+
+func (q *Queries) GetEnvironmentByID(ctx context.Context, id pgtype.UUID) (Environment, error) {
+	row := q.db.QueryRow(ctx, getEnvironmentByID, id)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Name,
+		&i.ClusterName,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listEnvironments = `-- name: ListEnvironments :many
 SELECT id, org_id, name, cluster_name, created_at FROM environments
 WHERE org_id = $1

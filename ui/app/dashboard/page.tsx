@@ -44,6 +44,7 @@ import {
   Pencil,
   TriangleAlert,
   Users,
+  Bell,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -373,6 +374,10 @@ export default function DashboardPage() {
                 Members
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={() => router.push("/settings/notifications")}>
+              <Bell className="mr-1.5 h-4 w-4" />
+              Notifications
+            </Button>
             <Button
               variant="ghost"
               size="sm"

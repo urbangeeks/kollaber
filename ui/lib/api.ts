@@ -298,3 +298,17 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
     body: JSON.stringify({ body }),
   }) as Promise<Comment>
 }
+
+const notificationPrefsSchema = z.object({ notify_on: z.array(z.string()) })
+
+export async function getNotificationPrefs(): Promise<string[]> {
+  const data = await request("/settings/notifications", notificationPrefsSchema)
+  return (data as { notify_on: string[] }).notify_on
+}
+
+export async function updateNotificationPrefs(notifyOn: string[]): Promise<void> {
+  await request("/settings/notifications", null, {
+    method: "PUT",
+    body: JSON.stringify({ notify_on: notifyOn }),
+  })
+}

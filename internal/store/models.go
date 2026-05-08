@@ -46,6 +46,13 @@ type Invite struct {
 	Role       string             `json:"role"`
 }
 
+type NotificationPref struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	OrgID     pgtype.UUID        `json:"org_id"`
+	NotifyOn  []string           `json:"notify_on"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Org struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`
