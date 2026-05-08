@@ -66,6 +66,7 @@ export type EventFilters = {
   service?: string
   status?: string
   before?: string
+  after?: string
 }
 
 export function getEvents(environmentId: string, limit = 50, offset = 0, filters: EventFilters = {}): Promise<Event[]> {
@@ -74,6 +75,7 @@ export function getEvents(environmentId: string, limit = 50, offset = 0, filters
   if (filters.service) params.set("service", filters.service)
   if (filters.status)  params.set("status",  filters.status)
   if (filters.before)  params.set("before",  filters.before)
+  if (filters.after)   params.set("after",   filters.after)
   return request(`/events?${params}`, z.array(eventSchema)) as Promise<Event[]>
 }
 
@@ -284,6 +286,27 @@ export async function deleteEnvironment(id: string): Promise<void> {
   await request(`/environments/${id}`, null, { method: "DELETE" })
 }
 
+export type EnvStat = {
+  environment_id: string
+  deploys: number
+  alerts: number
+  notes: number
+  last_event_at: string | null
+}
+
+export function getEnvStats(): Promise<EnvStat[]> {
+  return request(
+    "/environments/stats",
+    z.array(z.object({
+      environment_id: z.string(),
+      deploys: z.number(),
+      alerts: z.number(),
+      notes: z.number(),
+      last_event_at: z.string().nullable(),
+    })),
+  ) as Promise<EnvStat[]>
+}
+
 export function getServices(environmentId: string): Promise<string[]> {
   return request(`/services?environment_id=${environmentId}`, z.array(z.string())) as Promise<string[]>
 }
@@ -297,4 +320,18 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
     method: "POST",
     body: JSON.stringify({ body }),
   }) as Promise<Comment>
+}
+
+const notificationPrefsSchema = z.object({ notify_on: z.array(z.string()) })
+
+export async function getNotificationPrefs(): Promise<string[]> {
+  const data = await request("/settings/notifications", notificationPrefsSchema)
+  return (data as { notify_on: string[] }).notify_on
+}
+
+export async function updateNotificationPrefs(notifyOn: string[]): Promise<void> {
+  await request("/settings/notifications", null, {
+    method: "PUT",
+    body: JSON.stringify({ notify_on: notifyOn }),
+  })
 }

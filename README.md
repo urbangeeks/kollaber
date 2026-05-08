@@ -108,6 +108,8 @@ No CLI install needed — POST directly from CI:
 
 ## Deployment
 
+### Railway / single binary
+
 The app ships as a **single binary** — the Go server embeds the compiled Next.js frontend.
 
 ```bash
@@ -122,6 +124,60 @@ CORS_ORIGINS=https://your-domain.com   # optional
 ```
 
 Railway deployment is configured in `railway.toml`. The Dockerfile is at `docker/api/Dockerfile`.
+
+### Kubernetes (Helm)
+
+Two charts live under `charts/`.
+
+#### Kollaber (API + frontend)
+
+```bash
+helm install kollaber ./charts/kollaber \
+  --set secret.jwtSecret=$(openssl rand -hex 32) \
+  --set secret.dbPassword=changeme \
+  --set externalDatabaseUrl=postgres://user:pass@postgres:5432/kollaber \
+  --set urls.api=https://api.kollaber.example.com \
+  --set urls.frontend=https://kollaber.example.com \
+  --set ingress.enabled=true \
+  --set ingress.host=kollaber.example.com
+```
+
+| Value | Description |
+|---|---|
+| `secret.jwtSecret` | JWT signing secret — generate with `openssl rand -hex 32` |
+| `externalDatabaseUrl` | Postgres connection string |
+| `urls.api` | Public API URL (used by the frontend) |
+| `ingress.enabled` | Set to `true` to create an Ingress resource |
+| `ingress.host` | Hostname for the Ingress |
+| `migrate.enabled` | Runs DB migrations as a pre-install Job (default: `true`) |
+
+#### kube-watcher
+
+Watches a cluster for Deployment rollouts and `CrashLoopBackOff` pods, and fires events to your Kollaber timeline. Deploy one release per cluster — the pod uses its `ServiceAccount` token, no kubeconfig needed.
+
+```bash
+helm install kollaber-watcher ./charts/kube-watcher \
+  --set kollaber.env=prod \
+  --set kollaber.api=https://api.kollaber.example.com \
+  --set kollaber.token=<cli-token>
+```
+
+| Value | Description |
+|---|---|
+| `kollaber.env` | Kollaber environment name to map events to (required) |
+| `kollaber.api` | Kollaber API base URL (required) |
+| `kollaber.token` | CLI token — from `kollaber login` then `Settings → CLI token` |
+| `kollaber.existingSecret` | Name of an existing `Secret` with key `token` (skips creating one) |
+| `watchNamespace` | Limit watching to one namespace; empty = all namespaces |
+
+**Multi-cluster** — one install per environment:
+
+```bash
+helm install kollaber-watcher-prod    ./charts/kube-watcher --set kollaber.env=prod    ...
+helm install kollaber-watcher-staging ./charts/kube-watcher --set kollaber.env=staging ...
+```
+
+The watcher image is built and pushed to `ghcr.io/urbangeeks/kollaber/kube-watcher:latest` automatically on every merge to `main`.
 
 ## Stack
 

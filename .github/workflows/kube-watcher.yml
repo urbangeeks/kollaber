@@ -1,0 +1,36 @@
+name: kube-watcher image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cmd/kube-watcher/**"
+      - "Dockerfile.kube-watcher"
+      - "go.mod"
+      - "go.sum"
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.kube-watcher
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/kollaber/kube-watcher:latest
+            ghcr.io/${{ github.repository_owner }}/kollaber/kube-watcher:${{ github.sha }}

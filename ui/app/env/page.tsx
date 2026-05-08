@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, Loader2 } from "lucide-react"
 
 type EventType = "deploy" | "alert" | "note"
 type EventStatus = "success" | "failure" | "in_progress"
@@ -44,6 +44,8 @@ function EnvPageInner() {
   const [moreEvents, setMoreEvents] = useState<Event[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [polling, setPolling] = useState(false)
   const [error, setError] = useState("")
 
   const PAGE_SIZE = 50
@@ -61,7 +63,32 @@ function EnvPageInner() {
   const [filterType, setFilterType] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterService, setFilterService] = useState("")
+  const [filterAfter, setFilterAfter] = useState("")
+  const [filterBefore, setFilterBefore] = useState("")
   const [knownServices, setKnownServices] = useState<string[]>([])
+
+  const PRESETS = [
+    { label: "Today",   after: () => startOfDay(new Date()) },
+    { label: "7d",      after: () => daysAgo(7) },
+    { label: "30d",     after: () => daysAgo(30) },
+  ]
+
+  function startOfDay(d: Date) {
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  function daysAgo(n: number) {
+    const d = new Date()
+    d.setDate(d.getDate() - n)
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  function toISODate(iso: string) {
+    return iso ? iso.slice(0, 10) : ""
+  }
+  function dateInputToISO(val: string) {
+    return val ? new Date(val).toISOString() : ""
+  }
 
   const isAuthed = Boolean(getToken())
 
@@ -69,26 +96,42 @@ function EnvPageInner() {
   if (filterType)    activeFilters.type    = filterType
   if (filterStatus)  activeFilters.status  = filterStatus
   if (filterService) activeFilters.service = filterService
+  if (filterAfter)   activeFilters.after   = filterAfter
+  if (filterBefore)  activeFilters.before  = filterBefore
 
+  // Immediately re-fetch and show skeleton whenever filters change.
   useEffect(() => {
+    if (!isAuthed || !id) return
     setMoreEvents([])
     setHasMore(false)
-  }, [filterType, filterStatus, filterService])
+    setLoading(true)
+    setError("")
+    getEvents(id, PAGE_SIZE, 0, activeFilters)
+      .then((evts) => {
+        setTopEvents(evts)
+        setHasMore(evts.length === PAGE_SIZE)
+        getServices(id).then(setKnownServices).catch(() => {})
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, filterType, filterStatus, filterService, filterAfter, filterBefore])
 
+  // Background poll — shows a subtle spinner, does not replace the list with a skeleton.
   usePoll(
     () => {
-      if (!isAuthed) {
-        router.replace("/login")
-        return
-      }
-      if (!id) return
+      if (!isAuthed) { router.replace("/login"); return }
+      if (!id || loading) return
+      setPolling(true)
       getEvents(id, PAGE_SIZE, 0, activeFilters)
         .then((evts) => {
           setTopEvents(evts)
           setHasMore((prev) => moreEvents.length > 0 ? prev : evts.length === PAGE_SIZE)
           getServices(id).then(setKnownServices).catch(() => {})
+          setError("")
         })
         .catch((err) => setError(err.message))
+        .finally(() => setPolling(false))
     },
     7000,
     isAuthed,
@@ -155,7 +198,12 @@ function EnvPageInner() {
           </Button>
           <h1 className="text-xl font-semibold">Timeline</h1>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-muted-foreground text-xs">Refreshes every 7s</span>
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              {polling
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+              Refreshes every 7s
+            </span>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
               New event
@@ -165,76 +213,149 @@ function EnvPageInner() {
 
         {error && <p className="text-destructive text-sm">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-xs font-medium">Type:</span>
-          {EVENT_TYPES.map((t) => (
-            <Button
-              key={t.value}
-              size="sm"
-              variant={filterType === t.value ? "secondary" : "ghost"}
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
-            >
-              {t.label}
-            </Button>
-          ))}
-          <span className="text-muted-foreground ml-2 text-xs font-medium">Status:</span>
-          {EVENT_STATUSES.map((s) => (
-            <Button
-              key={s.value}
-              size="sm"
-              variant={filterStatus === s.value ? "secondary" : "ghost"}
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
-            >
-              {s.label}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+          {/* Type group */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            {EVENT_TYPES.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
+                className={`h-7 px-3 text-xs font-medium transition-colors
+                  ${filterType === t.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-border mx-1" />
+
+          {/* Status group */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            {EVENT_STATUSES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
+                className={`h-7 px-3 text-xs font-medium transition-colors
+                  ${filterStatus === s.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Service dropdown */}
           {knownServices.length > 0 && (
             <>
-              <span className="text-muted-foreground ml-2 text-xs font-medium">Service:</span>
+              <div className="h-4 w-px bg-border mx-1" />
               <select
                 value={filterService}
                 onChange={(e) => setFilterService(e.target.value)}
-                className="border-input bg-background h-7 rounded-md border px-2 text-xs"
+                className={`h-7 rounded-md border border-border bg-background px-2 text-xs font-medium transition-colors cursor-pointer
+                  ${filterService ? "text-foreground" : "text-muted-foreground"}`}
               >
-                <option value="">All</option>
+                <option value="">All services</option>
                 {knownServices.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </>
           )}
-          {(filterType || filterStatus || filterService) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-muted-foreground h-7 px-2 text-xs"
-              onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
-            >
-              Clear
-            </Button>
+
+          <div className="h-4 w-px bg-border mx-1" />
+
+          {/* Date range */}
+          <div className="flex items-center gap-1">
+            {PRESETS.map((p) => {
+              const active = filterAfter === p.after() || (filterAfter && !filterBefore &&
+                Math.abs(new Date(filterAfter).getTime() - new Date(p.after()).getTime()) < 60000)
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => { setFilterAfter(p.after()); setFilterBefore("") }}
+                  className={`h-7 px-3 rounded-md text-xs font-medium transition-colors
+                    ${filterAfter === p.after()
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted border border-border"
+                    }`}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+            <input
+              type="date"
+              value={toISODate(filterAfter)}
+              onChange={(e) => setFilterAfter(dateInputToISO(e.target.value))}
+              className="h-7 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground cursor-pointer"
+              title="From"
+            />
+            <span className="text-muted-foreground text-xs">→</span>
+            <input
+              type="date"
+              value={toISODate(filterBefore)}
+              onChange={(e) => setFilterBefore(dateInputToISO(e.target.value))}
+              className="h-7 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground cursor-pointer"
+              title="To"
+            />
+          </div>
+
+          {/* Clear */}
+          {(filterType || filterStatus || filterService || filterAfter || filterBefore) && (
+            <>
+              <div className="h-4 w-px bg-border mx-1" />
+              <button
+                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService(""); setFilterAfter(""); setFilterBefore("") }}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+            </>
           )}
         </div>
 
         <div className="space-y-4">
-          {allEvents.map((event, i) => (
-            <div key={event.id}>
-              <TimelineEvent event={event} />
-              {i < allEvents.length - 1 && <Separator className="mt-4" />}
-            </div>
-          ))}
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-2 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-muted" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3 w-1/3 rounded bg-muted" />
+                    <div className="h-3 w-1/2 rounded bg-muted" />
+                  </div>
+                  <div className="h-3 w-16 rounded bg-muted" />
+                </div>
+                {i < 4 && <Separator className="mt-4" />}
+              </div>
+            ))
+          ) : (
+            <>
+              {allEvents.map((event, i) => (
+                <div key={event.id}>
+                  <TimelineEvent event={event} />
+                  {i < allEvents.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
 
-          {allEvents.length === 0 && !error && (
-            <p className="text-muted-foreground text-sm">No events yet.</p>
-          )}
+              {allEvents.length === 0 && !error && (
+                <p className="text-muted-foreground text-sm">No events yet.</p>
+              )}
 
-          {hasMore && (
-            <div className="pt-2 text-center">
-              <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
-                {loadingMore ? "Loading…" : "Load more"}
-              </Button>
-            </div>
+              {hasMore && (
+                <div className="pt-2 text-center">
+                  <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

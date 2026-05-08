@@ -6,6 +6,7 @@ sql:
       - "migrations/003_event_status.sql"
       - "migrations/004_roles.sql"
       - "migrations/005_otp.sql"
+      - "migrations/006_notification_prefs.sql"
     queries: "db/queries"
     gen:
       go:

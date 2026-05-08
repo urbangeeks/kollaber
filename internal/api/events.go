@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
+	"github.com/urbangeeks/kollaber/internal/resend"
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
@@ -85,7 +86,10 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	}
 	metaBytes, _ := json.Marshal(req.Metadata)
 
-	event, err := h.q.CreateEvent(context.Background(), store.CreateEventParams{
+	ctx := context.Background()
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	event, err := h.q.CreateEvent(ctx, store.CreateEventParams{
 		Type:          req.Type,
 		Service:       req.Service,
 		EnvironmentID: pgtype.UUID{Bytes: req.EnvironmentID, Valid: true},
@@ -95,6 +99,21 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create event"})
 	}
+
+	go func() {
+		env, err := h.q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: req.EnvironmentID, Valid: true})
+		if err != nil {
+			return
+		}
+		recipients, err := h.q.GetOrgMembersToNotify(ctx, store.GetOrgMembersToNotifyParams{
+			OrgID:   pgtype.UUID{Bytes: orgID, Valid: true},
+			Column2: req.Type,
+		})
+		if err != nil || len(recipients) == 0 {
+			return
+		}
+		_ = resend.SendEventNotification(recipients, req.Type, req.Service, env.Name)
+	}()
 
 	return c.JSON(http.StatusCreated, toEventResponse(event))
 }
@@ -123,6 +142,14 @@ func (h *EventsHandler) List(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": "before must be an RFC3339 timestamp"})
 		}
 		params.Before = &t
+	}
+
+	if afterStr := c.QueryParam("after"); afterStr != "" {
+		t, err := time.Parse(time.RFC3339, afterStr)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "after must be an RFC3339 timestamp"})
+		}
+		params.After = &t
 	}
 
 	if envIDStr := c.QueryParam("environment_id"); envIDStr != "" {
