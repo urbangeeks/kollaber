@@ -4,12 +4,13 @@ import Link from "next/link"
 import {
   ArrowRight,
   Activity,
-  ShieldCheck,
+  Bell,
   Zap,
   Users,
-  Layers,
+  Filter,
   Webhook,
   CheckCircle2,
+  Container,
 } from "lucide-react"
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { BlurFade } from "@/components/ui/blur-fade"
@@ -39,38 +40,38 @@ const FEATURES = [
     desc: "First-class CLI tool and flexible webhooks for any tool in your stack.",
   },
   {
-    icon: ShieldCheck,
-    title: "Role-Based Access",
-    desc: "Granular permissions for viewing, editing, and managing your infrastructure map.",
+    icon: Container,
+    title: "Kubernetes Native",
+    desc: "Auto-detect rollouts from any cluster. Deploy the watcher via Helm in under a minute.",
   },
   {
-    icon: Layers,
-    title: "Single Binary Deploy",
-    desc: "No complex infrastructure. A single Go binary is all you need to get running.",
+    icon: Bell,
+    title: "Email Notifications",
+    desc: "Get notified when deploys land or alerts fire — no polling required on your end.",
   },
 ]
 
 const STATS = [
   { label: "binary to deploy", value: 1, prefix: "" },
   { label: "min to integrate", value: 5, prefix: "< " },
-  { label: "role tiers available", value: 4, prefix: "" },
+  { label: "event types tracked", value: 3, prefix: "" },
 ]
 
 const STEPS = [
   {
     step: "01",
     title: "Deploy Kollaber",
-    body: "Spin up the single binary or use our managed cloud instance in seconds.",
+    body: "Spin up the single binary or install the Helm chart to start watching your cluster.",
   },
   {
     step: "02",
-    title: "Push your first event",
-    body: "Use the CLI or CI/CD plugins to send your first deploy markers.",
+    title: "Events flow in automatically",
+    body: "Kubernetes rollouts, CLI deploys, and webhook alerts all land on the same timeline.",
   },
   {
     step: "03",
-    title: "Invite your team",
-    body: "Collaborate on a single source of truth for your entire infra lifecycle.",
+    title: "Filter, comment, and get notified",
+    body: "Slice the timeline by type, service, or date range — and receive email alerts when things happen.",
   },
 ]
 
@@ -273,8 +274,8 @@ export default function LandingPage() {
             <div className="mt-8 flex flex-col gap-4">
               {[
                 "Zero-config ingestion",
-                "Supports GH Actions, GitLab, and Jenkins",
-                "Secure-by-default architecture",
+                "Supports GH Actions, GitLab, Jenkins, and Kubernetes",
+                "Filter by type, service, status, or date range",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-3 text-white/70">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />
@@ -344,7 +345,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 rounded-sm bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
             <span className="font-bold text-white/40">Kollaber</span>
-            <span className="text-xs text-white/20">© 2025 Kollaber Inc.</span>
+            <span className="text-xs text-white/20">© 2026 Kollaber Inc.</span>
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-white/30">
             {["Status", "Terms", "Privacy", "Twitter"].map((label) => (
