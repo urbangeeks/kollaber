@@ -186,61 +186,72 @@ function EnvPageInner() {
 
         {error && <p className="text-destructive text-sm">{error}</p>}
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground w-14 text-xs font-medium">Type:</span>
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+          {/* Type group */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
             {EVENT_TYPES.map((t) => (
-              <Button
+              <button
                 key={t.value}
-                size="sm"
-                variant={filterType === t.value ? "secondary" : "ghost"}
-                className="h-7 px-2.5 text-xs"
                 onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
+                className={`h-7 px-3 text-xs font-medium transition-colors
+                  ${filterType === t.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
               >
                 {t.label}
-              </Button>
+              </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground w-14 text-xs font-medium">Status:</span>
+
+          <div className="h-4 w-px bg-border mx-1" />
+
+          {/* Status group */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
             {EVENT_STATUSES.map((s) => (
-              <Button
+              <button
                 key={s.value}
-                size="sm"
-                variant={filterStatus === s.value ? "secondary" : "ghost"}
-                className="h-7 px-2.5 text-xs"
                 onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
+                className={`h-7 px-3 text-xs font-medium transition-colors
+                  ${filterStatus === s.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
               >
                 {s.label}
-              </Button>
+              </button>
             ))}
           </div>
+
+          {/* Service dropdown */}
           {knownServices.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground w-14 text-xs font-medium">Service:</span>
+            <>
+              <div className="h-4 w-px bg-border mx-1" />
               <select
                 value={filterService}
                 onChange={(e) => setFilterService(e.target.value)}
-                className="border-input bg-background h-7 rounded-md border px-2 text-xs"
+                className={`h-7 rounded-md border border-border bg-background px-2 text-xs font-medium transition-colors cursor-pointer
+                  ${filterService ? "text-foreground" : "text-muted-foreground"}`}
               >
-                <option value="">All</option>
+                <option value="">All services</option>
                 {knownServices.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-            </div>
+            </>
           )}
+
+          {/* Clear */}
           {(filterType || filterStatus || filterService) && (
-            <div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground h-7 px-2 text-xs"
+            <>
+              <div className="h-4 w-px bg-border mx-1" />
+              <button
                 onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Clear filters
-              </Button>
-            </div>
+                Clear
+              </button>
+            </>
           )}
         </div>
 
