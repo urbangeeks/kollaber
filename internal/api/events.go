@@ -12,7 +12,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/resend"
+	"github.com/urbangeeks/kollaber/internal/slack"
 	"github.com/urbangeeks/kollaber/internal/store"
+	"github.com/urbangeeks/kollaber/internal/teams"
 )
 
 type EventsHandler struct{ q *store.Queries }
@@ -105,14 +107,23 @@ func (h *EventsHandler) Create(c echo.Context) error {
 		if err != nil {
 			return
 		}
+
+		// Email: per-user opt-in
 		recipients, err := h.q.GetOrgMembersToNotify(ctx, store.GetOrgMembersToNotifyParams{
 			OrgID:   pgtype.UUID{Bytes: orgID, Valid: true},
 			Column2: req.Type,
 		})
-		if err != nil || len(recipients) == 0 {
-			return
+		if err == nil && len(recipients) > 0 {
+			_ = resend.SendEventNotification(recipients, req.Type, req.Service, env.Name)
 		}
-		_ = resend.SendEventNotification(recipients, req.Type, req.Service, env.Name)
+
+		// Slack: org-level webhook
+		slackURL, _ := h.q.GetOrgSlackWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
+		_ = slack.SendEventNotification(slackURL, req.Type, req.Service, env.Name)
+
+		// Teams: org-level webhook
+		teamsURL, _ := h.q.GetOrgTeamsWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
+		_ = teams.SendEventNotification(teamsURL, req.Type, req.Service, env.Name)
 	}()
 
 	return c.JSON(http.StatusCreated, toEventResponse(event))

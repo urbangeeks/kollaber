@@ -12,7 +12,8 @@ import (
 )
 
 const getNotificationPrefs = `-- name: GetNotificationPrefs :one
-SELECT notify_on FROM notification_prefs
+SELECT notify_on, COALESCE(notification_email, '') AS notification_email
+FROM notification_prefs
 WHERE user_id = $1 AND org_id = $2
 `
 
@@ -21,11 +22,16 @@ type GetNotificationPrefsParams struct {
 	OrgID  pgtype.UUID `json:"org_id"`
 }
 
-func (q *Queries) GetNotificationPrefs(ctx context.Context, arg GetNotificationPrefsParams) ([]string, error) {
+type GetNotificationPrefsRow struct {
+	NotifyOn          []string `json:"notify_on"`
+	NotificationEmail string   `json:"notification_email"`
+}
+
+func (q *Queries) GetNotificationPrefs(ctx context.Context, arg GetNotificationPrefsParams) (GetNotificationPrefsRow, error) {
 	row := q.db.QueryRow(ctx, getNotificationPrefs, arg.UserID, arg.OrgID)
-	var notify_on []string
-	err := row.Scan(&notify_on)
-	return notify_on, err
+	var r GetNotificationPrefsRow
+	err := row.Scan(&r.NotifyOn, &r.NotificationEmail)
+	return r, err
 }
 
 const getOrgMembersToNotify = `-- name: GetOrgMembersToNotify :many
@@ -61,19 +67,22 @@ func (q *Queries) GetOrgMembersToNotify(ctx context.Context, arg GetOrgMembersTo
 }
 
 const upsertNotificationPrefs = `-- name: UpsertNotificationPrefs :exec
-INSERT INTO notification_prefs (user_id, org_id, notify_on, updated_at)
-VALUES ($1, $2, $3, NOW())
+INSERT INTO notification_prefs (user_id, org_id, notify_on, notification_email, updated_at)
+VALUES ($1, $2, $3, NULLIF($4, ''), NOW())
 ON CONFLICT (user_id, org_id) DO UPDATE
-SET notify_on = EXCLUDED.notify_on, updated_at = NOW()
+SET notify_on = EXCLUDED.notify_on,
+    notification_email = EXCLUDED.notification_email,
+    updated_at = NOW()
 `
 
 type UpsertNotificationPrefsParams struct {
-	UserID   pgtype.UUID `json:"user_id"`
-	OrgID    pgtype.UUID `json:"org_id"`
-	NotifyOn []string    `json:"notify_on"`
+	UserID            pgtype.UUID `json:"user_id"`
+	OrgID             pgtype.UUID `json:"org_id"`
+	NotifyOn          []string    `json:"notify_on"`
+	NotificationEmail string      `json:"notification_email"`
 }
 
 func (q *Queries) UpsertNotificationPrefs(ctx context.Context, arg UpsertNotificationPrefsParams) error {
-	_, err := q.db.Exec(ctx, upsertNotificationPrefs, arg.UserID, arg.OrgID, arg.NotifyOn)
+	_, err := q.db.Exec(ctx, upsertNotificationPrefs, arg.UserID, arg.OrgID, arg.NotifyOn, arg.NotificationEmail)
 	return err
 }

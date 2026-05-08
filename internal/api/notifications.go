@@ -32,14 +32,18 @@ func (h *NotificationsHandler) Get(c echo.Context) error {
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load preferences"})
 	}
-	if prefs == nil {
-		prefs = []string{}
+	if prefs.NotifyOn == nil {
+		prefs.NotifyOn = []string{}
 	}
-	return c.JSON(http.StatusOK, echo.Map{"notify_on": prefs})
+	return c.JSON(http.StatusOK, echo.Map{
+		"notify_on":          prefs.NotifyOn,
+		"notification_email": prefs.NotificationEmail,
+	})
 }
 
 type updateNotificationPrefsRequest struct {
-	NotifyOn []string `json:"notify_on"`
+	NotifyOn          []string `json:"notify_on"`
+	NotificationEmail string   `json:"notification_email"`
 }
 
 func (h *NotificationsHandler) Put(c echo.Context) error {
@@ -60,11 +64,15 @@ func (h *NotificationsHandler) Put(c echo.Context) error {
 	}
 
 	if err := h.q.UpsertNotificationPrefs(context.Background(), store.UpsertNotificationPrefsParams{
-		UserID:   pgtype.UUID{Bytes: userID, Valid: true},
-		OrgID:    pgtype.UUID{Bytes: orgID, Valid: true},
-		NotifyOn: req.NotifyOn,
+		UserID:            pgtype.UUID{Bytes: userID, Valid: true},
+		OrgID:             pgtype.UUID{Bytes: orgID, Valid: true},
+		NotifyOn:          req.NotifyOn,
+		NotificationEmail: req.NotificationEmail,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not save preferences"})
 	}
-	return c.JSON(http.StatusOK, echo.Map{"notify_on": req.NotifyOn})
+	return c.JSON(http.StatusOK, echo.Map{
+		"notify_on":          req.NotifyOn,
+		"notification_email": req.NotificationEmail,
+	})
 }
