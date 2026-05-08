@@ -441,31 +441,27 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <p className="text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-muted-foreground mr-1">
                     Created {new Date(env.created_at).toLocaleDateString()}
                   </p>
                   {stats[env.id] && (
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                        <span className="font-medium">{stats[env.id].deploys}</span>
-                        <span className="text-muted-foreground">deploys</span>
+                    <>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                        {stats[env.id].deploys} deploys
                       </span>
-                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                        <span className="font-medium">{stats[env.id].alerts}</span>
-                        <span className="text-muted-foreground">alerts</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                        {stats[env.id].alerts} alerts
                       </span>
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <span className="font-medium text-foreground">{stats[env.id].notes}</span>
-                        <span>notes</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {stats[env.id].notes} notes
                       </span>
                       {stats[env.id].last_event_at && (
-                        <span className="text-muted-foreground">
-                          · last{" "}
-                          {new Date(stats[env.id].last_event_at!).toLocaleDateString()}
+                        <span className="text-xs text-muted-foreground">
+                          · last {new Date(stats[env.id].last_event_at!).toLocaleDateString()}
                         </span>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </CardContent>
