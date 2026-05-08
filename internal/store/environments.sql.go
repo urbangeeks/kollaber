@@ -51,6 +51,53 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, arg DeleteEnvironmentPa
 	return err
 }
 
+const getEnvStatsByOrg = `-- name: GetEnvStatsByOrg :many
+SELECT
+  e.environment_id,
+  COUNT(*) FILTER (WHERE e.type = 'deploy')::int AS deploys,
+  COUNT(*) FILTER (WHERE e.type = 'alert')::int  AS alerts,
+  COUNT(*) FILTER (WHERE e.type = 'note')::int   AS notes,
+  MAX(e.timestamp) AS last_event_at
+FROM events e
+JOIN environments env ON env.id = e.environment_id
+WHERE env.org_id = $1
+GROUP BY e.environment_id
+`
+
+type GetEnvStatsByOrgRow struct {
+	EnvironmentID pgtype.UUID `json:"environment_id"`
+	Deploys       int32       `json:"deploys"`
+	Alerts        int32       `json:"alerts"`
+	Notes         int32       `json:"notes"`
+	LastEventAt   interface{} `json:"last_event_at"`
+}
+
+func (q *Queries) GetEnvStatsByOrg(ctx context.Context, orgID pgtype.UUID) ([]GetEnvStatsByOrgRow, error) {
+	rows, err := q.db.Query(ctx, getEnvStatsByOrg, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetEnvStatsByOrgRow
+	for rows.Next() {
+		var i GetEnvStatsByOrgRow
+		if err := rows.Scan(
+			&i.EnvironmentID,
+			&i.Deploys,
+			&i.Alerts,
+			&i.Notes,
+			&i.LastEventAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getEnvironmentByID = `-- name: GetEnvironmentByID :one
 SELECT id, org_id, name, cluster_name, created_at FROM environments WHERE id = $1
 `

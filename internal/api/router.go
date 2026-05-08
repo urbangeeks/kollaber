@@ -75,6 +75,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 
 	protected := e.Group("", middleware.Auth())
 	protected.GET("/environments", envs.List)
+	protected.GET("/environments/stats", envs.Stats)
 	protected.POST("/environments", envs.Create)
 	protected.PUT("/environments/:id", envs.Update)
 	protected.DELETE("/environments/:id", envs.Delete)

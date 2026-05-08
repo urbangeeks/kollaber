@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -116,6 +117,38 @@ func (h *EnvironmentsHandler) Update(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, toEnvResponse(env))
+}
+
+func (h *EnvironmentsHandler) Stats(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	rows, err := h.q.GetEnvStatsByOrg(context.Background(), pgtype.UUID{Bytes: orgID, Valid: true})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not fetch stats"})
+	}
+
+	type statRow struct {
+		EnvironmentID string  `json:"environment_id"`
+		Deploys       int32   `json:"deploys"`
+		Alerts        int32   `json:"alerts"`
+		Notes         int32   `json:"notes"`
+		LastEventAt   *string `json:"last_event_at"`
+	}
+	out := make([]statRow, len(rows))
+	for i, r := range rows {
+		s := statRow{
+			EnvironmentID: uuid.UUID(r.EnvironmentID.Bytes).String(),
+			Deploys:       r.Deploys,
+			Alerts:        r.Alerts,
+			Notes:         r.Notes,
+		}
+		if t, ok := r.LastEventAt.(time.Time); ok && !t.IsZero() {
+			formatted := t.Format("2006-01-02T15:04:05Z07:00")
+			s.LastEventAt = &formatted
+		}
+		out[i] = s
+	}
+	return c.JSON(http.StatusOK, out)
 }
 
 func (h *EnvironmentsHandler) Delete(c echo.Context) error {

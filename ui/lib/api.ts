@@ -286,6 +286,27 @@ export async function deleteEnvironment(id: string): Promise<void> {
   await request(`/environments/${id}`, null, { method: "DELETE" })
 }
 
+export type EnvStat = {
+  environment_id: string
+  deploys: number
+  alerts: number
+  notes: number
+  last_event_at: string | null
+}
+
+export function getEnvStats(): Promise<EnvStat[]> {
+  return request(
+    "/environments/stats",
+    z.array(z.object({
+      environment_id: z.string(),
+      deploys: z.number(),
+      alerts: z.number(),
+      notes: z.number(),
+      last_event_at: z.string().nullable(),
+    })),
+  ) as Promise<EnvStat[]>
+}
+
 export function getServices(environmentId: string): Promise<string[]> {
   return request(`/services?environment_id=${environmentId}`, z.array(z.string())) as Promise<string[]>
 }

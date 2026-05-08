@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   getEnvironments,
+  getEnvStats,
   getToken,
   removeToken,
   isAdmin,
@@ -16,6 +17,7 @@ import {
   updateEnvironment,
   deleteEnvironment,
   type Environment,
+  type EnvStat,
 } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
@@ -99,6 +101,7 @@ const platforms: Platform[] = [
 export default function DashboardPage() {
   const router = useRouter()
   const [envs, setEnvs] = useState<Environment[]>([])
+  const [stats, setStats] = useState<Record<string, EnvStat>>({})
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteLink, setInviteLink] = useState("")
   const [copied, setCopied] = useState(false)
@@ -153,6 +156,9 @@ export default function DashboardPage() {
     getEnvironments()
       .then(setEnvs)
       .catch((err) => toast.error(err.message))
+    getEnvStats()
+      .then((rows) => setStats(Object.fromEntries(rows.map((r) => [r.environment_id, r]))))
+      .catch(() => {/* non-critical */})
   }, [router])
 
   function handleLogout() {
@@ -435,9 +441,33 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Created {new Date(env.created_at).toLocaleDateString()}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    Created {new Date(env.created_at).toLocaleDateString()}
+                  </p>
+                  {stats[env.id] && (
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <span className="font-medium">{stats[env.id].deploys}</span>
+                        <span className="text-muted-foreground">deploys</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <span className="font-medium">{stats[env.id].alerts}</span>
+                        <span className="text-muted-foreground">alerts</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <span className="font-medium text-foreground">{stats[env.id].notes}</span>
+                        <span>notes</span>
+                      </span>
+                      {stats[env.id].last_event_at && (
+                        <span className="text-muted-foreground">
+                          · last{" "}
+                          {new Date(stats[env.id].last_event_at!).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
