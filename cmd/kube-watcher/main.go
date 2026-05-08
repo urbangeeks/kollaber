@@ -81,6 +81,10 @@ func main() {
 
 // watchDeployments fires a deploy event whenever a Deployment completes a rollout.
 func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kollaberClient) {
+	// Track the last generation we fired for per deployment (namespace/name → generation).
+	// Generation increments on every spec change, so this ensures exactly one event per rollout.
+	fired := map[string]int64{}
+
 	for {
 		if ctx.Err() != nil {
 			return
@@ -121,8 +125,13 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 			if !deploymentReady(dep) {
 				continue
 			}
+			key := dep.Namespace + "/" + dep.Name
+			if fired[key] == dep.Generation {
+				continue
+			}
+			fired[key] = dep.Generation
 			image := primaryImage(dep)
-			log.Printf("deploy: %s image=%s", dep.Name, image)
+			log.Printf("deploy: %s image=%s generation=%d", dep.Name, image, dep.Generation)
 			if err := k.sendEvent("deploy", dep.Name, map[string]any{
 				"version":   image,
 				"namespace": dep.Namespace,
