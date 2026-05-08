@@ -85,7 +85,21 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 		if ctx.Err() != nil {
 			return
 		}
-		watcher, err := client.AppsV1().Deployments(*namespace).Watch(ctx, metav1.ListOptions{})
+		// List first to get the current ResourceVersion so the watch only
+		// sees changes that happen after the watcher starts, not existing state.
+		list, err := client.AppsV1().Deployments(*namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			log.Printf("deployment list error: %v — retrying in 10s", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+				continue
+			}
+		}
+		watcher, err := client.AppsV1().Deployments(*namespace).Watch(ctx, metav1.ListOptions{
+			ResourceVersion: list.ResourceVersion,
+		})
 		if err != nil {
 			log.Printf("deployment watch error: %v — retrying in 10s", err)
 			select {
@@ -127,7 +141,19 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 		if ctx.Err() != nil {
 			return
 		}
-		watcher, err := client.CoreV1().Pods(*namespace).Watch(ctx, metav1.ListOptions{})
+		list, err := client.CoreV1().Pods(*namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			log.Printf("pod list error: %v — retrying in 10s", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+				continue
+			}
+		}
+		watcher, err := client.CoreV1().Pods(*namespace).Watch(ctx, metav1.ListOptions{
+			ResourceVersion: list.ResourceVersion,
+		})
 		if err != nil {
 			log.Printf("pod watch error: %v — retrying in 10s", err)
 			select {
