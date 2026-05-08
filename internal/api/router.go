@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/urbangeeks/kollaber/internal/middleware"
@@ -13,7 +14,7 @@ import (
 	"github.com/urbangeeks/kollaber/ui"
 )
 
-func NewRouter(q *store.Queries) *echo.Echo {
+func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	e := echo.New()
 	e.Use(echomw.Logger())
 	e.Use(echomw.Recover())
@@ -33,7 +34,7 @@ func NewRouter(q *store.Queries) *echo.Echo {
 		return nil
 	}
 
-	auth := NewAuthHandler(q)
+	auth := NewAuthHandler(q, pool)
 	gh := NewGitHubAuthHandler(q)
 	otp := NewOTPHandler(q)
 	envs := NewEnvironmentsHandler(q)

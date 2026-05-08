@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
@@ -17,9 +18,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AuthHandler struct{ q *store.Queries }
+type AuthHandler struct {
+	q    *store.Queries
+	pool *pgxpool.Pool
+}
 
-func NewAuthHandler(q *store.Queries) *AuthHandler { return &AuthHandler{q} }
+func NewAuthHandler(q *store.Queries, pool *pgxpool.Pool) *AuthHandler {
+	return &AuthHandler{q: q, pool: pool}
+}
 
 type registerRequest struct {
 	Email    string `json:"email"`
@@ -51,7 +57,15 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	ctx := context.Background()
 
-	user, err := h.q.CreateUser(ctx, store.CreateUserParams{
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not start transaction"})
+	}
+	defer tx.Rollback(ctx)
+
+	q := h.q.WithTx(tx)
+
+	user, err := q.CreateUser(ctx, store.CreateUserParams{
 		Email:        req.Email,
 		PasswordHash: string(hash),
 	})
@@ -60,7 +74,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	}
 
 	slug := slugify(req.OrgName)
-	org, err := h.q.CreateOrg(ctx, store.CreateOrgParams{
+	org, err := q.CreateOrg(ctx, store.CreateOrgParams{
 		Name: req.OrgName,
 		Slug: slug,
 	})
@@ -68,12 +82,16 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusConflict, echo.Map{"error": "org name already taken"})
 	}
 
-	if err := h.q.CreateOrgMember(ctx, store.CreateOrgMemberParams{
+	if err := q.CreateOrgMember(ctx, store.CreateOrgMemberParams{
 		OrgID:  org.ID,
 		UserID: user.ID,
 		Role:   "owner",
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create org membership"})
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not complete registration"})
 	}
 
 	token, err := makeToken(uuid.UUID(user.ID.Bytes).String(), uuid.UUID(org.ID.Bytes).String(), user.Email, "owner", false)

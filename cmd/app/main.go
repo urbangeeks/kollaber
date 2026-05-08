@@ -38,7 +38,7 @@ func main() {
 		port = "8080"
 	}
 
-	r := api.NewRouter(q)
+	r := api.NewRouter(q, pool)
 	log.Printf("starting on :%s", port)
 	if err := r.Start(":" + port); err != nil {
 		log.Fatalf("server: %v", err)
