@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 const EVENT_TYPES = [
@@ -61,14 +60,7 @@ export default function NotificationsSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-start justify-center p-8 py-16">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Dashboard
-          </Button>
-        </div>
+    <div className="space-y-6">
 
         <Card>
           <CardHeader>
@@ -151,7 +143,6 @@ export default function NotificationsSettingsPage() {
             </Link>
           </CardContent>
         </Card>
-      </div>
     </div>
   )
 }

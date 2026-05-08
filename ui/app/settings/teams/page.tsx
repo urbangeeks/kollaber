@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 
 export default function TeamsSettingsPage() {
   const router = useRouter()
@@ -57,14 +57,7 @@ export default function TeamsSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-start justify-center p-8 py-16">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/settings/notifications")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Settings
-          </Button>
-        </div>
+    <div className="space-y-6">
 
         <Card>
           <CardHeader>
@@ -127,7 +120,6 @@ export default function TeamsSettingsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   )
 }
