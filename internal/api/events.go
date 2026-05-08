@@ -144,6 +144,14 @@ func (h *EventsHandler) List(c echo.Context) error {
 		params.Before = &t
 	}
 
+	if afterStr := c.QueryParam("after"); afterStr != "" {
+		t, err := time.Parse(time.RFC3339, afterStr)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "after must be an RFC3339 timestamp"})
+		}
+		params.After = &t
+	}
+
 	if envIDStr := c.QueryParam("environment_id"); envIDStr != "" {
 		envID, err := uuid.Parse(envIDStr)
 		if err != nil {

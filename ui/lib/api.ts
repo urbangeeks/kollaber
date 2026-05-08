@@ -66,6 +66,7 @@ export type EventFilters = {
   service?: string
   status?: string
   before?: string
+  after?: string
 }
 
 export function getEvents(environmentId: string, limit = 50, offset = 0, filters: EventFilters = {}): Promise<Event[]> {
@@ -74,6 +75,7 @@ export function getEvents(environmentId: string, limit = 50, offset = 0, filters
   if (filters.service) params.set("service", filters.service)
   if (filters.status)  params.set("status",  filters.status)
   if (filters.before)  params.set("before",  filters.before)
+  if (filters.after)   params.set("after",   filters.after)
   return request(`/events?${params}`, z.array(eventSchema)) as Promise<Event[]>
 }
 

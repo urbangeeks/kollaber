@@ -63,7 +63,32 @@ function EnvPageInner() {
   const [filterType, setFilterType] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterService, setFilterService] = useState("")
+  const [filterAfter, setFilterAfter] = useState("")
+  const [filterBefore, setFilterBefore] = useState("")
   const [knownServices, setKnownServices] = useState<string[]>([])
+
+  const PRESETS = [
+    { label: "Today",   after: () => startOfDay(new Date()) },
+    { label: "7d",      after: () => daysAgo(7) },
+    { label: "30d",     after: () => daysAgo(30) },
+  ]
+
+  function startOfDay(d: Date) {
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  function daysAgo(n: number) {
+    const d = new Date()
+    d.setDate(d.getDate() - n)
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  function toISODate(iso: string) {
+    return iso ? iso.slice(0, 10) : ""
+  }
+  function dateInputToISO(val: string) {
+    return val ? new Date(val).toISOString() : ""
+  }
 
   const isAuthed = Boolean(getToken())
 
@@ -71,6 +96,8 @@ function EnvPageInner() {
   if (filterType)    activeFilters.type    = filterType
   if (filterStatus)  activeFilters.status  = filterStatus
   if (filterService) activeFilters.service = filterService
+  if (filterAfter)   activeFilters.after   = filterAfter
+  if (filterBefore)  activeFilters.before  = filterBefore
 
   // Immediately re-fetch and show skeleton whenever filters change.
   useEffect(() => {
@@ -88,7 +115,7 @@ function EnvPageInner() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, filterType, filterStatus, filterService])
+  }, [id, filterType, filterStatus, filterService, filterAfter, filterBefore])
 
   // Background poll — shows a subtle spinner, does not replace the list with a skeleton.
   usePoll(
@@ -241,12 +268,50 @@ function EnvPageInner() {
             </>
           )}
 
+          <div className="h-4 w-px bg-border mx-1" />
+
+          {/* Date range */}
+          <div className="flex items-center gap-1">
+            {PRESETS.map((p) => {
+              const active = filterAfter === p.after() || (filterAfter && !filterBefore &&
+                Math.abs(new Date(filterAfter).getTime() - new Date(p.after()).getTime()) < 60000)
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => { setFilterAfter(p.after()); setFilterBefore("") }}
+                  className={`h-7 px-3 rounded-md text-xs font-medium transition-colors
+                    ${filterAfter === p.after()
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted border border-border"
+                    }`}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+            <input
+              type="date"
+              value={toISODate(filterAfter)}
+              onChange={(e) => setFilterAfter(dateInputToISO(e.target.value))}
+              className="h-7 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground cursor-pointer"
+              title="From"
+            />
+            <span className="text-muted-foreground text-xs">→</span>
+            <input
+              type="date"
+              value={toISODate(filterBefore)}
+              onChange={(e) => setFilterBefore(dateInputToISO(e.target.value))}
+              className="h-7 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground cursor-pointer"
+              title="To"
+            />
+          </div>
+
           {/* Clear */}
-          {(filterType || filterStatus || filterService) && (
+          {(filterType || filterStatus || filterService || filterAfter || filterBefore) && (
             <>
               <div className="h-4 w-px bg-border mx-1" />
               <button
-                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
+                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService(""); setFilterAfter(""); setFilterBefore("") }}
                 className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Clear

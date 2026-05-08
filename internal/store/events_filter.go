@@ -15,6 +15,7 @@ type ListEventsFilterParams struct {
 	Service       string
 	Status        string
 	Before        *time.Time
+	After         *time.Time
 	Limit         int32
 	Offset        int32
 }
@@ -50,6 +51,11 @@ func (q *Queries) ListEventsFiltered(ctx context.Context, arg ListEventsFilterPa
 	if arg.Before != nil {
 		query += fmt.Sprintf(" AND e.timestamp < $%d", n)
 		args = append(args, *arg.Before)
+		n++
+	}
+	if arg.After != nil {
+		query += fmt.Sprintf(" AND e.timestamp > $%d", n)
+		args = append(args, *arg.After)
 		n++
 	}
 
