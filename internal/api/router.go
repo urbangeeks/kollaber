@@ -46,6 +46,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	services := NewServicesHandler(q)
 	members := NewMembersHandler(q)
 	notifications := NewNotificationsHandler(q)
+	slackSettings := NewSlackSettingsHandler(q)
+	teamsSettings := NewTeamsSettingsHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -93,6 +95,12 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.DELETE("/members/invites/:token", members.RevokeInvite)
 	protected.GET("/settings/notifications", notifications.Get)
 	protected.PUT("/settings/notifications", notifications.Put)
+	protected.GET("/settings/slack", slackSettings.Get)
+	protected.PUT("/settings/slack", slackSettings.Put)
+	protected.POST("/settings/slack/test", slackSettings.Test)
+	protected.GET("/settings/teams", teamsSettings.Get)
+	protected.PUT("/settings/teams", teamsSettings.Put)
+	protected.POST("/settings/teams/test", teamsSettings.Test)
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)

@@ -4,6 +4,7 @@ const NAV = [
   { id: "getting-started", label: "Getting Started" },
   { id: "dashboard", label: "Dashboard" },
   { id: "notifications", label: "Notifications" },
+  { id: "integrations", label: "Integrations" },
   { id: "cli", label: "CLI Reference" },
   { id: "kubernetes", label: "Kubernetes" },
   { id: "webhooks", label: "Webhooks" },
@@ -210,14 +211,14 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
           {/* ── Notifications ── */}
           <Section id="notifications" title="Notifications">
             <p>
-              Kollaber can email you when events are recorded on your timeline. Notifications are opt-in and
-              configurable per event type, per organization.
+              Kollaber notifies you when events are recorded on your timeline — via email, Slack, or Microsoft Teams.
+              Email notifications are opt-in and per-user; Slack and Teams are configured once per organization.
             </p>
 
-            <SubSection title="Configuring your preferences">
+            <SubSection title="Email preferences">
               <p>
-                Go to <strong className="text-white">Dashboard → Notifications</strong> (or navigate directly to{" "}
-                <InlineCode>/settings/notifications</InlineCode>). Check the event types you want to be notified about:
+                Go to <strong className="text-white">Settings → Notifications</strong>. Check the event types you want
+                to be notified about and optionally enter a notification email address:
               </p>
               <ul className="mt-2 space-y-1 pl-4 text-sm">
                 <li><strong className="text-white">Deployments</strong> — emailed when a <InlineCode>deploy</InlineCode> event is recorded</li>
@@ -225,20 +226,69 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
                 <li><strong className="text-white">Notes</strong> — emailed when a <InlineCode>note</InlineCode> is added to the timeline</li>
               </ul>
               <p className="mt-3">
-                Preferences are saved per organization — if you belong to multiple orgs, each has its own settings.
-                Members who have not configured preferences receive no emails by default.
+                The <strong className="text-white">Notification email</strong> field lets you receive alerts at a
+                different address than your account email — useful for shared inboxes or on-call aliases. Leave it
+                blank to use your account email.
+              </p>
+              <p className="mt-2">
+                Preferences are saved per organization. Members who have not configured preferences receive no emails
+                by default.
               </p>
             </SubSection>
 
             <SubSection title="How it works">
               <p>
-                When any event is created (via the CLI, webhook, or UI), Kollaber looks up all org members who have
-                opted in for that event type and sends them an email via Resend. The email includes the event type,
-                service name, and environment name.
+                When any event is created (via the CLI, webhook, or UI), Kollaber fires all configured channels
+                asynchronously — email recipients, the Slack webhook, and the Teams webhook all receive a notification
+                without blocking the API response.
               </p>
+            </SubSection>
+          </Section>
+
+          {/* ── Integrations ── */}
+          <Section id="integrations" title="Integrations">
+            <p>
+              In addition to email, Kollaber can post to a Slack channel or Microsoft Teams channel when events are
+              recorded. These are org-level settings — one webhook URL covers all team members.
+            </p>
+
+            <SubSection title="Slack">
               <p>
-                Notification delivery is non-blocking — it does not affect the response time of the API call that
-                created the event.
+                Go to <strong className="text-white">Settings → Slack</strong> and paste an Incoming Webhook URL.
+                To get one:
+              </p>
+              <ol className="mt-2 list-decimal list-inside space-y-1 pl-2 text-sm">
+                <li>Open your Slack workspace's App Directory and install <strong className="text-white">Incoming Webhooks</strong></li>
+                <li>Choose a channel and click <strong className="text-white">Add Incoming Webhooks integration</strong></li>
+                <li>Copy the generated webhook URL and paste it into Kollaber</li>
+              </ol>
+              <p className="mt-3">
+                Use the <strong className="text-white">Send test message</strong> button to verify delivery. Slack
+                messages include the event type (with an emoji), the service name, and the environment.
+              </p>
+            </SubSection>
+
+            <SubSection title="Microsoft Teams">
+              <p>
+                Go to <strong className="text-white">Settings → Teams</strong> and paste an Incoming Webhook URL.
+                To get one:
+              </p>
+              <ol className="mt-2 list-decimal list-inside space-y-1 pl-2 text-sm">
+                <li>Open the target Teams channel and click <strong className="text-white">···</strong> → <strong className="text-white">Connectors</strong></li>
+                <li>Search for <strong className="text-white">Incoming Webhook</strong> and click Configure</li>
+                <li>Give it a name, click Create, then copy the webhook URL</li>
+              </ol>
+              <p className="mt-3">
+                Teams messages are sent as colour-coded <InlineCode>MessageCard</InlineCode> payloads — blue for
+                deploys, red for alerts, purple for notes.
+              </p>
+            </SubSection>
+
+            <SubSection title="Permissions">
+              <p>
+                Only <strong className="text-white">owners</strong> and <strong className="text-white">admins</strong>{" "}
+                can save or clear the Slack and Teams webhook URLs. Members and viewers can see whether a webhook is
+                configured but cannot change it.
               </p>
             </SubSection>
           </Section>
@@ -472,6 +522,19 @@ kube-watcher \\
               <div className="space-y-2">
                 <ApiRow method="GET"  path="/events/:id/comments" desc="List comments on an event (authenticated)" />
                 <ApiRow method="POST" path="/events/:id/comments" desc="Add a comment to an event (authenticated)" />
+              </div>
+            </SubSection>
+
+            <SubSection title="Settings">
+              <div className="space-y-2">
+                <ApiRow method="GET" path="/settings/notifications" desc="Get email notification preferences (authenticated)" />
+                <ApiRow method="PUT" path="/settings/notifications" desc="Update email notification preferences (authenticated)" />
+                <ApiRow method="GET" path="/settings/slack"         desc="Get org Slack webhook URL (authenticated)" />
+                <ApiRow method="PUT" path="/settings/slack"         desc="Set org Slack webhook URL (admin)" />
+                <ApiRow method="POST" path="/settings/slack/test"   desc="Send a test Slack message (admin)" />
+                <ApiRow method="GET" path="/settings/teams"         desc="Get org Teams webhook URL (authenticated)" />
+                <ApiRow method="PUT" path="/settings/teams"         desc="Set org Teams webhook URL (admin)" />
+                <ApiRow method="POST" path="/settings/teams/test"   desc="Send a test Teams message (admin)" />
               </div>
             </SubSection>
 

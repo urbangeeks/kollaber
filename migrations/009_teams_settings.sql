@@ -1,0 +1,1 @@
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS teams_webhook_url TEXT;

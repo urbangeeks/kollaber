@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getToken, getNotificationPrefs, updateNotificationPrefs } from "@/lib/api"
+import { getToken, getNotificationPrefs, updateNotificationPrefs, getCurrentEmail } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 const EVENT_TYPES = [
   { value: "deploy", label: "Deployments", description: "When a deploy event is recorded" },
@@ -19,6 +20,7 @@ const EVENT_TYPES = [
 export default function NotificationsSettingsPage() {
   const router = useRouter()
   const [notifyOn, setNotifyOn] = useState<string[]>([])
+  const [notificationEmail, setNotificationEmail] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -27,9 +29,14 @@ export default function NotificationsSettingsPage() {
     return null
   }
 
+  const accountEmail = getCurrentEmail()
+
   useEffect(() => {
     getNotificationPrefs()
-      .then(setNotifyOn)
+      .then(({ notifyOn, notificationEmail }) => {
+        setNotifyOn(notifyOn)
+        setNotificationEmail(notificationEmail)
+      })
       .catch(() => toast.error("Failed to load notification preferences"))
       .finally(() => setLoading(false))
   }, [])
@@ -43,7 +50,7 @@ export default function NotificationsSettingsPage() {
   async function save() {
     setSaving(true)
     try {
-      await updateNotificationPrefs(notifyOn)
+      await updateNotificationPrefs(notifyOn, notificationEmail)
       toast.success("Notification preferences saved")
     } catch {
       toast.error("Failed to save preferences")
@@ -53,14 +60,7 @@ export default function NotificationsSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-start justify-center p-8 py-16">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Dashboard
-          </Button>
-        </div>
+    <div className="space-y-6">
 
         <Card>
           <CardHeader>
@@ -73,31 +73,76 @@ export default function NotificationsSettingsPage() {
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : (
-              EVENT_TYPES.map(({ value, label, description }) => (
-                <div key={value} className="flex items-start gap-3">
-                  <Checkbox
-                    id={value}
-                    checked={notifyOn.includes(value)}
-                    onCheckedChange={() => toggle(value)}
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="notification_email">Notification email</Label>
+                  <Input
+                    id="notification_email"
+                    type="email"
+                    placeholder={accountEmail || "you@example.com"}
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
                   />
-                  <div className="grid gap-0.5">
-                    <Label htmlFor={value} className="cursor-pointer font-medium">
-                      {label}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">{description}</p>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to use your account email ({accountEmail}).
+                  </p>
                 </div>
-              ))
-            )}
 
-            <div className="pt-2">
-              <Button onClick={save} disabled={saving || loading}>
-                {saving ? "Saving…" : "Save preferences"}
-              </Button>
-            </div>
+                <div className="border-t pt-4 space-y-3">
+                  {EVENT_TYPES.map(({ value, label, description }) => (
+                    <div key={value} className="flex items-start gap-3">
+                      <Checkbox
+                        id={value}
+                        checked={notifyOn.includes(value)}
+                        onCheckedChange={() => toggle(value)}
+                      />
+                      <div className="grid gap-0.5">
+                        <Label htmlFor={value} className="cursor-pointer font-medium">
+                          {label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <Button onClick={save} disabled={saving}>
+                    {saving ? "Saving…" : "Save preferences"}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
-      </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Slack</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Post events to a Slack channel for your whole team.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Link href="/settings/slack">
+              <Button variant="outline">Configure Slack webhook</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Microsoft Teams</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Post events to a Teams channel for your whole team.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Link href="/settings/teams">
+              <Button variant="outline">Configure Teams webhook</Button>
+            </Link>
+          </CardContent>
+        </Card>
     </div>
   )
 }
