@@ -186,34 +186,38 @@ function EnvPageInner() {
 
         {error && <p className="text-destructive text-sm">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-xs font-medium">Type:</span>
-          {EVENT_TYPES.map((t) => (
-            <Button
-              key={t.value}
-              size="sm"
-              variant={filterType === t.value ? "secondary" : "ghost"}
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
-            >
-              {t.label}
-            </Button>
-          ))}
-          <span className="text-muted-foreground ml-2 text-xs font-medium">Status:</span>
-          {EVENT_STATUSES.map((s) => (
-            <Button
-              key={s.value}
-              size="sm"
-              variant={filterStatus === s.value ? "secondary" : "ghost"}
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
-            >
-              {s.label}
-            </Button>
-          ))}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground w-14 text-xs font-medium">Type:</span>
+            {EVENT_TYPES.map((t) => (
+              <Button
+                key={t.value}
+                size="sm"
+                variant={filterType === t.value ? "secondary" : "ghost"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground w-14 text-xs font-medium">Status:</span>
+            {EVENT_STATUSES.map((s) => (
+              <Button
+                key={s.value}
+                size="sm"
+                variant={filterStatus === s.value ? "secondary" : "ghost"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setFilterStatus(filterStatus === s.value ? "" : s.value)}
+              >
+                {s.label}
+              </Button>
+            ))}
+          </div>
           {knownServices.length > 0 && (
-            <div className="ml-2 flex items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">Service:</span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-14 text-xs font-medium">Service:</span>
               <select
                 value={filterService}
                 onChange={(e) => setFilterService(e.target.value)}
@@ -227,14 +231,16 @@ function EnvPageInner() {
             </div>
           )}
           {(filterType || filterStatus || filterService) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-muted-foreground h-7 px-2 text-xs"
-              onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
-            >
-              Clear
-            </Button>
+            <div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground h-7 px-2 text-xs"
+                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterService("") }}
+              >
+                Clear filters
+              </Button>
+            </div>
           )}
         </div>
 
