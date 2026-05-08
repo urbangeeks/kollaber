@@ -41,7 +41,8 @@
       "Bash(/tmp/kollaber-test --version)",
       "Bash(helm lint *)",
       "Bash(helm template *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(xargs ls -la)"
     ]
   }
 }
