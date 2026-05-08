@@ -70,7 +70,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	log.Printf("watching cluster for env=%q namespace=%q", *envName, *namespace)
+	log.Printf("watching cluster for env=%q namespace=%q api=%q", *envName, *namespace, *apiURL)
 
 	go watchDeployments(ctx, client, kollaber)
 	go watchPods(ctx, client, kollaber)
@@ -123,11 +123,13 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 			}
 			image := primaryImage(dep)
 			log.Printf("deploy: %s image=%s", dep.Name, image)
-			_ = k.sendEvent("deploy", dep.Name, map[string]any{
+			if err := k.sendEvent("deploy", dep.Name, map[string]any{
 				"version":   image,
 				"namespace": dep.Namespace,
 				"replicas":  dep.Status.ReadyReplicas,
-			})
+			}); err != nil {
+				log.Printf("error sending deploy event for %s: %v", dep.Name, err)
+			}
 		}
 	}
 }
@@ -179,12 +181,14 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 			if container, crash := crashLoopContainer(pod); crash {
 				alerted[key] = true
 				log.Printf("alert: CrashLoopBackOff pod=%s container=%s", pod.Name, container)
-				_ = k.sendEvent("alert", pod.Labels["app"], map[string]any{
+				if err := k.sendEvent("alert", pod.Labels["app"], map[string]any{
 					"reason":    "CrashLoopBackOff",
 					"pod":       pod.Name,
 					"container": container,
 					"namespace": pod.Namespace,
-				})
+				}); err != nil {
+					log.Printf("error sending alert event for pod %s: %v", pod.Name, err)
+				}
 			} else {
 				// Clear alert once pod recovers.
 				delete(alerted, key)
