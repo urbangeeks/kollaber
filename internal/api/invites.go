@@ -42,6 +42,13 @@ func (h *InviteHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "role must be admin, member, or viewer"})
 	}
 
+	// Entitlement check: enforce member seat limit (skip for viewer — viewers are free)
+	if role != "viewer" {
+		if err := checkSeatLimit(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true}); err != nil {
+			return c.JSON(http.StatusPaymentRequired, echo.Map{"error": err.Error(), "upgrade_required": true})
+		}
+	}
+
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate token"})

@@ -48,6 +48,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	notifications := NewNotificationsHandler(q)
 	slackSettings := NewSlackSettingsHandler(q)
 	teamsSettings := NewTeamsSettingsHandler(q)
+	billingH := NewBillingHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -101,6 +102,10 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/settings/teams", teamsSettings.Get)
 	protected.PUT("/settings/teams", teamsSettings.Put)
 	protected.POST("/settings/teams/test", teamsSettings.Test)
+	protected.GET("/billing", billingH.Get)
+	protected.POST("/billing/checkout", billingH.Checkout)
+	protected.POST("/billing/portal", billingH.Portal)
+	e.POST("/webhooks/stripe", billingH.StripeWebhook)
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)

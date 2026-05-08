@@ -32,6 +32,7 @@ export default function NotificationsSettingsPage() {
   const accountEmail = getCurrentEmail()
 
   useEffect(() => {
+    if (!getToken()) { router.replace("/login"); return }
     getNotificationPrefs()
       .then(({ notifyOn, notificationEmail }) => {
         setNotifyOn(notifyOn)
@@ -39,7 +40,7 @@ export default function NotificationsSettingsPage() {
       })
       .catch(() => toast.error("Failed to load notification preferences"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   function toggle(value: string) {
     setNotifyOn(prev =>

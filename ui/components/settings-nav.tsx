@@ -4,13 +4,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Bell, Hash, Users, MessageSquare } from "lucide-react"
+import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard } from "lucide-react"
 
 const NAV = [
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/slack",         label: "Slack",         icon: Hash },
   { href: "/settings/teams",         label: "Teams",         icon: MessageSquare },
   { href: "/settings/members",       label: "Members",       icon: Users },
+  { href: "/settings/billing",       label: "Billing",       icon: CreditCard },
 ]
 
 export function SettingsNav() {

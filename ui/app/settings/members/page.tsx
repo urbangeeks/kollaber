@@ -26,7 +26,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Trash2, Copy, Check } from "lucide-react"
+import { Trash2, Copy, Check, UserPlus } from "lucide-react"
 
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   owner:  { label: "Owner",  className: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
@@ -57,6 +57,7 @@ export default function MembersPage() {
   const [revokeLoading, setRevokeLoading] = useState(false)
   const [roleLoading, setRoleLoading] = useState<string | null>(null)
 
+  const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">("member")
   const [inviteLink, setInviteLink] = useState("")
   const [inviteLoading, setInviteLoading] = useState(false)
@@ -137,162 +138,186 @@ export default function MembersPage() {
     }
   }
 
+  function openInvite() {
+    setInviteLink("")
+    setCopied(false)
+    setInviteRole("member")
+    setInviteOpen(true)
+  }
+
   return (
-    <>
     <div className="space-y-8">
-        <h1 className="text-2xl font-semibold">Members</h1>
-
-        {/* Invite teammate */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Members</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage team members and invitations.</p>
+        </div>
         {isAdminOrOwner && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-medium">Invite teammate</h2>
-            <div className="rounded-md border p-4 space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Role</Label>
-                <div className="flex gap-2">
-                  {(["admin", "member", "viewer"] as const).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => { setInviteRole(r); setInviteLink("") }}
-                      className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        inviteRole === r
-                          ? r === "admin"
-                            ? "border-violet-500 bg-violet-500/15 text-violet-700"
-                            : r === "member"
-                            ? "border-blue-500 bg-blue-500/15 text-blue-700"
-                            : "border-border bg-muted text-muted-foreground"
-                          : "border-border text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {inviteRole === "admin" && "Can manage environments and invite others."}
-                  {inviteRole === "member" && "Can create events and add comments."}
-                  {inviteRole === "viewer" && "Read-only access to the timeline."}
-                </p>
-              </div>
-
-              {inviteLoading ? (
-                <p className="text-sm text-muted-foreground">Generating link…</p>
-              ) : inviteLink ? (
-                <div className="flex items-center gap-2">
-                  <Input value={inviteLink} readOnly className="font-mono text-xs" />
-                  <Button size="sm" variant="outline" onClick={handleCopy}>
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-              ) : null}
-
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" disabled={inviteLoading} onClick={() => handleGenerateInvite()}>
-                  {inviteLink ? "Regenerate" : "Generate invite link"}
-                </Button>
-              </div>
-            </div>
-          </section>
+          <Button size="sm" onClick={openInvite}>
+            <UserPlus className="mr-1.5 h-4 w-4" />
+            Invite teammate
+          </Button>
         )}
+      </div>
 
-        {/* Members table */}
+      {/* Members table */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Team</h2>
+        <div className="rounded-md border">
+          {loading ? (
+            <p className="text-muted-foreground p-4 text-sm">Loading…</p>
+          ) : members.length === 0 ? (
+            <p className="text-muted-foreground p-4 text-sm">No members found.</p>
+          ) : (
+            members.map((m, idx) => (
+              <div
+                key={m.id}
+                className={`flex items-center gap-3 px-4 py-3 ${idx !== members.length - 1 ? "border-b" : ""}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm">{m.email}</p>
+                  <p className="text-muted-foreground text-xs">
+                    Joined {new Date(m.joined_at).toLocaleDateString()}
+                  </p>
+                </div>
+
+                {isAdminOrOwner && m.role !== "owner" ? (
+                  <div className="flex items-center gap-1">
+                    {(["admin", "member", "viewer"] as const).map((r) => (
+                      <button
+                        key={r}
+                        disabled={roleLoading === m.id}
+                        onClick={() => m.role !== r && handleRoleChange(m, r)}
+                        className={`rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          m.role === r
+                            ? r === "admin"
+                              ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                              : r === "member"
+                              ? "border-blue-500 bg-blue-500/15 text-blue-700"
+                              : "border-border bg-muted text-muted-foreground"
+                            : "border-border text-muted-foreground hover:bg-muted cursor-pointer"
+                        }`}
+                      >
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <RolePill role={m.role} />
+                )}
+
+                {isAdminOrOwner && m.role !== "owner" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                    onClick={() => setRemoveTarget(m)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Pending invites */}
+      {isAdminOrOwner && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium">Team</h2>
+          <h2 className="text-sm font-medium">Pending invites</h2>
           <div className="rounded-md border">
-            {loading ? (
-              <p className="text-muted-foreground p-4 text-sm">Loading…</p>
-            ) : members.length === 0 ? (
-              <p className="text-muted-foreground p-4 text-sm">No members found.</p>
+            {invites.length === 0 ? (
+              <p className="text-muted-foreground p-4 text-sm">No pending invites.</p>
             ) : (
-              members.map((m, idx) => (
+              invites.map((inv, idx) => (
                 <div
-                  key={m.id}
-                  className={`flex items-center gap-3 px-4 py-3 ${idx !== members.length - 1 ? "border-b" : ""}`}
+                  key={inv.token}
+                  className={`flex items-center gap-3 px-4 py-3 ${idx !== invites.length - 1 ? "border-b" : ""}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm">{m.email}</p>
+                    <p className="text-muted-foreground truncate font-mono text-xs">{inv.token.slice(0, 16)}…</p>
                     <p className="text-muted-foreground text-xs">
-                      Joined {new Date(m.joined_at).toLocaleDateString()}
+                      By {inv.created_by_email} · expires {new Date(inv.expires_at).toLocaleDateString()}
                     </p>
                   </div>
-
-                  {/* Role selector — admins/owners can change non-owner roles */}
-                  {isAdminOrOwner && m.role !== "owner" ? (
-                    <div className="flex items-center gap-1">
-                      {(["admin", "member", "viewer"] as const).map((r) => (
-                        <button
-                          key={r}
-                          disabled={roleLoading === m.id}
-                          onClick={() => m.role !== r && handleRoleChange(m, r)}
-                          className={`rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                            m.role === r
-                              ? r === "admin"
-                                ? "border-violet-500 bg-violet-500/15 text-violet-700"
-                                : r === "member"
-                                ? "border-blue-500 bg-blue-500/15 text-blue-700"
-                                : "border-border bg-muted text-muted-foreground"
-                              : "border-border text-muted-foreground hover:bg-muted cursor-pointer"
-                          }`}
-                        >
-                          {r.charAt(0).toUpperCase() + r.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <RolePill role={m.role} />
-                  )}
-
-                  {isAdminOrOwner && m.role !== "owner" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
-                      onClick={() => setRemoveTarget(m)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
+                  <RolePill role={inv.role} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                    onClick={() => setRevokeTarget(inv)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               ))
             )}
           </div>
         </section>
+      )}
 
-        {/* Pending invites */}
-        {isAdminOrOwner && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-medium">Pending invites</h2>
-            <div className="rounded-md border">
-              {invites.length === 0 ? (
-                <p className="text-muted-foreground p-4 text-sm">No pending invites.</p>
-              ) : (
-                invites.map((inv, idx) => (
-                  <div
-                    key={inv.token}
-                    className={`flex items-center gap-3 px-4 py-3 ${idx !== invites.length - 1 ? "border-b" : ""}`}
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invite teammate</DialogTitle>
+            <DialogDescription>
+              Share this link with your teammate. It expires after one use.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium">Role</p>
+              <div className="flex gap-2">
+                {(["admin", "member", "viewer"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => { setInviteRole(r); setInviteLink("") }}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      inviteRole === r
+                        ? r === "admin"
+                          ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                          : r === "member"
+                          ? "border-blue-500 bg-blue-500/15 text-blue-700"
+                          : "border-border bg-muted text-muted-foreground"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-muted-foreground truncate font-mono text-xs">{inv.token.slice(0, 16)}…</p>
-                      <p className="text-muted-foreground text-xs">
-                        By {inv.created_by_email} · expires {new Date(inv.expires_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <RolePill role={inv.role} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
-                      onClick={() => setRevokeTarget(inv)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))
-              )}
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {inviteRole === "admin" && "Can manage environments and invite others."}
+                {inviteRole === "member" && "Can create events and add comments."}
+                {inviteRole === "viewer" && "Read-only access to the timeline."}
+              </p>
             </div>
-          </section>
-        )}
-      </div>
+
+            {inviteLoading ? (
+              <p className="text-sm text-muted-foreground">Generating link…</p>
+            ) : inviteLink ? (
+              <div className="flex items-center gap-2">
+                <Input value={inviteLink} readOnly className="font-mono text-xs" />
+                <Button size="sm" variant="outline" onClick={handleCopy}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" disabled={inviteLoading} onClick={() => handleGenerateInvite()}>
+                Generate link
+              </Button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>Close</Button>
+            {!inviteLoading && inviteLink && (
+              <Button onClick={() => handleGenerateInvite()}>Regenerate</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Remove member confirmation */}
       <Dialog open={!!removeTarget} onOpenChange={(open) => { if (!open) setRemoveTarget(null) }}>
