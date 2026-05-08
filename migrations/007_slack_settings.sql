@@ -1,0 +1,1 @@
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS slack_webhook_url TEXT;

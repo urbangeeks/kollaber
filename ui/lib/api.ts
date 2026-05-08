@@ -322,16 +322,57 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
   }) as Promise<Comment>
 }
 
-const notificationPrefsSchema = z.object({ notify_on: z.array(z.string()) })
+const notificationPrefsSchema = z.object({
+  notify_on: z.array(z.string()),
+  notification_email: z.string(),
+})
 
-export async function getNotificationPrefs(): Promise<string[]> {
-  const data = await request("/settings/notifications", notificationPrefsSchema)
-  return (data as { notify_on: string[] }).notify_on
+export type NotificationPrefs = { notifyOn: string[]; notificationEmail: string }
+
+export async function getNotificationPrefs(): Promise<NotificationPrefs> {
+  const data = await request("/settings/notifications", notificationPrefsSchema) as z.infer<typeof notificationPrefsSchema>
+  return { notifyOn: data.notify_on, notificationEmail: data.notification_email }
 }
 
-export async function updateNotificationPrefs(notifyOn: string[]): Promise<void> {
+export async function updateNotificationPrefs(notifyOn: string[], notificationEmail: string): Promise<void> {
   await request("/settings/notifications", null, {
     method: "PUT",
-    body: JSON.stringify({ notify_on: notifyOn }),
+    body: JSON.stringify({ notify_on: notifyOn, notification_email: notificationEmail }),
   })
+}
+
+const slackSettingsSchema = z.object({ webhook_url: z.string() })
+
+export async function getSlackSettings(): Promise<string> {
+  const data = await request("/settings/slack", slackSettingsSchema)
+  return (data as { webhook_url: string }).webhook_url
+}
+
+export async function updateSlackSettings(webhookUrl: string): Promise<void> {
+  await request("/settings/slack", null, {
+    method: "PUT",
+    body: JSON.stringify({ webhook_url: webhookUrl }),
+  })
+}
+
+export async function testSlackSettings(): Promise<void> {
+  await request("/settings/slack/test", null, { method: "POST" })
+}
+
+const teamsSettingsSchema = z.object({ webhook_url: z.string() })
+
+export async function getTeamsSettings(): Promise<string> {
+  const data = await request("/settings/teams", teamsSettingsSchema)
+  return (data as { webhook_url: string }).webhook_url
+}
+
+export async function updateTeamsSettings(webhookUrl: string): Promise<void> {
+  await request("/settings/teams", null, {
+    method: "PUT",
+    body: JSON.stringify({ webhook_url: webhookUrl }),
+  })
+}
+
+export async function testTeamsSettings(): Promise<void> {
+  await request("/settings/teams/test", null, { method: "POST" })
 }
