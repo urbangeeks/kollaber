@@ -9,12 +9,15 @@ import {
   updateMemberRole,
   removeMember,
   revokeInvite,
+  createInvite,
   getCurrentRole,
   getToken,
   type Member,
   type PendingInvite,
 } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -23,7 +26,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Trash2 } from "lucide-react"
+import { Trash2, Copy, Check } from "lucide-react"
 
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   owner:  { label: "Owner",  className: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
@@ -53,6 +56,11 @@ export default function MembersPage() {
   const [revokeTarget, setRevokeTarget] = useState<PendingInvite | null>(null)
   const [revokeLoading, setRevokeLoading] = useState(false)
   const [roleLoading, setRoleLoading] = useState<string | null>(null)
+
+  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">("member")
+  const [inviteLink, setInviteLink] = useState("")
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
@@ -93,6 +101,27 @@ export default function MembersPage() {
     }
   }
 
+  async function handleGenerateInvite(forRole: "admin" | "member" | "viewer" = inviteRole) {
+    setInviteLoading(true)
+    setInviteLink("")
+    setCopied(false)
+    try {
+      const token = await createInvite(forRole)
+      setInviteLink(`${window.location.origin}/invite?token=${token}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create invite")
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    toast.success("Invite link copied")
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   async function handleRevoke() {
     if (!revokeTarget) return
     setRevokeLoading(true)
@@ -112,6 +141,59 @@ export default function MembersPage() {
     <>
     <div className="space-y-8">
         <h1 className="text-2xl font-semibold">Members</h1>
+
+        {/* Invite teammate */}
+        {isAdminOrOwner && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium">Invite teammate</h2>
+            <div className="rounded-md border p-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Role</Label>
+                <div className="flex gap-2">
+                  {(["admin", "member", "viewer"] as const).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => { setInviteRole(r); setInviteLink("") }}
+                      className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        inviteRole === r
+                          ? r === "admin"
+                            ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                            : r === "member"
+                            ? "border-blue-500 bg-blue-500/15 text-blue-700"
+                            : "border-border bg-muted text-muted-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {inviteRole === "admin" && "Can manage environments and invite others."}
+                  {inviteRole === "member" && "Can create events and add comments."}
+                  {inviteRole === "viewer" && "Read-only access to the timeline."}
+                </p>
+              </div>
+
+              {inviteLoading ? (
+                <p className="text-sm text-muted-foreground">Generating link…</p>
+              ) : inviteLink ? (
+                <div className="flex items-center gap-2">
+                  <Input value={inviteLink} readOnly className="font-mono text-xs" />
+                  <Button size="sm" variant="outline" onClick={handleCopy}>
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              ) : null}
+
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={inviteLoading} onClick={() => handleGenerateInvite()}>
+                  {inviteLink ? "Regenerate" : "Generate invite link"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Members table */}
         <section className="space-y-3">

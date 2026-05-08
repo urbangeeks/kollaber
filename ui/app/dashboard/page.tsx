@@ -12,7 +12,6 @@ import {
   getCurrentEmail,
   getCurrentRole,
   generateCLIToken,
-  createInvite,
   createEnvironment,
   updateEnvironment,
   deleteEnvironment,
@@ -36,7 +35,6 @@ import {
 } from "@/components/ui/dialog"
 import {
   Server,
-  UserPlus,
   Copy,
   Check,
   Plus,
@@ -45,8 +43,7 @@ import {
   Trash2,
   Pencil,
   TriangleAlert,
-  Users,
-  Bell,
+  Settings,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -102,13 +99,8 @@ export default function DashboardPage() {
   const router = useRouter()
   const [envs, setEnvs] = useState<Environment[]>([])
   const [stats, setStats] = useState<Record<string, EnvStat>>({})
-  const [inviteLoading, setInviteLoading] = useState(false)
-  const [inviteLink, setInviteLink] = useState("")
-  const [copied, setCopied] = useState(false)
-
   // dialogs
   const [newEnvOpen, setNewEnvOpen] = useState(false)
-  const [inviteOpen, setInviteOpen] = useState(false)
   const [downloadOpen, setDownloadOpen] = useState(false)
 
   // new env form
@@ -127,10 +119,6 @@ export default function DashboardPage() {
   const [role, setRole] = useState<
     "owner" | "admin" | "member" | "viewer" | null
   >(null)
-  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">(
-    "member"
-  )
-
   const [deleteTarget, setDeleteTarget] = useState<Environment | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
@@ -265,38 +253,6 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleGenerateInvite(
-    forRole: "admin" | "member" | "viewer" = inviteRole
-  ) {
-    setInviteLoading(true)
-    setInviteLink("")
-    try {
-      const token = await createInvite(forRole)
-      setInviteLink(`${window.location.origin}/invite?token=${token}`)
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create invite"
-      )
-      setInviteOpen(false)
-    } finally {
-      setInviteLoading(false)
-    }
-  }
-
-  function openInvite() {
-    setInviteLink("")
-    setCopied(false)
-    setInviteRole("member")
-    setInviteOpen(true)
-  }
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    toast.success("Invite link copied")
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const isAdminOrOwner = role === "owner" || role === "admin"
 
   const ROLE_BADGE: Record<string, { label: string; className: string }> = {
@@ -363,26 +319,9 @@ export default function DashboardPage() {
                 New environment
               </Button>
             )}
-            {isAdminOrOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openInvite}
-                disabled={inviteLoading}
-              >
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                Invite teammate
-              </Button>
-            )}
-            {isAdminOrOwner && (
-              <Button variant="outline" size="sm" onClick={() => router.push("/settings/members")}>
-                <Users className="mr-1.5 h-4 w-4" />
-                Members
-              </Button>
-            )}
             <Button variant="outline" size="sm" onClick={() => router.push("/settings/notifications")}>
-              <Bell className="mr-1.5 h-4 w-4" />
-              Notifications
+              <Settings className="mr-1.5 h-4 w-4" />
+              Settings
             </Button>
             <Button
               variant="ghost"
@@ -525,71 +464,6 @@ export default function DashboardPage() {
             <Button type="submit" form="new-env-form" disabled={newEnvLoading}>
               {newEnvLoading ? "Creating…" : "Create"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invite teammate dialog */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invite teammate</DialogTitle>
-            <DialogDescription>
-              Share this link with your teammate. It expires after one use.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {/* Role picker */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Role</Label>
-              <div className="flex gap-2">
-                {(["admin", "member", "viewer"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => { setInviteRole(r); setInviteLink("") }}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      inviteRole === r
-                        ? r === "admin"
-                          ? "border-violet-500 bg-violet-500/15 text-violet-700"
-                          : r === "member"
-                          ? "border-blue-500 bg-blue-500/15 text-blue-700"
-                          : "border-border bg-muted text-muted-foreground"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                {inviteRole === "admin" && "Can manage environments and invite others."}
-                {inviteRole === "member" && "Can create events and add comments."}
-                {inviteRole === "viewer" && "Read-only access to the timeline."}
-              </p>
-            </div>
-
-            {inviteLoading ? (
-              <p className="text-sm text-muted-foreground">Generating link…</p>
-            ) : inviteLink ? (
-              <div className="flex items-center gap-2">
-                <Input value={inviteLink} readOnly className="font-mono text-xs" />
-                <Button size="sm" variant="outline" onClick={handleCopy}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="outline" disabled={inviteLoading} onClick={() => handleGenerateInvite()}>
-                Generate link
-              </Button>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              Close
-            </Button>
-            {!inviteLoading && inviteLink && (
-              <Button onClick={() => handleGenerateInvite()}>Regenerate</Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
