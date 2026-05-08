@@ -46,8 +46,8 @@ const FEATURES = [
   },
   {
     icon: Bell,
-    title: "Email Notifications",
-    desc: "Get notified when deploys land or alerts fire — no polling required on your end.",
+    title: "Multi-channel Alerts",
+    desc: "Get notified via email, Slack, or Microsoft Teams when events land in your timeline.",
   },
 ]
 
@@ -275,7 +275,7 @@ export default function LandingPage() {
               {[
                 "Zero-config ingestion",
                 "Supports GH Actions, GitLab, Jenkins, and Kubernetes",
-                "Filter by type, service, status, or date range",
+                "Slack, Teams, and email alerts built in",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-3 text-white/70">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />

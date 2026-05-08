@@ -23,7 +23,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   owner:  { label: "Owner",  className: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
@@ -109,15 +109,9 @@ export default function MembersPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-2xl space-y-8">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Dashboard
-          </Button>
-          <h1 className="text-2xl font-semibold">Members</h1>
-        </div>
+    <>
+    <div className="space-y-8">
+        <h1 className="text-2xl font-semibold">Members</h1>
 
         {/* Members table */}
         <section className="space-y-3">
@@ -254,6 +248,6 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
