@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -47,14 +48,17 @@ func main() {
 	if *token == "" {
 		log.Fatal("--token is required (or set KOLLABER_TOKEN)")
 	}
-	if *kubeconfig == "" {
-		home, _ := os.UserHomeDir()
-		*kubeconfig = home + "/.kube/config"
-	}
-
-	cfg, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	// Try in-cluster config first (when running as a Pod), then fall back to kubeconfig.
+	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		log.Fatalf("kubeconfig: %v", err)
+		if *kubeconfig == "" {
+			home, _ := os.UserHomeDir()
+			*kubeconfig = home + "/.kube/config"
+		}
+		cfg, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			log.Fatalf("kubeconfig: %v", err)
+		}
 	}
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
