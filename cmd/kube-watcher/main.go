@@ -189,8 +189,9 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 			}
 			if container, crash := crashLoopContainer(pod); crash {
 				alerted[key] = true
-				log.Printf("alert: CrashLoopBackOff pod=%s container=%s", pod.Name, container)
-				if err := k.sendEvent("alert", pod.Labels["app"], map[string]any{
+				service := podServiceName(pod)
+				log.Printf("alert: CrashLoopBackOff pod=%s container=%s service=%s", pod.Name, container, service)
+				if err := k.sendEvent("alert", service, map[string]any{
 					"reason":    "CrashLoopBackOff",
 					"pod":       pod.Name,
 					"container": container,
@@ -217,6 +218,17 @@ func primaryImage(dep *appsv1.Deployment) string {
 		return "unknown"
 	}
 	return dep.Spec.Template.Spec.Containers[0].Image
+}
+
+// podServiceName returns the best service name for a pod, trying common label
+// conventions before falling back to the pod name.
+func podServiceName(pod *corev1.Pod) string {
+	for _, key := range []string{"app", "app.kubernetes.io/name", "app.kubernetes.io/component"} {
+		if v := pod.Labels[key]; v != "" {
+			return v
+		}
+	}
+	return pod.Name
 }
 
 func crashLoopContainer(pod *corev1.Pod) (string, bool) {
