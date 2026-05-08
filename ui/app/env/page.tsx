@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, Loader2 } from "lucide-react"
 
 type EventType = "deploy" | "alert" | "note"
 type EventStatus = "success" | "failure" | "in_progress"
@@ -44,6 +44,8 @@ function EnvPageInner() {
   const [moreEvents, setMoreEvents] = useState<Event[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [polling, setPolling] = useState(false)
   const [error, setError] = useState("")
 
   const PAGE_SIZE = 50
@@ -70,25 +72,39 @@ function EnvPageInner() {
   if (filterStatus)  activeFilters.status  = filterStatus
   if (filterService) activeFilters.service = filterService
 
+  // Immediately re-fetch and show skeleton whenever filters change.
   useEffect(() => {
+    if (!isAuthed || !id) return
     setMoreEvents([])
     setHasMore(false)
-  }, [filterType, filterStatus, filterService])
+    setLoading(true)
+    setError("")
+    getEvents(id, PAGE_SIZE, 0, activeFilters)
+      .then((evts) => {
+        setTopEvents(evts)
+        setHasMore(evts.length === PAGE_SIZE)
+        getServices(id).then(setKnownServices).catch(() => {})
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, filterType, filterStatus, filterService])
 
+  // Background poll — shows a subtle spinner, does not replace the list with a skeleton.
   usePoll(
     () => {
-      if (!isAuthed) {
-        router.replace("/login")
-        return
-      }
-      if (!id) return
+      if (!isAuthed) { router.replace("/login"); return }
+      if (!id || loading) return
+      setPolling(true)
       getEvents(id, PAGE_SIZE, 0, activeFilters)
         .then((evts) => {
           setTopEvents(evts)
           setHasMore((prev) => moreEvents.length > 0 ? prev : evts.length === PAGE_SIZE)
           getServices(id).then(setKnownServices).catch(() => {})
+          setError("")
         })
         .catch((err) => setError(err.message))
+        .finally(() => setPolling(false))
     },
     7000,
     isAuthed,
@@ -155,7 +171,12 @@ function EnvPageInner() {
           </Button>
           <h1 className="text-xl font-semibold">Timeline</h1>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-muted-foreground text-xs">Refreshes every 7s</span>
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              {polling
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+              Refreshes every 7s
+            </span>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
               New event
@@ -218,23 +239,41 @@ function EnvPageInner() {
         </div>
 
         <div className="space-y-4">
-          {allEvents.map((event, i) => (
-            <div key={event.id}>
-              <TimelineEvent event={event} />
-              {i < allEvents.length - 1 && <Separator className="mt-4" />}
-            </div>
-          ))}
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-2 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-muted" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3 w-1/3 rounded bg-muted" />
+                    <div className="h-3 w-1/2 rounded bg-muted" />
+                  </div>
+                  <div className="h-3 w-16 rounded bg-muted" />
+                </div>
+                {i < 4 && <Separator className="mt-4" />}
+              </div>
+            ))
+          ) : (
+            <>
+              {allEvents.map((event, i) => (
+                <div key={event.id}>
+                  <TimelineEvent event={event} />
+                  {i < allEvents.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
 
-          {allEvents.length === 0 && !error && (
-            <p className="text-muted-foreground text-sm">No events yet.</p>
-          )}
+              {allEvents.length === 0 && !error && (
+                <p className="text-muted-foreground text-sm">No events yet.</p>
+              )}
 
-          {hasMore && (
-            <div className="pt-2 text-center">
-              <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
-                {loadingMore ? "Loading…" : "Load more"}
-              </Button>
-            </div>
+              {hasMore && (
+                <div className="pt-2 text-center">
+                  <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
