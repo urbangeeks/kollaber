@@ -42,7 +42,8 @@
       "Bash(helm lint *)",
       "Bash(helm template *)",
       "Bash(npx tsc *)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "Bash(GIT_EDITOR=true git rebase --continue)"
     ]
   }
 }

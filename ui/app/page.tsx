@@ -46,8 +46,8 @@ const FEATURES = [
   },
   {
     icon: Bell,
-    title: "Multi-channel Alerts",
-    desc: "Get notified via email, Slack, or Microsoft Teams when events land in your timeline.",
+    title: "Slack, Teams & Email",
+    desc: "Get notified where your team already works — Slack, Microsoft Teams, or email — the moment something happens.",
   },
 ]
 
@@ -71,7 +71,7 @@ const STEPS = [
   {
     step: "03",
     title: "Filter, comment, and get notified",
-    body: "Slice the timeline by type, service, or date range — and receive email alerts when things happen.",
+    body: "Slice the timeline by type, service, or date range — and get Slack, Teams, or email alerts the moment something lands.",
   },
 ]
 
@@ -89,6 +89,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 text-sm font-medium text-white/70 md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
+            <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
           <div className="flex items-center gap-4">
@@ -348,7 +349,9 @@ export default function LandingPage() {
             <span className="text-xs text-white/20">© 2026 Kollaber Inc.</span>
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-white/30">
-            {["Status", "Terms", "Privacy", "Twitter"].map((label) => (
+            <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+            <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
+            {["Terms", "Privacy"].map((label) => (
               <a key={label} href="#" className="transition-colors hover:text-white">{label}</a>
             ))}
           </div>
