@@ -48,6 +48,10 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	notifications := NewNotificationsHandler(q)
 	slackSettings := NewSlackSettingsHandler(q)
 	teamsSettings := NewTeamsSettingsHandler(q)
+	billingH := NewBillingHandler(q)
+	aiH := NewAIHandler(q)
+	auditH := NewAuditHandler(q)
+	ssoH := NewSSOHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -57,6 +61,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	e.POST("/auth/otp/verify", otp.Verify)
 	e.GET("/auth/github", gh.Redirect)
 	e.GET("/auth/github/callback", gh.Callback)
+	e.GET("/auth/sso", ssoH.Initiate)
+	e.GET("/auth/sso/callback", ssoH.Callback)
 
 	authProtected := e.Group("/auth", middleware.Auth())
 	authProtected.GET("/orgs", auth.ListOrgs)
@@ -85,6 +91,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/events", events.List)
 	protected.POST("/events/:id/comments", comments.Create)
 	protected.GET("/events/:id/comments", comments.List)
+	protected.POST("/events/:id/summary", aiH.SummarizeEvent)
+	protected.POST("/events/:id/postmortem", aiH.PostmortemEvent)
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)
@@ -101,6 +109,13 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/settings/teams", teamsSettings.Get)
 	protected.PUT("/settings/teams", teamsSettings.Put)
 	protected.POST("/settings/teams/test", teamsSettings.Test)
+	protected.GET("/audit-logs", auditH.List)
+	protected.GET("/settings/sso", ssoH.GetConfig)
+	protected.PUT("/settings/sso", ssoH.SaveConfig)
+	protected.GET("/billing", billingH.Get)
+	protected.POST("/billing/checkout", billingH.Checkout)
+	protected.POST("/billing/portal", billingH.Portal)
+	e.POST("/webhooks/stripe", billingH.StripeWebhook)
 
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)

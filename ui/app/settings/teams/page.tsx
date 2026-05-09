@@ -16,16 +16,12 @@ export default function TeamsSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-
-  const role = getCurrentRole()
-  const canEdit = role === "owner" || role === "admin"
-
-  if (!getToken()) {
-    router.replace("/login")
-    return null
-  }
+  const [canEdit, setCanEdit] = useState(false)
 
   useEffect(() => {
+    if (!getToken()) { router.replace("/login"); return }
+    const role = getCurrentRole()
+    setCanEdit(role === "owner" || role === "admin")
     getTeamsSettings()
       .then(setWebhookUrl)
       .catch(() => toast.error("Failed to load Teams settings"))

@@ -56,6 +56,7 @@ type createEnvRequest struct {
 
 func (h *EnvironmentsHandler) Create(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+	pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
 
 	if err := requireAdmin(c); err != nil {
 		return err
@@ -67,6 +68,11 @@ func (h *EnvironmentsHandler) Create(c echo.Context) error {
 	}
 	if req.Name == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "name is required"})
+	}
+
+	// Entitlement check: enforce environment limit
+	if err := checkEnvLimit(context.Background(), h.q, pgOrgID); err != nil {
+		return c.JSON(http.StatusPaymentRequired, echo.Map{"error": err.Error(), "upgrade_required": true})
 	}
 
 	env, err := h.q.CreateEnvironment(context.Background(), store.CreateEnvironmentParams{

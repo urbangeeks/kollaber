@@ -4,13 +4,17 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Bell, Hash, Users, MessageSquare } from "lucide-react"
+import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard, ScrollText, ShieldCheck, Container } from "lucide-react"
 
 const NAV = [
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/slack",         label: "Slack",         icon: Hash },
   { href: "/settings/teams",         label: "Teams",         icon: MessageSquare },
   { href: "/settings/members",       label: "Members",       icon: Users },
+  { href: "/settings/billing",       label: "Billing",       icon: CreditCard },
+  { href: "/settings/kubernetes",    label: "Kubernetes",    icon: Container },
+  { href: "/settings/sso",           label: "SSO",           icon: ShieldCheck },
+  { href: "/settings/audit-logs",    label: "Audit Logs",    icon: ScrollText },
 ]
 
 export function SettingsNav() {
@@ -32,9 +36,9 @@ export function SettingsNav() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
+            className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
               pathname === href
-                ? "bg-accent text-accent-foreground font-medium"
+                ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground"
             }`}
           >

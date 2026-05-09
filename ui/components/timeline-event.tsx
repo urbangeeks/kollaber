@@ -1,13 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { type Event, type Comment, getComments, createComment } from "@/lib/api"
+import { type Event, type Comment, getComments, createComment, getEventSummary, getEventPostmortem } from "@/lib/api"
 import { commentSchema } from "@/lib/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText } from "lucide-react"
 
 const TYPE_CONFIG = {
   deploy: { icon: Rocket, label: "Deploy", variant: "default" },
@@ -31,6 +37,13 @@ export function TimelineEvent({ event }: { event: Event }) {
   const [bodyError, setBodyError] = useState("")
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [postmortem, setPostmortem] = useState<string | null>(null)
+  const [postmortemOpen, setPostmortemOpen] = useState(false)
+  const [postmortemLoading, setPostmortemLoading] = useState(false)
+  const [postmortemError, setPostmortemError] = useState<string | null>(null)
 
   const { icon: Icon, label, variant } = TYPE_CONFIG[event.type]
   const statusCfg = STATUS_CONFIG[event.status ?? "success"]
@@ -42,6 +55,47 @@ export function TimelineEvent({ event }: { event: Event }) {
       setComments(data)
     }
     setOpen((v) => !v)
+  }
+
+  async function handlePostmortem() {
+    if (postmortem) { setPostmortemOpen(true); return }
+    setPostmortemLoading(true)
+    setPostmortemError(null)
+    try {
+      const text = await getEventPostmortem(event.id)
+      setPostmortem(text)
+      setPostmortemOpen(true)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to generate postmortem"
+      if (msg.includes("402") || msg.toLowerCase().includes("upgrade")) {
+        setPostmortemError("upgrade")
+        setPostmortemOpen(true)
+      } else {
+        setPostmortemError(msg)
+        setPostmortemOpen(true)
+      }
+    } finally {
+      setPostmortemLoading(false)
+    }
+  }
+
+  async function handleSummarize() {
+    if (summary) { setSummary(null); return }
+    setSummaryLoading(true)
+    setSummaryError(null)
+    try {
+      const text = await getEventSummary(event.id)
+      setSummary(text)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to generate summary"
+      if (msg.includes("402") || msg.toLowerCase().includes("upgrade")) {
+        setSummaryError("upgrade")
+      } else {
+        setSummaryError(msg)
+      }
+    } finally {
+      setSummaryLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -92,15 +146,56 @@ export function TimelineEvent({ event }: { event: Event }) {
               )}
             </div>
           )}
-          <button
-            onClick={toggleComments}
-            className="text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1 text-xs transition-colors"
-          >
-            <MessageCircle className="h-3 w-3" />
-            {open ? "Hide comments" : "Comments"}
-          </button>
+          <div className="mt-1 flex items-center gap-3">
+            <button
+              onClick={toggleComments}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
+            >
+              <MessageCircle className="h-3 w-3" />
+              {open ? "Hide comments" : "Comments"}
+            </button>
+            <button
+              onClick={handleSummarize}
+              disabled={summaryLoading}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
+            >
+              {summaryLoading
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Sparkles className="h-3 w-3" />}
+              {summaryLoading ? "Summarizing…" : summary ? "Hide summary" : "Summarize"}
+            </button>
+            <button
+              onClick={handlePostmortem}
+              disabled={postmortemLoading}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
+            >
+              {postmortemLoading
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <FileText className="h-3 w-3" />}
+              {postmortemLoading ? "Generating…" : "Postmortem"}
+            </button>
+          </div>
         </div>
       </div>
+
+      {(summary || summaryError) && (
+        <div className="ml-11">
+          {summaryError === "upgrade" ? (
+            <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-xs">
+              <Sparkles className="mr-1 inline h-3 w-3" />
+              AI summaries are available on the <span className="text-foreground font-medium">Team plan</span>.{" "}
+              <a href="/settings/billing" className="text-primary underline underline-offset-2">Upgrade</a>
+            </p>
+          ) : summaryError ? (
+            <p className="text-destructive text-xs">{summaryError}</p>
+          ) : (
+            <p className="text-foreground bg-muted/50 rounded-md border px-3 py-2 text-sm leading-relaxed">
+              <Sparkles className="text-primary mr-1.5 inline h-3 w-3" />
+              {summary}
+            </p>
+          )}
+        </div>
+      )}
 
       {open && (
         <div className="ml-11 space-y-2">
@@ -126,6 +221,28 @@ export function TimelineEvent({ event }: { event: Event }) {
           </form>
         </div>
       )}
+
+      <Dialog open={postmortemOpen} onOpenChange={setPostmortemOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Postmortem — {event.service}
+            </DialogTitle>
+          </DialogHeader>
+          {postmortemError === "upgrade" ? (
+            <p className="text-muted-foreground text-sm">
+              AI postmortems are available on the{" "}
+              <span className="text-foreground font-medium">Pro plan</span>.{" "}
+              <a href="/settings/billing" className="text-primary underline underline-offset-2">Upgrade</a>
+            </p>
+          ) : postmortemError ? (
+            <p className="text-destructive text-sm">{postmortemError}</p>
+          ) : (
+            <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{postmortem}</pre>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

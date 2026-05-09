@@ -322,6 +322,16 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
   }) as Promise<Comment>
 }
 
+export async function getEventSummary(eventId: string): Promise<string> {
+  const data = await request(`/events/${eventId}/summary`, null, { method: "POST" })
+  return (data as { summary: string }).summary
+}
+
+export async function getEventPostmortem(eventId: string): Promise<string> {
+  const data = await request(`/events/${eventId}/postmortem`, null, { method: "POST" })
+  return (data as { postmortem: string }).postmortem
+}
+
 const notificationPrefsSchema = z.object({
   notify_on: z.array(z.string()),
   notification_email: z.string(),
@@ -375,4 +385,73 @@ export async function updateTeamsSettings(webhookUrl: string): Promise<void> {
 
 export async function testTeamsSettings(): Promise<void> {
   await request("/settings/teams/test", null, { method: "POST" })
+}
+
+const billingStatusSchema = z.object({
+  plan: z.string(),
+  subscription_status: z.string(),
+  seats_used: z.number(),
+  seats_limit: z.number(),
+  environments_used: z.number(),
+  environments_limit: z.number(),
+  history_days: z.number(),
+  has_stripe_customer: z.boolean(),
+  entitlements: z.object({
+    kubernetes_ingestion: z.boolean(),
+    ai_summaries: z.boolean(),
+    ai_postmortems: z.boolean(),
+    sso: z.boolean(),
+    audit_logs: z.boolean(),
+  }),
+})
+
+export type BillingStatus = z.infer<typeof billingStatusSchema>
+
+export function getBillingStatus(): Promise<BillingStatus> {
+  return request("/billing", billingStatusSchema) as Promise<BillingStatus>
+}
+
+export async function createCheckoutSession(plan: string): Promise<string> {
+  const data = await request("/billing/checkout", z.object({ url: z.string() }), {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  })
+  return (data as { url: string }).url
+}
+
+export async function createPortalSession(): Promise<string> {
+  const data = await request("/billing/portal", z.object({ url: z.string() }), { method: "POST" })
+  return (data as { url: string }).url
+}
+
+export type AuditLogEntry = {
+  id: string
+  actor_email: string
+  action: string
+  target_type: string
+  target_id: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export async function getAuditLogs(limit = 50, offset = 0): Promise<AuditLogEntry[]> {
+  const data = await request(`/audit-logs?limit=${limit}&offset=${offset}`, null)
+  return (data as AuditLogEntry[]) ?? []
+}
+
+export type SSOConfig = {
+  issuer_url: string
+  client_id: string
+  client_secret: string
+  domain: string
+  enabled: boolean
+  callback_url: string
+}
+
+export function getSSOConfig(): Promise<SSOConfig> {
+  return request("/settings/sso", null) as Promise<SSOConfig>
+}
+
+export async function saveSSOConfig(cfg: Omit<SSOConfig, "callback_url">): Promise<void> {
+  await request("/settings/sso", null, { method: "PUT", body: JSON.stringify(cfg) })
 }

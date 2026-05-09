@@ -42,6 +42,13 @@ func (h *InviteHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "role must be admin, member, or viewer"})
 	}
 
+	// Entitlement check: enforce member seat limit (skip for viewer — viewers are free)
+	if role != "viewer" {
+		if err := checkSeatLimit(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true}); err != nil {
+			return c.JSON(http.StatusPaymentRequired, echo.Map{"error": err.Error(), "upgrade_required": true})
+		}
+	}
+
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate token"})
@@ -57,6 +64,17 @@ func (h *InviteHandler) Create(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create invite"})
 	}
+
+	actorID, actorEmail := auditActor(c)
+	go h.q.WriteAuditLog(context.Background(), store.WriteAuditLogParams{
+		OrgID:      pgtype.UUID{Bytes: orgID, Valid: true},
+		ActorID:    actorID,
+		ActorEmail: actorEmail,
+		Action:     "invite.created",
+		TargetType: "invite",
+		TargetID:   token,
+		Metadata:   map[string]any{"role": role},
+	})
 
 	return c.JSON(http.StatusCreated, echo.Map{"token": token})
 }
@@ -140,6 +158,10 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not mark invite used"})
 	}
 
+	if invite.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, invite.OrgID)
+	}
+
 	jwtToken, err := makeToken(
 		uuid.UUID(user.ID.Bytes).String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
@@ -206,6 +228,10 @@ func (h *InviteHandler) Join(c echo.Context) error {
 
 	if err := h.q.AcceptInvite(ctx, token); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not mark invite used"})
+	}
+
+	if invite.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, invite.OrgID)
 	}
 
 	user, err := h.q.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})

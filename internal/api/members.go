@@ -15,6 +15,18 @@ type MembersHandler struct{ q *store.Queries }
 
 func NewMembersHandler(q *store.Queries) *MembersHandler { return &MembersHandler{q} }
 
+func (h *MembersHandler) audit(orgID pgtype.UUID, actorID pgtype.UUID, actorEmail, action, targetType, targetID string, meta map[string]any) {
+	go h.q.WriteAuditLog(context.Background(), store.WriteAuditLogParams{
+		OrgID:      orgID,
+		ActorID:    actorID,
+		ActorEmail: actorEmail,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		Metadata:   meta,
+	})
+}
+
 func (h *MembersHandler) List(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
 
@@ -93,6 +105,19 @@ func (h *MembersHandler) UpdateRole(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not update role"})
 	}
 
+	actorID, actorEmail := auditActor(c)
+	h.audit(pgtype.UUID{Bytes: orgID, Valid: true}, actorID, actorEmail,
+		"member.role_changed", "member", targetID.String(),
+		map[string]any{"from": target.Role, "to": req.Role},
+	)
+
+	// sync seats when crossing the billable boundary (viewer ↔ non-viewer)
+	wasViewer := target.Role == "viewer"
+	isViewer := req.Role == "viewer"
+	if wasViewer != isViewer {
+		go syncSeatCount(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true})
+	}
+
 	return c.JSON(http.StatusOK, echo.Map{"role": req.Role})
 }
 
@@ -125,6 +150,16 @@ func (h *MembersHandler) Remove(c echo.Context) error {
 		UserID: pgtype.UUID{Bytes: targetID, Valid: true},
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not remove member"})
+	}
+
+	actorID, actorEmail := auditActor(c)
+	h.audit(pgtype.UUID{Bytes: orgID, Valid: true}, actorID, actorEmail,
+		"member.removed", "member", targetID.String(),
+		map[string]any{"role": target.Role},
+	)
+
+	if target.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true})
 	}
 
 	return c.NoContent(http.StatusNoContent)
