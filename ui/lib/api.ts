@@ -327,6 +327,11 @@ export async function getEventSummary(eventId: string): Promise<string> {
   return (data as { summary: string }).summary
 }
 
+export async function getEventPostmortem(eventId: string): Promise<string> {
+  const data = await request(`/events/${eventId}/postmortem`, null, { method: "POST" })
+  return (data as { postmortem: string }).postmortem
+}
+
 const notificationPrefsSchema = z.object({
   notify_on: z.array(z.string()),
   notification_email: z.string(),

@@ -17,6 +17,8 @@ import (
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
+const postmortemWindow = 2 * time.Hour
+
 type AIHandler struct{ q *store.Queries }
 
 func NewAIHandler(q *store.Queries) *AIHandler { return &AIHandler{q} }
@@ -57,6 +59,93 @@ func (h *AIHandler) SummarizeEvent(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"summary": summary})
+}
+
+func (h *AIHandler) PostmortemEvent(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+	pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
+	ctx := context.Background()
+
+	b, err := h.q.GetOrgBilling(ctx, pgOrgID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load billing"})
+	}
+	if !billing.EntitlementsFor(b.Plan).AIPostmortems {
+		return c.JSON(http.StatusPaymentRequired, echo.Map{
+			"error":            "AI postmortems require the Pro plan",
+			"upgrade_required": true,
+		})
+	}
+
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid event id"})
+	}
+
+	event, err := h.q.GetEventByIDForOrg(ctx, pgtype.UUID{Bytes: eventID, Valid: true}, pgOrgID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
+	}
+
+	comments, _ := h.q.ListCommentsByEvent(ctx, event.ID)
+	nearby, _ := h.q.GetEventsAroundTime(ctx, event.EnvironmentID, event.Timestamp.Time, postmortemWindow, event.ID)
+
+	prompt := buildPostmortemPrompt(event, comments, nearby)
+	postmortem, err := kollabai.SummarizeEvent(ctx, prompt)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate postmortem"})
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"postmortem": postmortem})
+}
+
+func buildPostmortemPrompt(event store.Event, comments []store.Comment, nearby []store.Event) string {
+	var sb strings.Builder
+	sb.WriteString(`You are an SRE assistant. Write a concise incident postmortem based on the information below.
+Use this exact structure with these section headers:
+
+## What Happened
+## Timeline
+## Impact
+## Root Cause
+## Action Items
+
+Be factual and concise. Use only information provided — do not invent details.
+
+---
+INCIDENT EVENT
+`)
+	writeEventBlock(&sb, event)
+
+	if len(comments) > 0 {
+		sb.WriteString("\nCOMMENTS ON INCIDENT\n")
+		for _, c := range comments {
+			fmt.Fprintf(&sb, "- %s\n", c.Body)
+		}
+	}
+
+	if len(nearby) > 0 {
+		sb.WriteString("\nRELATED EVENTS (±2 hours, same environment)\n")
+		for _, e := range nearby {
+			writeEventBlock(&sb, e)
+		}
+	}
+
+	return sb.String()
+}
+
+func writeEventBlock(sb *strings.Builder, e store.Event) {
+	fmt.Fprintf(sb, "[%s] %s | service=%s status=%s\n",
+		e.Timestamp.Time.UTC().Format(time.RFC3339),
+		e.Type, e.Service, e.Status,
+	)
+	var meta map[string]any
+	if len(e.Metadata) > 0 {
+		_ = json.Unmarshal(e.Metadata, &meta)
+	}
+	for k, v := range meta {
+		fmt.Fprintf(sb, "  %s=%v\n", k, v)
+	}
 }
 
 func buildSummaryPrompt(event store.Event, comments []store.Comment) string {
