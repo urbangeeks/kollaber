@@ -50,6 +50,10 @@ func (h *AIHandler) SummarizeEvent(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
 	}
 
+	if event.AISummary != nil {
+		return c.JSON(http.StatusOK, echo.Map{"summary": *event.AISummary})
+	}
+
 	comments, _ := h.q.ListCommentsByEvent(ctx, event.ID)
 
 	prompt := buildSummaryPrompt(event, comments)
@@ -57,6 +61,8 @@ func (h *AIHandler) SummarizeEvent(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate summary"})
 	}
+
+	_ = h.q.SetEventAISummary(ctx, event.ID, summary)
 
 	return c.JSON(http.StatusOK, echo.Map{"summary": summary})
 }
@@ -87,6 +93,10 @@ func (h *AIHandler) PostmortemEvent(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
 	}
 
+	if event.AIPostmortem != nil {
+		return c.JSON(http.StatusOK, echo.Map{"postmortem": *event.AIPostmortem})
+	}
+
 	comments, _ := h.q.ListCommentsByEvent(ctx, event.ID)
 	nearby, _ := h.q.GetEventsAroundTime(ctx, event.EnvironmentID, event.Timestamp.Time, postmortemWindow, event.ID)
 
@@ -95,6 +105,8 @@ func (h *AIHandler) PostmortemEvent(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate postmortem"})
 	}
+
+	_ = h.q.SetEventAIPostmortem(ctx, event.ID, postmortem)
 
 	return c.JSON(http.StatusOK, echo.Map{"postmortem": postmortem})
 }

@@ -33,6 +33,8 @@ type Event struct {
 	Metadata      []byte             `json:"metadata"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	Status        string             `json:"status"`
+	AISummary     *string            `json:"ai_summary,omitempty"`
+	AIPostmortem  *string            `json:"ai_postmortem,omitempty"`
 }
 
 type Invite struct {
