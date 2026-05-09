@@ -34,13 +34,16 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 		return nil
 	}
 
+	hub := NewHub()
+
 	auth := NewAuthHandler(q, pool)
 	gh := NewGitHubAuthHandler(q)
 	otp := NewOTPHandler(q)
 	envs := NewEnvironmentsHandler(q)
-	events := NewEventsHandler(q)
+	events := NewEventsHandler(q, hub)
 	comments := NewCommentsHandler(q)
-	webhooks := NewWebhookHandler(q)
+	webhooks := NewWebhookHandler(q, hub)
+	streamH := NewStreamHandler(hub)
 	admin := NewAdminHandler(q)
 	invites := NewInviteHandler(q)
 	services := NewServicesHandler(q)
@@ -89,6 +92,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.DELETE("/environments/:id", envs.Delete)
 	protected.POST("/events", events.Create)
 	protected.GET("/events", events.List)
+	protected.GET("/events/stream", streamH.Stream)
 	protected.POST("/events/:id/comments", comments.Create)
 	protected.GET("/events/:id/comments", comments.List)
 	protected.POST("/events/:id/summary", aiH.SummarizeEvent)

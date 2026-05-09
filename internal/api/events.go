@@ -17,9 +17,12 @@ import (
 	"github.com/urbangeeks/kollaber/internal/teams"
 )
 
-type EventsHandler struct{ q *store.Queries }
+type EventsHandler struct {
+	q   *store.Queries
+	hub *Hub
+}
 
-func NewEventsHandler(q *store.Queries) *EventsHandler { return &EventsHandler{q} }
+func NewEventsHandler(q *store.Queries, hub *Hub) *EventsHandler { return &EventsHandler{q, hub} }
 
 type eventResponse struct {
 	ID            string          `json:"id"`
@@ -100,6 +103,10 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create event"})
+	}
+
+	if data, err := json.Marshal(toEventResponse(event)); err == nil {
+		h.hub.Broadcast(orgID.String(), req.EnvironmentID.String(), data)
 	}
 
 	go func() {

@@ -17,9 +17,12 @@ import (
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
-type WebhookHandler struct{ q *store.Queries }
+type WebhookHandler struct {
+	q   *store.Queries
+	hub *Hub
+}
 
-func NewWebhookHandler(q *store.Queries) *WebhookHandler { return &WebhookHandler{q} }
+func NewWebhookHandler(q *store.Queries, hub *Hub) *WebhookHandler { return &WebhookHandler{q, hub} }
 
 type genericWebhookPayload struct {
 	Type          string         `json:"type"`
@@ -97,7 +100,8 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 	}
 	metaBytes, _ := json.Marshal(payload.Metadata)
 
-	event, err := h.q.CreateEvent(context.Background(), store.CreateEventParams{
+	ctx := context.Background()
+	event, err := h.q.CreateEvent(ctx, store.CreateEventParams{
 		Type:          payload.Type,
 		Service:       payload.Service,
 		EnvironmentID: pgtype.UUID{Bytes: envID, Valid: true},
@@ -107,6 +111,17 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not ingest event"})
 	}
+
+	go func() {
+		env, err := h.q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: envID, Valid: true})
+		if err != nil {
+			return
+		}
+		orgID := uuid.UUID(env.OrgID.Bytes)
+		if data, err := json.Marshal(toEventResponse(event)); err == nil {
+			h.hub.Broadcast(orgID.String(), envID.String(), data)
+		}
+	}()
 
 	return c.JSON(http.StatusCreated, event)
 }

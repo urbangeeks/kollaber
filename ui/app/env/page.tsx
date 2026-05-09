@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { getEvents, createEvent, getServices, getToken, type Event, type EventFilters } from "@/lib/api"
 import { createEventSchema } from "@/lib/schemas"
-import { usePoll } from "@/hooks/use-poll"
+import { useEventStream } from "@/hooks/use-event-stream"
 import { TimelineEvent } from "@/components/timeline-event"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 
 function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
   const now = new Date()
@@ -64,7 +64,6 @@ function EnvPageInner() {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [polling, setPolling] = useState(false)
   const [error, setError] = useState("")
 
   const PAGE_SIZE = 50
@@ -136,24 +135,25 @@ function EnvPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, filterType, filterStatus, filterService, filterAfter, filterBefore])
 
-  // Background poll — shows a subtle spinner, does not replace the list with a skeleton.
-  usePoll(
-    () => {
-      if (!isAuthed) { router.replace("/login"); return }
-      if (!id || loading) return
-      setPolling(true)
-      getEvents(id, PAGE_SIZE, 0, activeFilters)
-        .then((evts) => {
-          setTopEvents(evts)
-          setHasMore((prev) => moreEvents.length > 0 ? prev : evts.length === PAGE_SIZE)
-          getServices(id).then(setKnownServices).catch(() => {})
-          setError("")
-        })
-        .catch((err) => setError(err.message))
-        .finally(() => setPolling(false))
+  // Real-time updates via SSE — prepend new events as they arrive.
+  useEventStream(
+    id,
+    (data) => {
+      const event = data as Event
+      if (filterType && event.type !== filterType) return
+      if (filterStatus && event.status !== filterStatus) return
+      if (filterService && event.service !== filterService) return
+      if (filterAfter && new Date(event.timestamp) < new Date(filterAfter)) return
+      if (filterBefore && new Date(event.timestamp) > new Date(filterBefore)) return
+      setTopEvents((prev) => {
+        if (prev.some((e) => e.id === event.id)) return prev
+        return [event, ...prev]
+      })
+      if (!knownServices.includes(event.service)) {
+        setKnownServices((prev) => [...prev, event.service])
+      }
     },
-    7000,
-    isAuthed,
+    isAuthed && Boolean(id),
   )
 
   async function handleLoadMore() {
@@ -218,10 +218,8 @@ function EnvPageInner() {
           <h1 className="text-xl font-semibold">Timeline</h1>
           <div className="ml-auto flex items-center gap-3">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              {polling
-                ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
-              Refreshes every 7s
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live
             </span>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
