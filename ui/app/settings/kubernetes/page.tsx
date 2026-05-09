@@ -110,12 +110,11 @@ export default function KubernetesSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
 
-  const apiBase = typeof window !== "undefined"
-    ? window.location.origin.replace(/:3000$/, ":8080")
-    : "https://api.kollaber.io"
+  const [apiBase, setApiBase] = useState("https://api.kollaber.io")
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
+    setApiBase(window.location.origin.replace(/:3000$/, ":8080"))
     getBillingStatus()
       .then(setBilling)
       .catch((err) => {

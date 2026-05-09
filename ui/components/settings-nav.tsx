@@ -36,9 +36,9 @@ export function SettingsNav() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
+            className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
               pathname === href
-                ? "bg-accent text-accent-foreground font-medium"
+                ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground"
             }`}
           >

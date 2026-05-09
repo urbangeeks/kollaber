@@ -260,13 +260,10 @@ func buildOAuthConfig(ctx context.Context, cfg store.SSOConfig) (*oidcBundle, er
 }
 
 func callbackURL() string {
-	base := os.Getenv("FRONTEND_URL")
-	if base == "" {
-		base = "http://localhost:8080"
+	if v := os.Getenv("API_URL"); v != "" {
+		return strings.TrimRight(v, "/") + "/auth/sso/callback"
 	}
-	// callback hits the API server, not the frontend
-	apiBase := strings.Replace(base, "3000", "8080", 1)
-	return apiBase + "/auth/sso/callback"
+	return "http://localhost:8080/auth/sso/callback"
 }
 
 type statePayload struct {

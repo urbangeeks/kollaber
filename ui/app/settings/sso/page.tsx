@@ -18,12 +18,12 @@ export default function SSOSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
   const [copied, setCopied] = useState(false)
-
-  const role = typeof window !== "undefined" ? getCurrentRole() : null
-  const isAdminOrOwner = role === "owner" || role === "admin"
+  const [isAdminOrOwner, setIsAdminOrOwner] = useState(false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
+    const role = getCurrentRole()
+    setIsAdminOrOwner(role === "owner" || role === "admin")
     getSSOConfig()
       .then(setCfg)
       .catch((err) => {

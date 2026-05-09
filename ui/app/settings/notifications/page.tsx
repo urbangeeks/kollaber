@@ -21,18 +21,13 @@ export default function NotificationsSettingsPage() {
   const router = useRouter()
   const [notifyOn, setNotifyOn] = useState<string[]>([])
   const [notificationEmail, setNotificationEmail] = useState("")
+  const [accountEmail, setAccountEmail] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  if (!getToken()) {
-    router.replace("/login")
-    return null
-  }
-
-  const accountEmail = getCurrentEmail()
-
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
+    setAccountEmail(getCurrentEmail() ?? "")
     getNotificationPrefs()
       .then(({ notifyOn, notificationEmail }) => {
         setNotifyOn(notifyOn)
