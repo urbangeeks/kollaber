@@ -8,6 +8,8 @@ import (
 	portalsession "github.com/stripe/stripe-go/v82/billingportal/session"
 	checkoutsession "github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/customer"
+	"github.com/stripe/stripe-go/v82/subscription"
+	"github.com/stripe/stripe-go/v82/subscriptionitem"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -66,6 +68,10 @@ func CreateCheckoutSession(plan, stripeCustomerID, orgID, successURL, cancelURL 
 				Quantity: stripe.Int64(seats),
 			},
 		},
+		Metadata: map[string]string{
+			"org_id": orgID,
+			"plan":   plan,
+		},
 		SubscriptionData: &stripe.CheckoutSessionSubscriptionDataParams{
 			Metadata: map[string]string{
 				"org_id": orgID,
@@ -95,11 +101,36 @@ func CreatePortalSession(stripeCustomerID, returnURL string) (string, error) {
 	return ps.URL, nil
 }
 
+// SyncSubscriptionSeats updates the quantity on the first subscription item to match
+// the current billable seat count. Call this after any member join or removal.
+func SyncSubscriptionSeats(subscriptionID string, seats int64) error {
+	stripe.Key = key()
+	if seats < 1 {
+		seats = 1
+	}
+	sub, err := subscription.Get(subscriptionID, nil)
+	if err != nil {
+		return fmt.Errorf("stripe get subscription: %w", err)
+	}
+	if len(sub.Items.Data) == 0 {
+		return fmt.Errorf("subscription has no items")
+	}
+	_, err = subscriptionitem.Update(sub.Items.Data[0].ID, &stripe.SubscriptionItemParams{
+		Quantity: stripe.Int64(seats),
+	})
+	if err != nil {
+		return fmt.Errorf("stripe update subscription seats: %w", err)
+	}
+	return nil
+}
+
 // ParseWebhook validates and parses an incoming Stripe webhook payload.
 func ParseWebhook(body []byte, sigHeader string) (stripe.Event, error) {
 	secret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if secret == "" {
 		return stripe.Event{}, fmt.Errorf("STRIPE_WEBHOOK_SECRET not set")
 	}
-	return webhook.ConstructEvent(body, sigHeader, secret)
+	return webhook.ConstructEventWithOptions(body, sigHeader, secret, webhook.ConstructEventOptions{
+		IgnoreAPIVersionMismatch: true,
+	})
 }

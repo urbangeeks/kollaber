@@ -147,6 +147,10 @@ func (h *InviteHandler) Accept(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not mark invite used"})
 	}
 
+	if invite.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, invite.OrgID)
+	}
+
 	jwtToken, err := makeToken(
 		uuid.UUID(user.ID.Bytes).String(),
 		uuid.UUID(invite.OrgID.Bytes).String(),
@@ -213,6 +217,10 @@ func (h *InviteHandler) Join(c echo.Context) error {
 
 	if err := h.q.AcceptInvite(ctx, token); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not mark invite used"})
+	}
+
+	if invite.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, invite.OrgID)
 	}
 
 	user, err := h.q.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})

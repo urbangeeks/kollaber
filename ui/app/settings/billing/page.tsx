@@ -55,6 +55,11 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
   )
 }
 
+const PRICE_PER_SEAT: Record<string, number> = {
+  team: 12,
+  pro:  24,
+}
+
 const UPGRADE_PLANS = [
   {
     id: "team",
@@ -149,6 +154,16 @@ export default function BillingPage() {
                 limit={billing.seats_limit}
                 label="Seats (billable members)"
               />
+              {PRICE_PER_SEAT[billing.plan] && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-semibold">
+                    ${billing.seats_used * PRICE_PER_SEAT[billing.plan]}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    /mo — {billing.seats_used} seat{billing.seats_used !== 1 ? "s" : ""} × ${PRICE_PER_SEAT[billing.plan]}
+                  </span>
+                </div>
+              )}
               <UsageBar
                 used={billing.environments_used}
                 limit={billing.environments_limit}

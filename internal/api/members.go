@@ -93,6 +93,13 @@ func (h *MembersHandler) UpdateRole(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not update role"})
 	}
 
+	// sync seats when crossing the billable boundary (viewer ↔ non-viewer)
+	wasViewer := target.Role == "viewer"
+	isViewer := req.Role == "viewer"
+	if wasViewer != isViewer {
+		go syncSeatCount(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true})
+	}
+
 	return c.JSON(http.StatusOK, echo.Map{"role": req.Role})
 }
 
@@ -125,6 +132,10 @@ func (h *MembersHandler) Remove(c echo.Context) error {
 		UserID: pgtype.UUID{Bytes: targetID, Valid: true},
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not remove member"})
+	}
+
+	if target.Role != "viewer" {
+		go syncSeatCount(context.Background(), h.q, pgtype.UUID{Bytes: orgID, Valid: true})
 	}
 
 	return c.NoContent(http.StatusNoContent)

@@ -9,6 +9,20 @@ import (
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
+// syncSeatCount re-syncs the Stripe subscription quantity with the current billable
+// member count. Errors are silently swallowed — member operations succeed regardless.
+func syncSeatCount(ctx context.Context, q *store.Queries, orgID pgtype.UUID) {
+	b, err := q.GetOrgBilling(ctx, orgID)
+	if err != nil || b.StripeSubscriptionID == "" {
+		return
+	}
+	seats, err := q.CountBillableMembers(ctx, orgID)
+	if err != nil {
+		return
+	}
+	_ = billing.SyncSubscriptionSeats(b.StripeSubscriptionID, int64(seats))
+}
+
 func checkSeatLimit(ctx context.Context, q *store.Queries, orgID pgtype.UUID) error {
 	b, err := q.GetOrgBilling(ctx, orgID)
 	if err != nil {

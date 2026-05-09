@@ -355,6 +355,6 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

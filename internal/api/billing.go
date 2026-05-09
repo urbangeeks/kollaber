@@ -193,7 +193,8 @@ func (h *BillingHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	if session.Subscription == nil || session.Customer == nil {
 		return
 	}
-	plan := session.Subscription.Metadata["plan"]
+	// session.Subscription is a stub in this event — read plan from session metadata
+	plan := session.Metadata["plan"]
 	if plan == "" {
 		plan = billing.PlanTeam
 	}
