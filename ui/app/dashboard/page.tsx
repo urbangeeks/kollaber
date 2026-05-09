@@ -20,7 +20,7 @@ import {
 } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import {
-  Server,
   Copy,
   Check,
   Plus,
@@ -43,7 +42,6 @@ import {
   Trash2,
   Pencil,
   TriangleAlert,
-  Users,
   Settings,
 } from "lucide-react"
 
@@ -276,142 +274,148 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="space-y-3">
-          {/* Row 1: title + user */}
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-semibold">Environments</h1>
-            <div className="flex items-center gap-2">
-              <OrgSwitcher />
-              <div className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="max-w-[160px] truncate text-xs text-muted-foreground">
-                  {email}
-                </span>
-                {role && ROLE_BADGE[role] && (
-                  <span
-                    className={`rounded border px-1.5 py-0.5 text-[10px] leading-none font-medium ${ROLE_BADGE[role].className}`}
-                  >
-                    {ROLE_BADGE[role].label}
-                  </span>
-                )}
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Sign out
-              </Button>
-            </div>
-          </div>
-
-          {/* Row 2: actions */}
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="min-h-screen">
+      {/* Top bar */}
+      <header className="border-b px-8 py-4">
+        <div className="mx-auto max-w-5xl flex items-center gap-4">
+          <span className="font-semibold tracking-tight">Kollaber</span>
+          <div className="ml-auto flex items-center gap-2">
+            <OrgSwitcher />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push("/settings/notifications")}>
+              <Settings className="h-4 w-4" />
+            </Button>
             {isAdmin() && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/admin")}
-              >
+              <Button variant="ghost" size="sm" onClick={() => router.push("/admin")}>
                 Admin
               </Button>
             )}
-            {isAdminOrOwner && (
-              <Button variant="outline" size="sm" onClick={openNewEnv}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                New environment
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => router.push("/settings/notifications")}>
-              <Settings className="mr-1.5 h-4 w-4" />
-              Settings
-            </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setCliToken("")
-                setDownloadOpen(true)
-              }}
+              onClick={() => { setCliToken(""); setDownloadOpen(true) }}
             >
               <Download className="mr-1.5 h-4 w-4" />
-              Download CLI
+              CLI
+            </Button>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                {email ? email[0].toUpperCase() : <User className="h-3.5 w-3.5" />}
+              </div>
+              <span className="max-w-[140px] truncate text-xs text-muted-foreground hidden sm:block">
+                {email}
+              </span>
+              {role && ROLE_BADGE[role] && (
+                <span className={`rounded border px-1.5 py-0.5 text-[10px] leading-none font-medium ${ROLE_BADGE[role].className}`}>
+                  {ROLE_BADGE[role].label}
+                </span>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleLogout}>
+              Sign out
             </Button>
           </div>
         </div>
+      </header>
 
-        <div className="grid gap-4">
-          {envs.map((env) => (
-            <Card
-              key={env.id}
-              className="cursor-pointer transition-colors hover:bg-muted/50"
-              onClick={() => router.push(`/env?id=${env.id}`)}
-            >
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <Server className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">{env.name}</CardTitle>
-                <div className="ml-auto flex items-center gap-2">
-                  {env.cluster_name && (
-                    <Badge variant="secondary">{env.cluster_name}</Badge>
-                  )}
-                  {isAdminOrOwner && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openEdit(env)
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDeleteTarget(env)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+      <div className="mx-auto max-w-5xl px-8 py-8 space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Environments</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Select an environment to view its timeline.</p>
+          </div>
+          {isAdminOrOwner && (
+            <Button size="sm" onClick={openNewEnv}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New environment
+            </Button>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {envs.map((env) => {
+            const s = stats[env.id]
+            const statusDot = s
+              ? s.alerts > 0
+                ? "bg-amber-400"
+                : s.deploys > 0
+                  ? "bg-green-400"
+                  : "bg-muted-foreground/30"
+              : "bg-muted-foreground/30"
+
+            return (
+              <Card
+                key={env.id}
+                className="cursor-pointer transition-all hover:shadow-sm hover:border-border/80 group"
+                onClick={() => router.push(`/env?id=${env.id}`)}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${statusDot}`} />
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{env.name}</p>
+                        {env.cluster_name && (
+                          <p className="text-xs text-muted-foreground truncate">{env.cluster_name}</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-xs text-muted-foreground mr-1">
-                    Created {new Date(env.created_at).toLocaleDateString()}
-                  </p>
-                  {stats[env.id] && (
-                    <>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                        {stats[env.id].deploys} deploys
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                        {stats[env.id].alerts} alerts
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {stats[env.id].notes} notes
-                      </span>
-                      {stats[env.id].last_event_at && (
-                        <span className="text-xs text-muted-foreground">
-                          · last {new Date(stats[env.id].last_event_at!).toLocaleDateString()}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {isAdminOrOwner && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => { e.stopPropagation(); openEdit(env) }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(env) }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 border-t pt-4">
+                    {s ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <p className="text-2xl font-semibold">{s.deploys}</p>
+                            <p className="text-xs text-muted-foreground">deploys</p>
+                          </div>
+                          <div>
+                            <p className={`text-2xl font-semibold ${s.alerts > 0 ? "text-amber-500" : ""}`}>{s.alerts}</p>
+                            <p className="text-xs text-muted-foreground">alerts</p>
+                          </div>
+                          <div>
+                            <p className="text-2xl font-semibold">{s.notes}</p>
+                            <p className="text-xs text-muted-foreground">notes</p>
+                          </div>
+                        </div>
+                        {s.last_event_at && (
+                          <p className="text-xs text-muted-foreground mt-3">
+                            Last activity {new Date(s.last_event_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No events yet.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
 
           {envs.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No environments yet.
-            </p>
+            <p className="text-sm text-muted-foreground col-span-2">No environments yet.</p>
           )}
         </div>
       </div>
