@@ -322,6 +322,11 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
   }) as Promise<Comment>
 }
 
+export async function getEventSummary(eventId: string): Promise<string> {
+  const data = await request(`/events/${eventId}/summary`, null, { method: "POST" })
+  return (data as { summary: string }).summary
+}
+
 const notificationPrefsSchema = z.object({
   notify_on: z.array(z.string()),
   notification_email: z.string(),

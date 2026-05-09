@@ -49,6 +49,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	slackSettings := NewSlackSettingsHandler(q)
 	teamsSettings := NewTeamsSettingsHandler(q)
 	billingH := NewBillingHandler(q)
+	aiH := NewAIHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -86,6 +87,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/events", events.List)
 	protected.POST("/events/:id/comments", comments.Create)
 	protected.GET("/events/:id/comments", comments.List)
+	protected.POST("/events/:id/summary", aiH.SummarizeEvent)
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)
