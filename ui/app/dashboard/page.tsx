@@ -20,6 +20,7 @@ import {
 } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
+import { ThemeToggle } from "@/components/settings-nav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -281,6 +282,7 @@ export default function DashboardPage() {
           <span className="font-semibold tracking-tight">Kollaber</span>
           <div className="ml-auto flex items-center gap-2">
             <OrgSwitcher />
+            <ThemeToggle />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push("/settings/notifications")}>
               <Settings className="h-4 w-4" />
             </Button>
