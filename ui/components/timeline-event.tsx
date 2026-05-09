@@ -49,6 +49,15 @@ export function TimelineEvent({ event }: { event: Event }) {
   const statusCfg = STATUS_CONFIG[event.status ?? "success"]
   const StatusIcon = statusCfg.icon
 
+  const { dotBorder, dotText } = (() => {
+    if (event.type === "note") return { dotBorder: "border-border", dotText: "text-muted-foreground" }
+    if (event.type === "alert") return { dotBorder: "border-red-200 dark:border-red-900", dotText: "text-red-600 dark:text-red-400" }
+    const s = event.status ?? "success"
+    if (s === "failure")     return { dotBorder: "border-red-200 dark:border-red-900",   dotText: "text-red-600 dark:text-red-400" }
+    if (s === "in_progress") return { dotBorder: "border-amber-200 dark:border-amber-900", dotText: "text-amber-500 dark:text-amber-400" }
+    return { dotBorder: "border-green-200 dark:border-green-900", dotText: "text-green-600 dark:text-green-400" }
+  })()
+
   async function toggleComments() {
     if (!open && comments === null) {
       const data = await getComments(event.id)
@@ -119,7 +128,7 @@ export function TimelineEvent({ event }: { event: Event }) {
   return (
     <div className="space-y-3">
       <div className="flex items-start gap-3">
-        <div className="bg-muted mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
+        <div className={`relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background ${dotBorder} ${dotText}`}>
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">

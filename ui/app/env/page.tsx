@@ -7,7 +7,6 @@ import { getEvents, createEvent, getServices, getToken, type Event, type EventFi
 import { createEventSchema } from "@/lib/schemas"
 import { usePoll } from "@/hooks/use-poll"
 import { TimelineEvent } from "@/components/timeline-event"
-import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +19,26 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ArrowLeft, Plus, Loader2 } from "lucide-react"
+
+function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const map = new Map<string, Event[]>()
+  for (const event of events) {
+    const d = new Date(event.timestamp)
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    let label: string
+    if (day.getTime() === today.getTime()) label = "Today"
+    else if (day.getTime() === yesterday.getTime()) label = "Yesterday"
+    else label = day.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })
+    const bucket = map.get(label)
+    if (bucket) bucket.push(event)
+    else map.set(label, [event])
+  }
+  return Array.from(map.entries()).map(([label, events]) => ({ label, events }))
+}
 
 type EventType = "deploy" | "alert" | "note"
 type EventStatus = "success" | "failure" | "in_progress"
@@ -320,42 +339,48 @@ function EnvPageInner() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div>
           {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="space-y-2 animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-muted" />
-                  <div className="space-y-1.5 flex-1">
+            <div className="relative">
+              <div className="absolute left-4 inset-y-0 w-px bg-border" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 mb-6 animate-pulse">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted relative z-10" />
+                  <div className="space-y-1.5 flex-1 pt-1.5">
                     <div className="h-3 w-1/3 rounded bg-muted" />
                     <div className="h-3 w-1/2 rounded bg-muted" />
                   </div>
-                  <div className="h-3 w-16 rounded bg-muted" />
-                </div>
-                {i < 4 && <Separator className="mt-4" />}
-              </div>
-            ))
-          ) : (
-            <>
-              {allEvents.map((event, i) => (
-                <div key={event.id}>
-                  <TimelineEvent event={event} />
-                  {i < allEvents.length - 1 && <Separator className="mt-4" />}
                 </div>
               ))}
-
-              {allEvents.length === 0 && !error && (
-                <p className="text-muted-foreground text-sm">No events yet.</p>
-              )}
-
+            </div>
+          ) : allEvents.length === 0 && !error ? (
+            <p className="text-muted-foreground text-sm">No events yet.</p>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 inset-y-0 w-px bg-border" />
+              {groupByDate(allEvents).map((group) => (
+                <div key={group.label}>
+                  <div className="relative flex items-center gap-3 mb-3 mt-1">
+                    <div className="w-8 shrink-0" />
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                      {group.label}
+                    </span>
+                  </div>
+                  {group.events.map((event) => (
+                    <div key={event.id} className="mb-5">
+                      <TimelineEvent event={event} />
+                    </div>
+                  ))}
+                </div>
+              ))}
               {hasMore && (
-                <div className="pt-2 text-center">
+                <div className="pl-11 pt-2">
                   <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
                     {loadingMore ? "Loading…" : "Load more"}
                   </Button>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
