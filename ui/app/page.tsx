@@ -150,7 +150,7 @@ export default function LandingPage() {
       <main className="container mx-auto px-6">
 
         {/* 2. HERO */}
-        <section className="relative flex flex-col items-center pt-24 pb-20 text-center md:pt-32">
+        <section className="relative flex flex-col items-center pt-14 pb-12 text-center sm:pt-20 sm:pb-16 md:pt-32 md:pb-20">
           <BlurFade delay={0.1}>
             <div className="mb-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium">
               <span className="relative flex h-2 w-2">
@@ -162,7 +162,7 @@ export default function LandingPage() {
           </BlurFade>
 
           <BlurFade delay={0.2}>
-            <h1 className="max-w-4xl text-5xl font-bold tracking-tight md:text-7xl">
+            <h1 className="max-w-4xl text-3xl font-bold tracking-tight sm:text-5xl md:text-7xl">
               The shared timeline for{" "}
               <AnimatedGradientText colorFrom="#60a5fa" colorTo="#a78bfa" speed={0.6}>
                 infrastructure
@@ -207,7 +207,7 @@ export default function LandingPage() {
                 </div>
                 <div className="mx-auto font-mono text-[11px] text-white/30">bash — kollaber</div>
               </div>
-              <div className="p-6 text-left font-mono text-sm leading-relaxed">
+              <div className="overflow-x-auto p-3 sm:p-6 text-left font-mono text-xs sm:text-sm leading-relaxed">
                 <div>
                   <span className="text-white/40">$</span>{" "}
                   <span className="text-green-400">kollaber deploy --env production --service api</span>
@@ -271,7 +271,7 @@ export default function LandingPage() {
                 key={feature.title}
                 delay={i * 0.07}
                 inView
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8"
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-8"
               >
                 <BorderBeam
                   delay={i * 2}
@@ -374,7 +374,7 @@ export default function LandingPage() {
                 key={plan.id}
                 delay={i * 0.07}
                 inView
-                className={`relative flex flex-col overflow-hidden rounded-2xl border p-8 ${
+                className={`relative flex flex-col overflow-hidden rounded-2xl border p-5 sm:p-8 ${
                   plan.highlight
                     ? "border-[#a78bfa]/50 bg-[#a78bfa]/5"
                     : "border-white/10 bg-white/5"
@@ -421,7 +421,7 @@ export default function LandingPage() {
 
         {/* 9. CTA CARD */}
         <section className="py-24">
-          <BlurFade inView className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-8 py-20 text-center md:px-20">
+          <BlurFade inView className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-4 py-12 text-center sm:px-8 sm:py-16 md:px-20 md:py-20">
             <BorderBeam duration={12} size={400} colorFrom="#60a5fa" colorTo="#a78bfa" />
             <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
               Stop flying blind on your infrastructure

@@ -50,3 +50,26 @@ export function SettingsNav() {
     </div>
   )
 }
+
+export function SettingsNavMobile() {
+  const pathname = usePathname()
+
+  return (
+    <div className="flex items-center gap-1">
+      {NAV.map(({ href, label, icon: Icon }) => (
+        <Link
+          key={href}
+          href={href}
+          className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
+            pathname === href
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground"
+          }`}
+        >
+          <Icon className="h-3.5 w-3.5 shrink-0" />
+          {label}
+        </Link>
+      ))}
+    </div>
+  )
+}

@@ -132,9 +132,9 @@ export function TimelineEvent({ event }: { event: Event }) {
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Badge variant={variant as "default" | "destructive" | "secondary"}>{label}</Badge>
-            <span className="font-medium">{event.service}</span>
+            <span className="font-medium truncate max-w-[180px] sm:max-w-none">{event.service}</span>
             {event.metadata?.version != null && (
               <span className="text-muted-foreground text-sm">{String(event.metadata.version)}</span>
             )}
@@ -142,7 +142,7 @@ export function TimelineEvent({ event }: { event: Event }) {
               <StatusIcon className="h-3.5 w-3.5" />
               {statusCfg.label}
             </span>
-            <span className="text-muted-foreground ml-auto text-xs">{formatTime(event.timestamp)}</span>
+            <span className="text-muted-foreground ml-auto text-xs shrink-0">{formatTime(event.timestamp)}</span>
           </div>
           {Object.keys(event.metadata ?? {}).length > 0 && (
             <div className="mt-1 flex flex-wrap gap-2">
@@ -188,7 +188,7 @@ export function TimelineEvent({ event }: { event: Event }) {
       </div>
 
       {(summary || summaryError) && (
-        <div className="ml-11">
+        <div className="ml-10 sm:ml-11">
           {summaryError === "upgrade" ? (
             <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-xs">
               <Sparkles className="mr-1 inline h-3 w-3" />
@@ -207,7 +207,7 @@ export function TimelineEvent({ event }: { event: Event }) {
       )}
 
       {open && (
-        <div className="ml-11 space-y-2">
+        <div className="ml-10 sm:ml-11 space-y-2">
           {(comments ?? []).map((c) => (
             <p key={c.id} className="bg-muted rounded px-3 py-2 text-sm">
               💬 {c.body}
@@ -232,7 +232,7 @@ export function TimelineEvent({ event }: { event: Event }) {
       )}
 
       <Dialog open={postmortemOpen} onOpenChange={setPostmortemOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-4 w-4" />

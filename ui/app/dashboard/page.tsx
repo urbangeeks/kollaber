@@ -276,7 +276,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       {/* Top bar */}
-      <header className="border-b px-8 py-4">
+      <header className="border-b px-4 py-4 sm:px-8">
         <div className="mx-auto max-w-5xl flex items-center gap-4">
           <span className="font-semibold tracking-tight">Kollaber</span>
           <div className="ml-auto flex items-center gap-2">
@@ -292,6 +292,7 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               size="sm"
+              className="hidden sm:inline-flex"
               onClick={() => { setCliToken(""); setDownloadOpen(true) }}
             >
               <Download className="mr-1.5 h-4 w-4" />
@@ -318,7 +319,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-8 py-8 space-y-6">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8 space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Environments</h1>

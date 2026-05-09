@@ -74,7 +74,7 @@ export default function AuditLogsPage() {
       ) : (
         <div className="rounded-md border divide-y">
           {logs.map((log) => (
-            <div key={log.id} className="flex items-start gap-4 px-4 py-3">
+            <div key={log.id} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 px-4 py-3">
               <div className="flex-1 min-w-0 space-y-0.5">
                 <p className="text-sm font-medium">{actionLabel(log.action)}</p>
                 <div className="flex flex-wrap items-center gap-2">
@@ -82,8 +82,11 @@ export default function AuditLogsPage() {
                   <MetaBadges meta={log.metadata} />
                 </div>
               </div>
-              <time className="text-xs text-muted-foreground shrink-0 pt-0.5">
-                {new Date(log.created_at).toLocaleString()}
+              <time className="text-xs text-muted-foreground shrink-0 sm:pt-0.5">
+                {new Date(log.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}{" "}
+                <span className="hidden sm:inline">
+                  {new Date(log.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
               </time>
             </div>
           ))}

@@ -172,7 +172,7 @@ export default function MembersPage() {
             members.map((m, idx) => (
               <div
                 key={m.id}
-                className={`flex items-center gap-3 px-4 py-3 ${idx !== members.length - 1 ? "border-b" : ""}`}
+                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 ${idx !== members.length - 1 ? "border-b" : ""}`}
               >
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm">{m.email}</p>
@@ -181,41 +181,43 @@ export default function MembersPage() {
                   </p>
                 </div>
 
-                {isAdminOrOwner && m.role !== "owner" ? (
-                  <div className="flex items-center gap-1">
-                    {(["admin", "member", "viewer"] as const).map((r) => (
-                      <button
-                        key={r}
-                        disabled={roleLoading === m.id}
-                        onClick={() => m.role !== r && handleRoleChange(m, r)}
-                        className={`rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          m.role === r
-                            ? r === "admin"
-                              ? "border-violet-500 bg-violet-500/15 text-violet-700"
-                              : r === "member"
-                              ? "border-blue-500 bg-blue-500/15 text-blue-700"
-                              : "border-border bg-muted text-muted-foreground"
-                            : "border-border text-muted-foreground hover:bg-muted cursor-pointer"
-                        }`}
-                      >
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <RolePill role={m.role} />
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {isAdminOrOwner && m.role !== "owner" ? (
+                    <div className="flex items-center gap-1">
+                      {(["admin", "member", "viewer"] as const).map((r) => (
+                        <button
+                          key={r}
+                          disabled={roleLoading === m.id}
+                          onClick={() => m.role !== r && handleRoleChange(m, r)}
+                          className={`rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                            m.role === r
+                              ? r === "admin"
+                                ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                                : r === "member"
+                                ? "border-blue-500 bg-blue-500/15 text-blue-700"
+                                : "border-border bg-muted text-muted-foreground"
+                              : "border-border text-muted-foreground hover:bg-muted cursor-pointer"
+                          }`}
+                        >
+                          {r.charAt(0).toUpperCase() + r.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <RolePill role={m.role} />
+                  )}
 
-                {isAdminOrOwner && m.role !== "owner" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
-                    onClick={() => setRemoveTarget(m)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                  {isAdminOrOwner && m.role !== "owner" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                      onClick={() => setRemoveTarget(m)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             ))
           )}

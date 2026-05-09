@@ -209,7 +209,7 @@ function EnvPageInner() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen px-4 py-6 sm:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
@@ -290,7 +290,7 @@ function EnvPageInner() {
           <div className="h-4 w-px bg-border mx-1" />
 
           {/* Date range */}
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {PRESETS.map((p) => {
               const active = filterAfter === p.after() || (filterAfter && !filterBefore &&
                 Math.abs(new Date(filterAfter).getTime() - new Date(p.after()).getTime()) < 60000)
