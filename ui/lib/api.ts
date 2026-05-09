@@ -438,3 +438,20 @@ export async function getAuditLogs(limit = 50, offset = 0): Promise<AuditLogEntr
   const data = await request(`/audit-logs?limit=${limit}&offset=${offset}`, null)
   return (data as AuditLogEntry[]) ?? []
 }
+
+export type SSOConfig = {
+  issuer_url: string
+  client_id: string
+  client_secret: string
+  domain: string
+  enabled: boolean
+  callback_url: string
+}
+
+export function getSSOConfig(): Promise<SSOConfig> {
+  return request("/settings/sso", null) as Promise<SSOConfig>
+}
+
+export async function saveSSOConfig(cfg: Omit<SSOConfig, "callback_url">): Promise<void> {
+  await request("/settings/sso", null, { method: "PUT", body: JSON.stringify(cfg) })
+}

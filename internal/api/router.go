@@ -51,6 +51,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	billingH := NewBillingHandler(q)
 	aiH := NewAIHandler(q)
 	auditH := NewAuditHandler(q)
+	ssoH := NewSSOHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -60,6 +61,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	e.POST("/auth/otp/verify", otp.Verify)
 	e.GET("/auth/github", gh.Redirect)
 	e.GET("/auth/github/callback", gh.Callback)
+	e.GET("/auth/sso", ssoH.Initiate)
+	e.GET("/auth/sso/callback", ssoH.Callback)
 
 	authProtected := e.Group("/auth", middleware.Auth())
 	authProtected.GET("/orgs", auth.ListOrgs)
@@ -107,6 +110,8 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.PUT("/settings/teams", teamsSettings.Put)
 	protected.POST("/settings/teams/test", teamsSettings.Test)
 	protected.GET("/audit-logs", auditH.List)
+	protected.GET("/settings/sso", ssoH.GetConfig)
+	protected.PUT("/settings/sso", ssoH.SaveConfig)
 	protected.GET("/billing", billingH.Get)
 	protected.POST("/billing/checkout", billingH.Checkout)
 	protected.POST("/billing/portal", billingH.Portal)
