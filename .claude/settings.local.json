@@ -44,7 +44,18 @@
       "Bash(npx tsc *)",
       "Bash(xargs ls -la)",
       "Bash(GIT_EDITOR=true git rebase --continue)",
-      "Bash(GIT_EDITOR=true git cherry-pick --continue)"
+      "Bash(GIT_EDITOR=true git cherry-pick --continue)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(pkill -f \"tmp/kollaber\")",
+      "Bash(xargs kill -9)",
+      "Bash(kill 124311 124283)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); pkgs=[k for k in d.get\\('packages',{}\\) if 'hono' in k or 'fast-uri' in k]; print\\('\\\\n'.join\\(pkgs\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e \"const lock=require\\('./package-lock.json'\\); const pkgs=lock.packages; ['node_modules/hono','node_modules/fast-uri'].forEach\\(n=>{ const p=pkgs[n]; if\\(p\\) console.log\\(n, p.version, 'resolved:', p.resolved?.split\\('@'\\).pop\\(\\)\\) }\\)\")",
+      "Bash(node *)",
+      "Bash(npm show *)",
+      "Bash(npm audit *)"
     ]
   }
 }
