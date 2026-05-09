@@ -13,6 +13,7 @@ import (
 const UserIDKey = "userID"
 const OrgIDKey = "orgID"
 const RoleKey = "role"
+const EmailKey = "email"
 
 func Auth() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -51,10 +52,12 @@ func Auth() echo.MiddlewareFunc {
 			}
 
 			role, _ := claims["role"].(string)
+			email, _ := claims["email"].(string)
 
 			c.Set(UserIDKey, userID)
 			c.Set(OrgIDKey, orgID)
 			c.Set(RoleKey, role)
+			c.Set(EmailKey, email)
 			return next(c)
 		}
 	}

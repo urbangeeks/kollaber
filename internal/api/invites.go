@@ -65,6 +65,17 @@ func (h *InviteHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create invite"})
 	}
 
+	actorID, actorEmail := auditActor(c)
+	go h.q.WriteAuditLog(context.Background(), store.WriteAuditLogParams{
+		OrgID:      pgtype.UUID{Bytes: orgID, Valid: true},
+		ActorID:    actorID,
+		ActorEmail: actorEmail,
+		Action:     "invite.created",
+		TargetType: "invite",
+		TargetID:   token,
+		Metadata:   map[string]any{"role": role},
+	})
+
 	return c.JSON(http.StatusCreated, echo.Map{"token": token})
 }
 

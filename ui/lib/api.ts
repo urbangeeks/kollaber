@@ -423,3 +423,18 @@ export async function createPortalSession(): Promise<string> {
   const data = await request("/billing/portal", z.object({ url: z.string() }), { method: "POST" })
   return (data as { url: string }).url
 }
+
+export type AuditLogEntry = {
+  id: string
+  actor_email: string
+  action: string
+  target_type: string
+  target_id: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export async function getAuditLogs(limit = 50, offset = 0): Promise<AuditLogEntry[]> {
+  const data = await request(`/audit-logs?limit=${limit}&offset=${offset}`, null)
+  return (data as AuditLogEntry[]) ?? []
+}

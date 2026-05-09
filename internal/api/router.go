@@ -50,6 +50,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	teamsSettings := NewTeamsSettingsHandler(q)
 	billingH := NewBillingHandler(q)
 	aiH := NewAIHandler(q)
+	auditH := NewAuditHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -105,6 +106,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/settings/teams", teamsSettings.Get)
 	protected.PUT("/settings/teams", teamsSettings.Put)
 	protected.POST("/settings/teams/test", teamsSettings.Test)
+	protected.GET("/audit-logs", auditH.List)
 	protected.GET("/billing", billingH.Get)
 	protected.POST("/billing/checkout", billingH.Checkout)
 	protected.POST("/billing/portal", billingH.Portal)
