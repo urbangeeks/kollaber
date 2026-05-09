@@ -107,6 +107,19 @@ tasks:
     cmds:
       - sqlc generate
 
+  build:kube-watcher:
+    desc: Compile kube-watcher binary
+    cmds:
+      - cmd: go build -o ./tmp/kube-watcher.exe ./cmd/kube-watcher
+        platforms: [windows]
+      - cmd: go build -o ./tmp/kube-watcher ./cmd/kube-watcher
+        platforms: [linux, darwin]
+
+  install:kube-watcher:
+    desc: Install kube-watcher binary to GOPATH/bin
+    cmds:
+      - go install ./cmd/kube-watcher
+
   tidy:
     desc: Tidy go modules
     cmds:
