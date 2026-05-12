@@ -390,12 +390,14 @@ export default function Home() {
                 {plan.highlight && (
                   <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={10} />
                 )}
-                {plan.badge && (
-                  <span className="mb-4 inline-block self-start rounded-full border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#a78bfa]">
-                    {plan.badge}
-                  </span>
-                )}
-                <p className="text-sm font-semibold text-white/60">{plan.name}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-semibold text-white/60">{plan.name}</p>
+                  {plan.badge && (
+                    <span className="rounded-full border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#a78bfa]">
+                      {plan.badge}
+                    </span>
+                  )}
+                </div>
                 <div className="mt-2 flex items-end gap-1">
                   <span className="text-4xl font-bold">{plan.price}</span>
                   {plan.per && <span className="mb-1 text-sm text-white/40">{plan.per}</span>}
