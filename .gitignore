@@ -41,6 +41,8 @@ Thumbs.db
 .idea/
 .vscode/
 *.png
+!ui/app/icon.png
+!ui/app/apple-icon.png
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 docker/postgres-data/
