@@ -5,14 +5,9 @@
 replicaCount: 1
 
 image:
-  api:
-    repository: ghcr.io/urbangeeks/kollaber-api
-    tag: latest
-    pullPolicy: IfNotPresent
-  ui:
-    repository: ghcr.io/urbangeeks/kollaber-ui
-    tag: latest
-    pullPolicy: IfNotPresent
+  repository: ghcr.io/urbangeeks/kollaber-api
+  tag: latest
+  pullPolicy: IfNotPresent
 
 # -- Image pull secrets for private registries
 imagePullSecrets: []
@@ -27,10 +22,6 @@ api:
   #   limits:
   #     cpu: 500m
   #     memory: 256Mi
-
-ui:
-  port: 3000
-  resources: {}
 
 # -- External-facing URLs
 urls:
@@ -60,12 +51,8 @@ externalDatabaseUrl: ""
 githubRedirectUrl: ""
 
 service:
-  api:
-    type: ClusterIP
-    port: 80
-  ui:
-    type: ClusterIP
-    port: 80
+  type: ClusterIP
+  port: 80
 
 ingress:
   enabled: false

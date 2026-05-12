@@ -20,8 +20,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
-          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: MIGRATE_ONLY
               value: "true"

@@ -46,7 +46,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "kollaber.fullname" . }}-ui
+                name: {{ include "kollaber.fullname" . }}-api
                 port:
                   name: http
 {{- end }}
