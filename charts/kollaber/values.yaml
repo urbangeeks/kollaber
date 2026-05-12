@@ -36,11 +36,16 @@ secret:
   jwtSecret: ""
   # Postgres password
   dbPassword: kollaber
-  # GitHub OAuth credentials (optional)
+  # GitHub OAuth credentials (optional — disables GitHub login if unset)
   githubClientId: ""
   githubClientSecret: ""
-  # Webhook HMAC secret (optional)
+  # Webhook HMAC secret (optional — disables signature verification if unset)
   webhookSecret: ""
+  # SMTP credentials (optional — disables email notifications if unset)
+  smtpHost: ""
+  smtpPort: "587"
+  smtpUser: ""
+  smtpPassword: ""
 
 # -- External PostgreSQL connection string
 # If set, the built-in postgres is not needed.

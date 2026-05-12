@@ -125,31 +125,89 @@ CORS_ORIGINS=https://your-domain.com   # optional
 
 Railway deployment is configured in `railway.toml`. The Dockerfile is at `docker/api/Dockerfile`.
 
-### Kubernetes (Helm)
+### Self-hosting (Helm)
 
-Two charts live under `charts/`.
+Kollaber ships as a **single binary** that embeds the frontend. The self-hosted image is published to `ghcr.io/urbangeeks/kollaber-api:latest` on every merge to `main`.
 
-#### Kollaber (API + frontend)
+#### Prerequisites
+
+- Kubernetes cluster with Helm 3
+- PostgreSQL database (see below for an in-cluster option)
+
+#### Minimal install
 
 ```bash
-helm install kollaber ./charts/kollaber \
+helm install kollaber oci://ghcr.io/urbangeeks/charts/kollaber \
+  --namespace kollaber \
+  --create-namespace \
   --set secret.jwtSecret=$(openssl rand -hex 32) \
-  --set secret.dbPassword=changeme \
-  --set externalDatabaseUrl=postgres://user:pass@postgres:5432/kollaber \
-  --set urls.api=https://api.kollaber.example.com \
-  --set urls.frontend=https://kollaber.example.com \
+  --set externalDatabaseUrl=postgres://user:pass@your-postgres:5432/kollaber \
   --set ingress.enabled=true \
-  --set ingress.host=kollaber.example.com
+  --set ingress.host=kollaber.mycompany.com
 ```
 
-| Value | Description |
-|---|---|
-| `secret.jwtSecret` | JWT signing secret — generate with `openssl rand -hex 32` |
-| `externalDatabaseUrl` | Postgres connection string |
-| `urls.api` | Public API URL (used by the frontend) |
-| `ingress.enabled` | Set to `true` to create an Ingress resource |
-| `ingress.host` | Hostname for the Ingress |
-| `migrate.enabled` | Runs DB migrations as a pre-install Job (default: `true`) |
+> Save the generated `jwtSecret` — it must stay the same across upgrades or existing sessions will be invalidated.
+
+#### In-cluster PostgreSQL
+
+If you don't have an external database:
+
+```bash
+helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
+  --namespace kollaber \
+  --set auth.username=kollaber \
+  --set auth.password=changeme \
+  --set auth.database=kollaber
+```
+
+Then use `postgres-postgresql.kollaber.svc.cluster.local` as the hostname:
+
+```
+--set externalDatabaseUrl=postgres://kollaber:changeme@postgres-postgresql:5432/kollaber
+```
+
+#### All Helm values
+
+| Value | Required | Description |
+|---|---|---|
+| `secret.jwtSecret` | Yes | JWT signing secret — `openssl rand -hex 32` |
+| `externalDatabaseUrl` | Yes | Postgres connection string |
+| `ingress.enabled` | No | Create an Ingress resource (default: `false`) |
+| `ingress.host` | No | Hostname for the Ingress |
+| `ingress.className` | No | Ingress class (e.g. `nginx`) |
+| `ingress.tls` | No | TLS config block |
+| `migrate.enabled` | No | Run DB migrations on install/upgrade (default: `true`) |
+| `replicaCount` | No | Number of API replicas (default: `1`) |
+
+#### Optional: GitHub OAuth
+
+Create a GitHub OAuth App at `github.com/settings/developers`. Set the callback URL to `https://kollaber.mycompany.com/auth/github/callback`, then pass the credentials:
+
+```bash
+--set secret.githubClientId=your_client_id \
+--set secret.githubClientSecret=your_client_secret
+```
+
+If not set, GitHub OAuth is disabled and users log in with email/password only.
+
+#### Optional: Email (SMTP)
+
+```bash
+--set secret.smtpHost=smtp.yourprovider.com \
+--set secret.smtpPort=587 \
+--set secret.smtpUser=notifications@mycompany.com \
+--set secret.smtpPassword=your_password
+```
+
+If not set, email notifications are disabled.
+
+#### Optional: Webhook HMAC verification
+
+```bash
+--set secret.webhookSecret=your_hmac_secret
+```
+
+If not set, webhook payloads are accepted without signature verification.
 
 #### kube-watcher
 
