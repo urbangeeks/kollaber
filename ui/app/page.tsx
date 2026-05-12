@@ -436,7 +436,7 @@ export default function Home() {
               Stop flying blind on your infrastructure
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/50">
-              Join DevOps teams using Kollaber to bring clarity to their environments.
+              Join DevOps teams using Kollaber to bring clarity to their infrastructure.
             </p>
             <div className="mt-10">
               <Button asChild size="lg" className="group rounded-full bg-white px-10 text-black hover:bg-neutral-200">
