@@ -190,7 +190,17 @@ Create a GitHub OAuth App at `github.com/settings/developers`. Set the callback 
 
 If not set, GitHub OAuth is disabled and users log in with email/password only.
 
-#### Optional: Email (SMTP)
+#### Email delivery
+
+Kollaber uses email OTP for login — users receive a 6-digit code to sign in. Email delivery is resolved in this order:
+
+| Priority | Config | Behaviour |
+|---|---|---|
+| 1 | `RESEND_API_KEY` set | Sends via [Resend](https://resend.com) (SaaS default) |
+| 2 | `SMTP_HOST` set | Sends via your own SMTP server |
+| 3 | Neither set | OTP is printed to pod logs — `kubectl logs -n kollaber deployment/kollaber-api` |
+
+For production self-hosted installs, configure SMTP:
 
 ```bash
 --set secret.smtpHost=smtp.yourprovider.com \
@@ -199,7 +209,7 @@ If not set, GitHub OAuth is disabled and users log in with email/password only.
 --set secret.smtpPassword=your_password
 ```
 
-If not set, email notifications are disabled.
+Without email configured, users can still log in by retrieving the OTP from the pod logs.
 
 #### Optional: Webhook HMAC verification
 

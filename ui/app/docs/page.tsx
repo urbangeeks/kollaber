@@ -544,12 +544,30 @@ kube-watcher \\
               <p className="text-sm">If not set, GitHub OAuth is disabled and users log in with email/password only.</p>
             </SubSection>
 
-            <SubSection title="Optional: Email (SMTP)">
+            <SubSection title="Email delivery">
+              <p>
+                Kollaber uses email OTP for login — users receive a 6-digit code to sign in.
+                Delivery is resolved in this order:
+              </p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <span className="shrink-0 font-mono text-[#60a5fa]">1</span>
+                  <span><strong className="text-white">Resend API</strong> — if <InlineCode>RESEND_API_KEY</InlineCode> is set (SaaS default)</span>
+                </div>
+                <div className="flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <span className="shrink-0 font-mono text-[#60a5fa]">2</span>
+                  <span><strong className="text-white">SMTP</strong> — if <InlineCode>SMTP_HOST</InlineCode> is set (recommended for self-hosted)</span>
+                </div>
+                <div className="flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <span className="shrink-0 font-mono text-[#60a5fa]">3</span>
+                  <span><strong className="text-white">Pod logs</strong> — fallback if neither is configured; retrieve with <InlineCode>kubectl logs -n kollaber deployment/kollaber-api</InlineCode></span>
+                </div>
+              </div>
+              <p className="mt-4">For production installs, configure SMTP:</p>
               <Code>{`--set secret.smtpHost=smtp.yourprovider.com \\
 --set secret.smtpPort=587 \\
 --set secret.smtpUser=notifications@mycompany.com \\
 --set secret.smtpPassword=your_password`}</Code>
-              <p className="text-sm">If not set, email notifications are disabled.</p>
             </SubSection>
 
             <SubSection title="Optional: Webhook HMAC verification">
