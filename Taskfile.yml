@@ -73,7 +73,7 @@ tasks:
           -e POSTGRES_PASSWORD=kollaber
           -p 5432:5432
           -v kollaber-pgdata:/var/lib/postgresql/data
-          postgres:16-alpine
+          docker.io/library/postgres:16-alpine
 
   db:down:
     desc: Stop and remove PostgreSQL container
