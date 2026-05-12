@@ -478,21 +478,33 @@ export default function Home() {
 
         {/* 9. CTA CARD */}
         <section className="py-24">
-          <BlurFade inView className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-4 py-12 text-center sm:px-8 sm:py-16 md:px-20 md:py-20">
-            <BorderBeam duration={12} size={400} colorFrom="#60a5fa" colorTo="#a78bfa" />
-            <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
-              Stop flying blind on your infrastructure
-            </h2>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/50">
-              Join DevOps teams using Kollaber to bring clarity to their infrastructure.
-            </p>
-            <div className="mt-10">
-              <Button asChild size="lg" className="group rounded-full bg-white px-10 text-black hover:bg-neutral-200">
-                <Link href="/register">
-                  Create free account
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Button>
+          <BlurFade inView className="relative overflow-hidden rounded-3xl bg-black px-4 py-16 sm:px-8 sm:py-20 md:py-24" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 80px -20px rgba(96,165,250,0.15)" }}>
+            {/* Mascot — vertically centered on the left */}
+            <div className="pointer-events-none absolute top-1/2 left-4 hidden -translate-y-1/2 md:block">
+              <Image
+                src="/mascot.png"
+                alt=""
+                width={380}
+                height={380}
+                className="[mask-image:linear-gradient(to_right,black_55%,transparent_95%)]"
+              />
+            </div>
+            {/* Content — offset right to make room for mascot */}
+            <div className="relative z-10 text-center md:ml-72">
+              <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
+                Stop flying blind on your infrastructure
+              </h2>
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/50">
+                Join DevOps teams using Kollaber to bring clarity to their infrastructure.
+              </p>
+              <div className="mt-10">
+                <Button asChild size="lg" className="group rounded-full bg-white px-10 text-black hover:bg-neutral-200">
+                  <Link href="/register">
+                    Create free account
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </BlurFade>
         </section>

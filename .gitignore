@@ -44,6 +44,7 @@ Thumbs.db
 !ui/app/icon.png
 !ui/app/apple-icon.png
 !ui/public/logo.png
+!ui/public/mascot.png
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 docker/postgres-data/
@@ -51,3 +52,5 @@ docker/postgres-data/
 # ── Misc ─────────────────────────────────────────────────────────────────────
 image.png
 .claude/
+kollaber.png
+mascot.png
