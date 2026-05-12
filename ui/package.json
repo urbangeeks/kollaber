@@ -29,7 +29,8 @@
   },
   "overrides": {
     "hono": "4.12.18",
-    "fast-uri": "3.1.2"
+    "fast-uri": "3.1.2",
+    "postcss": "8.5.14"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

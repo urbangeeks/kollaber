@@ -44,6 +44,7 @@ import {
   Pencil,
   TriangleAlert,
   Settings,
+  LogOut,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -287,7 +288,7 @@ export default function DashboardPage() {
               <Settings className="h-4 w-4" />
             </Button>
             {isAdmin() && (
-              <Button variant="ghost" size="sm" onClick={() => router.push("/admin")}>
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/admin")}>
                 Admin
               </Button>
             )}
@@ -300,7 +301,7 @@ export default function DashboardPage() {
               <Download className="mr-1.5 h-4 w-4" />
               CLI
             </Button>
-            <div className="h-4 w-px bg-border" />
+            <div className="h-4 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
                 {email ? email[0].toUpperCase() : <User className="h-3.5 w-3.5" />}
@@ -309,13 +310,17 @@ export default function DashboardPage() {
                 {email}
               </span>
               {role && ROLE_BADGE[role] && (
-                <span className={`rounded border px-1.5 py-0.5 text-[10px] leading-none font-medium ${ROLE_BADGE[role].className}`}>
+                <span className={`hidden sm:inline rounded border px-1.5 py-0.5 text-[10px] leading-none font-medium ${ROLE_BADGE[role].className}`}>
                   {ROLE_BADGE[role].label}
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleLogout}>
+            {/* Sign out — text on sm+, icon-only on mobile */}
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground" onClick={handleLogout}>
               Sign out
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden text-muted-foreground" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>

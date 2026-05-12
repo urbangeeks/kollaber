@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   Container,
   Check,
+  Menu,
+  X,
 } from "lucide-react"
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { BlurFade } from "@/components/ui/blur-fade"
@@ -123,6 +125,7 @@ const PLANS = [
 
 export default function Home() {
   const router = useRouter()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_SELF_HOSTED === "true") {
@@ -148,7 +151,7 @@ export default function Home() {
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <a
               href="https://github.com/urbangeeks/kollaber"
               target="_blank"
@@ -162,11 +165,55 @@ export default function Home() {
             <Button asChild variant="ghost" className="hidden text-white/70 hover:text-white md:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>
-            <Button asChild className="rounded-full bg-white text-black hover:bg-neutral-200">
+            <Button asChild className="hidden rounded-full bg-white text-black hover:bg-neutral-200 md:inline-flex">
               <Link href="/register">Get started free</Link>
             </Button>
+            {/* Mobile hamburger */}
+            <button
+              className="flex h-9 w-9 items-center justify-center rounded-md text-white/70 transition-colors hover:text-white md:hidden"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile menu panel */}
+        {mobileMenuOpen && (
+          <div className="border-t border-white/10 bg-[#0a0a0a] px-6 pb-4 md:hidden">
+            <div className="flex flex-col gap-1 pt-3 text-sm font-medium">
+              <a
+                href="#features"
+                className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >Features</a>
+              <a
+                href="#how-it-works"
+                className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >How it works</a>
+              <a
+                href="#pricing"
+                className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >Pricing</a>
+              <Link
+                href="/docs"
+                className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >Docs</Link>
+            </div>
+            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
+              <Button asChild variant="ghost" className="w-full justify-start text-white/70 hover:text-white">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
+              </Button>
+              <Button asChild className="w-full rounded-full bg-white text-black hover:bg-neutral-200">
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Get started free</Link>
+              </Button>
+            </div>
+          </div>
+        )}
       </nav>
 
       <main className="container mx-auto px-6">
