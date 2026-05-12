@@ -1,5 +1,7 @@
 package billing
 
+import "os"
+
 const (
 	PlanFree       = "free"
 	PlanTeam       = "team"
@@ -133,7 +135,12 @@ var PricingTable = []PricingInfo{
 	},
 }
 
+// EntitlementsFor returns the entitlements for a given plan.
+// When SELF_HOSTED=true all features are unlocked regardless of plan.
 func EntitlementsFor(plan string) Entitlements {
+	if os.Getenv("SELF_HOSTED") == "true" {
+		return planEntitlements[PlanEnterprise]
+	}
 	if e, ok := planEntitlements[plan]; ok {
 		return e
 	}

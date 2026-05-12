@@ -31,6 +31,8 @@ spec:
             - name: http
               containerPort: {{ .Values.api.port }}
           env:
+            - name: SELF_HOSTED
+              value: "true"
             - name: PORT
               value: {{ .Values.api.port | quote }}
             - name: FRONTEND_URL
