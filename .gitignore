@@ -5,7 +5,8 @@
 *.dll
 *.so
 *.dylib
-# compiled CLI binary sitting next to source
+/kollaber
+/kube-watcher
 /cmd/kollaber/kollaber
 
 # ── Go tooling ───────────────────────────────────────────────────────────────
