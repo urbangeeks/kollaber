@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowRight,
   Activity,
@@ -142,7 +143,7 @@ export default function Home() {
       <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
+            <Image src="/logo.png" alt="Kollaber" width={28} height={28} className="rounded" />
             <span className="text-xl font-bold tracking-tight">Kollaber</span>
           </div>
           <div className="hidden items-center gap-8 text-sm font-medium text-white/70 md:flex">
@@ -501,7 +502,7 @@ export default function Home() {
       <footer className="mt-20 border-t border-white/10 py-12">
         <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-6 md:flex-row">
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded-sm bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
+            <Image src="/logo.png" alt="Kollaber" width={20} height={20} className="rounded-sm opacity-60" />
             <span className="font-bold text-white/40">Kollaber</span>
             <span className="text-xs text-white/20">© 2026 Kollaber Inc.</span>
           </div>

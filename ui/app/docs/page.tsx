@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 
 const NAV = [
   { id: "getting-started", label: "Getting Started" },
@@ -80,7 +81,7 @@ export default function DocsPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded bg-gradient-to-br from-[#60a5fa] to-[#a78bfa]" />
+              <Image src="/logo.png" alt="Kollaber" width={28} height={28} className="rounded" />
               <span className="text-xl font-bold tracking-tight">Kollaber</span>
             </Link>
             <span className="hidden text-sm text-white/30 sm:block">Docs</span>

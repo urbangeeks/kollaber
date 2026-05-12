@@ -43,6 +43,7 @@ Thumbs.db
 *.png
 !ui/app/icon.png
 !ui/app/apple-icon.png
+!ui/public/logo.png
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 docker/postgres-data/

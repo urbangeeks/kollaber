@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard, ScrollText, ShieldCheck, Container, Sun, Moon } from "lucide-react"
 
