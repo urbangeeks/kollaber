@@ -522,14 +522,40 @@ kube-watcher \\
 
             <SubSection title="All Helm values">
               <div className="mt-2 space-y-2 text-sm">
+                <p className="text-white/40 uppercase tracking-widest text-xs font-semibold">Core</p>
                 <div className="flex gap-3"><Badge>secret.jwtSecret</Badge><span>JWT signing secret — <InlineCode>openssl rand -hex 32</InlineCode> (required)</span></div>
                 <div className="flex gap-3"><Badge>externalDatabaseUrl</Badge><span>Postgres connection string (required)</span></div>
-                <div className="flex gap-3"><Badge>ingress.enabled</Badge><span>Create an Ingress resource (default: false)</span></div>
+                <div className="flex gap-3"><Badge>replicaCount</Badge><span>Number of API replicas (default: 1)</span></div>
+                <div className="flex gap-3"><Badge>migrate.enabled</Badge><span>Run DB migrations on install/upgrade (default: true)</span></div>
+
+                <p className="text-white/40 uppercase tracking-widest text-xs font-semibold pt-2">Image</p>
+                <div className="flex gap-3"><Badge>image.repository</Badge><span>Image repository (default: <InlineCode>ghcr.io/urbangeeks/kollaber-api</InlineCode>)</span></div>
+                <div className="flex gap-3"><Badge>image.tag</Badge><span>Image tag (default: <InlineCode>latest</InlineCode>)</span></div>
+                <div className="flex gap-3"><Badge>image.pullPolicy</Badge><span>Image pull policy (default: <InlineCode>IfNotPresent</InlineCode>)</span></div>
+                <div className="flex gap-3"><Badge>imagePullSecrets</Badge><span>Pull secrets for private registries</span></div>
+
+                <p className="text-white/40 uppercase tracking-widest text-xs font-semibold pt-2">Ingress</p>
+                <div className="flex gap-3"><Badge>ingress.enabled</Badge><span>Create a standard Kubernetes Ingress resource (default: false)</span></div>
                 <div className="flex gap-3"><Badge>ingress.host</Badge><span>Hostname for the Ingress</span></div>
                 <div className="flex gap-3"><Badge>ingress.className</Badge><span>Ingress class, e.g. <InlineCode>nginx</InlineCode></span></div>
+                <div className="flex gap-3"><Badge>ingress.annotations</Badge><span>Annotations to add to the Ingress resource</span></div>
                 <div className="flex gap-3"><Badge>ingress.tls</Badge><span>TLS configuration block</span></div>
-                <div className="flex gap-3"><Badge>migrate.enabled</Badge><span>Run DB migrations on install/upgrade (default: true)</span></div>
-                <div className="flex gap-3"><Badge>replicaCount</Badge><span>Number of API replicas (default: 1)</span></div>
+
+                <p className="text-white/40 uppercase tracking-widest text-xs font-semibold pt-2">Istio</p>
+                <div className="flex gap-3"><Badge>istio.enabled</Badge><span>Create Istio Gateway + VirtualService instead of Ingress (default: false)</span></div>
+                <div className="flex gap-3"><Badge>istio.host</Badge><span>Hostname for the Gateway and VirtualService</span></div>
+                <div className="flex gap-3"><Badge>istio.gatewaySelector</Badge><span>Label selector for the Istio ingress gateway pod (default: <InlineCode>istio: ingressgateway</InlineCode>)</span></div>
+                <div className="flex gap-3"><Badge>istio.tls.mode</Badge><span>TLS mode, e.g. <InlineCode>SIMPLE</InlineCode></span></div>
+                <div className="flex gap-3"><Badge>istio.tls.credentialName</Badge><span>Name of the TLS credential in <InlineCode>istio-system</InlineCode></span></div>
+
+                <p className="text-white/40 uppercase tracking-widest text-xs font-semibold pt-2">Optional integrations</p>
+                <div className="flex gap-3"><Badge>secret.githubClientId</Badge><span>GitHub OAuth client ID — disables GitHub login if unset</span></div>
+                <div className="flex gap-3"><Badge>secret.githubClientSecret</Badge><span>GitHub OAuth client secret</span></div>
+                <div className="flex gap-3"><Badge>secret.smtpHost</Badge><span>SMTP host — disables email if unset</span></div>
+                <div className="flex gap-3"><Badge>secret.smtpPort</Badge><span>SMTP port (default: 587)</span></div>
+                <div className="flex gap-3"><Badge>secret.smtpUser</Badge><span>SMTP username</span></div>
+                <div className="flex gap-3"><Badge>secret.smtpPassword</Badge><span>SMTP password</span></div>
+                <div className="flex gap-3"><Badge>secret.webhookSecret</Badge><span>HMAC secret for webhook verification — skips verification if unset</span></div>
               </div>
             </SubSection>
 
