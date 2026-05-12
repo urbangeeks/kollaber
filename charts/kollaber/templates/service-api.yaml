@@ -6,9 +6,9 @@ metadata:
     {{- include "kollaber.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
 spec:
-  type: {{ .Values.service.api.type }}
+  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.api.port }}
+    - port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP
       name: http

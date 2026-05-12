@@ -6,6 +6,7 @@ RUN bun install
 COPY ui/ .
 # Empty API URL = relative paths — served from same origin as the Go binary
 ENV NEXT_PUBLIC_API_URL=""
+ENV NEXT_PUBLIC_SELF_HOSTED=true
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 

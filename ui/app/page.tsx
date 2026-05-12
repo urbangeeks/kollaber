@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -119,7 +121,17 @@ const PLANS = [
   },
 ]
 
-export default function LandingPage() {
+export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_SELF_HOSTED === "true") {
+      router.replace("/login")
+    }
+  }, [router])
+
+  if (process.env.NEXT_PUBLIC_SELF_HOSTED === "true") return null
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#60a5fa]/30 font-sans antialiased">
 
@@ -224,21 +236,6 @@ export default function LandingPage() {
             </div>
           </BlurFade>
         </section>
-
-        {/* 3. SOCIAL PROOF BAR */}
-        {/* <section className="py-20 text-center">
-          <BlurFade inView>
-            <p className="text-sm font-medium uppercase tracking-widest text-white/30">
-              Trusted by teams at
-            </p>
-            <div className="mt-10 flex flex-wrap justify-center gap-8 opacity-40 grayscale md:gap-16">
-              {["HYPERCORE", "DATASTRIDE", "CLOUDARC", "VERTEXT", "SYNTHETIC"].map((name) => (
-                <span key={name} className="text-xl font-bold tracking-tighter">{name}</span>
-              ))}
-            </div>
-          </BlurFade>
-          <div className="mt-20 h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        </section> */}
 
         {/* 4. STATS ROW */}
         <section className="py-20">
@@ -441,7 +438,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* 9. FOOTER */}
+      {/* FOOTER */}
       <footer className="mt-20 border-t border-white/10 py-12">
         <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-6 md:flex-row">
           <div className="flex items-center gap-2">
