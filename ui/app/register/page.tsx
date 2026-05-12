@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { sendOTP, verifyOTP, setToken } from "@/lib/api"
 import { otpRegisterSchema, otpCodeSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
@@ -66,7 +67,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+      <Link href="/" className="transition-opacity hover:opacity-80">
+        <Image src="/mascot-head.png" alt="Kollaber" width={200} height={118} style={{ height: "auto" }} priority />
+      </Link>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Create account</CardTitle>
