@@ -1,0 +1,28 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ include "kollaber.fullname" . }}
+  labels:
+    {{- include "kollaber.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- toYaml .Values.istio.gatewaySelector | nindent 4 }}
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - {{ .Values.istio.host | quote }}
+    {{- if .Values.istio.tls }}
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        {{- toYaml .Values.istio.tls | nindent 8 }}
+      hosts:
+        - {{ .Values.istio.host | quote }}
+    {{- end }}
+{{- end }}

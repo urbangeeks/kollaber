@@ -1,0 +1,19 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "kollaber.fullname" . }}
+  labels:
+    {{- include "kollaber.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ .Values.istio.host | quote }}
+  gateways:
+    - {{ include "kollaber.fullname" . }}
+  http:
+    - route:
+        - destination:
+            host: {{ include "kollaber.fullname" . }}-api
+            port:
+              number: {{ .Values.service.port }}
+{{- end }}

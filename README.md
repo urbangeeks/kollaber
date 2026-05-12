@@ -179,6 +179,29 @@ Then use `postgres-postgresql.kollaber.svc.cluster.local` as the hostname:
 | `migrate.enabled` | No | Run DB migrations on install/upgrade (default: `true`) |
 | `replicaCount` | No | Number of API replicas (default: `1`) |
 
+#### Istio (Gateway + VirtualService)
+
+If your cluster uses Istio instead of a standard ingress controller, disable the Ingress resource and enable Istio routing:
+
+```bash
+--set ingress.enabled=false \
+--set istio.enabled=true \
+--set istio.host=kollaber.mycompany.com
+```
+
+With TLS:
+
+```bash
+--set istio.tls.mode=SIMPLE \
+--set istio.tls.credentialName=kollaber-tls
+```
+
+The `gatewaySelector` defaults to `istio: ingressgateway`. Override if your gateway pod uses a different label:
+
+```bash
+--set istio.gatewaySelector.istio=my-gateway
+```
+
 #### Optional: GitHub OAuth
 
 Create a GitHub OAuth App at `github.com/settings/developers`. Set the callback URL to `https://kollaber.mycompany.com/auth/github/callback`, then pass the credentials:

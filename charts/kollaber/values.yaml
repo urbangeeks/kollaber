@@ -75,6 +75,19 @@ ingress:
   #     hosts:
   #       - kollaber.example.com
 
+# -- Istio Gateway + VirtualService (use instead of ingress for Istio service mesh)
+istio:
+  enabled: false
+  # Label selector for the Istio ingress gateway pod
+  gatewaySelector:
+    istio: ingressgateway
+  host: kollaber.example.com
+  # Optional TLS — requires a credential (cert) in the istio-system namespace
+  tls: {}
+  # tls:
+  #   mode: SIMPLE
+  #   credentialName: kollaber-tls
+
 # -- Migration job runs before every install/upgrade
 migrate:
   enabled: true
