@@ -320,7 +320,7 @@ export default function Home() {
               Integrate in <br />one command.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-white/50">
-              Kollaber was built for developers. Our API and CLI are designed to
+              Kollaber was built for DevOps engineers and developers. Our API and CLI are designed to
               fit into your existing workflows without adding friction.
             </p>
             <div className="mt-8 flex flex-col gap-4">
