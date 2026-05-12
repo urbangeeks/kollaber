@@ -579,6 +579,29 @@ kube-watcher \\
               <p className="text-sm">If not set, webhook payloads are accepted without signature verification.</p>
             </SubSection>
 
+            <SubSection title="Istio (Gateway + VirtualService)">
+              <p>
+                If your cluster uses Istio instead of a standard ingress controller, disable the Ingress resource
+                and enable Istio routing:
+              </p>
+              <Code>{`helm install kollaber oci://ghcr.io/urbangeeks/charts/kollaber \\
+  --namespace kollaber \\
+  --create-namespace \\
+  --set secret.jwtSecret=$(openssl rand -hex 32) \\
+  --set externalDatabaseUrl=postgres://user:pass@your-postgres:5432/kollaber \\
+  --set ingress.enabled=false \\
+  --set istio.enabled=true \\
+  --set istio.host=kollaber.mycompany.com`}</Code>
+              <p>With TLS:</p>
+              <Code>{`--set istio.tls.mode=SIMPLE \\
+--set istio.tls.credentialName=kollaber-tls`}</Code>
+              <p className="text-sm text-white/50">
+                The gateway selector defaults to <InlineCode>istio: ingressgateway</InlineCode>. Override with{" "}
+                <InlineCode>--set istio.gatewaySelector.istio=my-gateway</InlineCode> if your gateway pod uses
+                a different label.
+              </p>
+            </SubSection>
+
             <SubSection title="Upgrading">
               <Code>{`helm upgrade kollaber oci://ghcr.io/urbangeeks/charts/kollaber \\
   --namespace kollaber \\
