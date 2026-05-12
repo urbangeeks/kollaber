@@ -31,6 +31,8 @@ jobs:
           context: .
           file: docker/api/Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_SELF_HOSTED=true
           tags: |
             ghcr.io/urbangeeks/kollaber-api:latest
             ghcr.io/urbangeeks/kollaber-api:${{ github.sha }}

@@ -5,8 +5,9 @@ COPY ui/package.json ui/bun.lock* ./
 RUN bun install
 COPY ui/ .
 # Empty API URL = relative paths — served from same origin as the Go binary
+ARG NEXT_PUBLIC_SELF_HOSTED=false
 ENV NEXT_PUBLIC_API_URL=""
-ENV NEXT_PUBLIC_SELF_HOSTED=true
+ENV NEXT_PUBLIC_SELF_HOSTED=$NEXT_PUBLIC_SELF_HOSTED
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 
