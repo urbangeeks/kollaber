@@ -8,6 +8,7 @@ const NAV = [
   { id: "cli", label: "CLI Reference" },
   { id: "kubernetes", label: "Kubernetes" },
   { id: "webhooks", label: "Webhooks" },
+  { id: "self-hosting", label: "Self-hosting" },
   { id: "api", label: "API Reference" },
 ]
 
@@ -477,6 +478,93 @@ kube-watcher \\
   "environment_id": "uuid-of-environment",
   "metadata":       { /* any key-value pairs */ }
 }`}</Code>
+            </SubSection>
+          </Section>
+
+          {/* ── Self-hosting ── */}
+          <Section id="self-hosting" title="Self-hosting">
+            <p>
+              Kollaber ships as a single binary that embeds the frontend. The official Helm chart is the recommended
+              way to deploy a self-hosted instance on Kubernetes.
+            </p>
+
+            <SubSection title="Prerequisites">
+              <ul className="space-y-1 pl-4 text-sm">
+                <li>Kubernetes cluster with Helm 3</li>
+                <li>PostgreSQL 14+ (or use the in-cluster option below)</li>
+              </ul>
+            </SubSection>
+
+            <SubSection title="Minimal install">
+              <Code>{`helm install kollaber oci://ghcr.io/urbangeeks/charts/kollaber \\
+  --namespace kollaber \\
+  --create-namespace \\
+  --set secret.jwtSecret=$(openssl rand -hex 32) \\
+  --set externalDatabaseUrl=postgres://user:pass@your-postgres:5432/kollaber \\
+  --set ingress.enabled=true \\
+  --set ingress.host=kollaber.mycompany.com`}</Code>
+              <p className="text-sm">
+                Save the generated <InlineCode>jwtSecret</InlineCode> — it must stay the same across upgrades
+                or existing sessions will be invalidated.
+              </p>
+            </SubSection>
+
+            <SubSection title="In-cluster PostgreSQL">
+              <p>If you don't have an external database, deploy one with Bitnami's chart:</p>
+              <Code>{`helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \\
+  --namespace kollaber \\
+  --set auth.username=kollaber \\
+  --set auth.password=changeme \\
+  --set auth.database=kollaber`}</Code>
+              <p>Then use the service name as the hostname:</p>
+              <Code>--set externalDatabaseUrl=postgres://kollaber:changeme@postgres-postgresql:5432/kollaber</Code>
+            </SubSection>
+
+            <SubSection title="All Helm values">
+              <div className="mt-2 space-y-2 text-sm">
+                <div className="flex gap-3"><Badge>secret.jwtSecret</Badge><span>JWT signing secret — <InlineCode>openssl rand -hex 32</InlineCode> (required)</span></div>
+                <div className="flex gap-3"><Badge>externalDatabaseUrl</Badge><span>Postgres connection string (required)</span></div>
+                <div className="flex gap-3"><Badge>ingress.enabled</Badge><span>Create an Ingress resource (default: false)</span></div>
+                <div className="flex gap-3"><Badge>ingress.host</Badge><span>Hostname for the Ingress</span></div>
+                <div className="flex gap-3"><Badge>ingress.className</Badge><span>Ingress class, e.g. <InlineCode>nginx</InlineCode></span></div>
+                <div className="flex gap-3"><Badge>ingress.tls</Badge><span>TLS configuration block</span></div>
+                <div className="flex gap-3"><Badge>migrate.enabled</Badge><span>Run DB migrations on install/upgrade (default: true)</span></div>
+                <div className="flex gap-3"><Badge>replicaCount</Badge><span>Number of API replicas (default: 1)</span></div>
+              </div>
+            </SubSection>
+
+            <SubSection title="Optional: GitHub OAuth">
+              <p>
+                Create a GitHub OAuth App at <InlineCode>github.com/settings/developers</InlineCode>. Set the
+                callback URL to <InlineCode>https://kollaber.mycompany.com/auth/github/callback</InlineCode>, then
+                pass the credentials:
+              </p>
+              <Code>{`--set secret.githubClientId=your_client_id \\
+--set secret.githubClientSecret=your_client_secret`}</Code>
+              <p className="text-sm">If not set, GitHub OAuth is disabled and users log in with email/password only.</p>
+            </SubSection>
+
+            <SubSection title="Optional: Email (SMTP)">
+              <Code>{`--set secret.smtpHost=smtp.yourprovider.com \\
+--set secret.smtpPort=587 \\
+--set secret.smtpUser=notifications@mycompany.com \\
+--set secret.smtpPassword=your_password`}</Code>
+              <p className="text-sm">If not set, email notifications are disabled.</p>
+            </SubSection>
+
+            <SubSection title="Optional: Webhook HMAC verification">
+              <Code>--set secret.webhookSecret=your_hmac_secret</Code>
+              <p className="text-sm">If not set, webhook payloads are accepted without signature verification.</p>
+            </SubSection>
+
+            <SubSection title="Upgrading">
+              <Code>{`helm upgrade kollaber oci://ghcr.io/urbangeeks/charts/kollaber \\
+  --namespace kollaber \\
+  --reuse-values`}</Code>
+              <p className="text-sm">
+                Use <InlineCode>--reuse-values</InlineCode> to keep your existing secrets and config.
+                Migrations run automatically on every upgrade.
+              </p>
             </SubSection>
           </Section>
 
