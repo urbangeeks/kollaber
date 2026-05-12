@@ -211,6 +211,8 @@ For production self-hosted installs, configure SMTP:
 
 Without email configured, users can still log in by retrieving the OTP from the pod logs.
 
+> **Note:** SMTP uses STARTTLS (port 587). Port 465 (implicit TLS) is not supported.
+
 #### Optional: Webhook HMAC verification
 
 ```bash

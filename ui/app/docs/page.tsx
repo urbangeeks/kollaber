@@ -568,6 +568,10 @@ kube-watcher \\
 --set secret.smtpPort=587 \\
 --set secret.smtpUser=notifications@mycompany.com \\
 --set secret.smtpPassword=your_password`}</Code>
+              <p className="text-sm text-white/50">
+                SMTP uses STARTTLS on port 587. Port 465 (implicit TLS) is not supported.
+                Most providers — Gmail, SendGrid, Mailgun, Exchange — support port 587.
+              </p>
             </SubSection>
 
             <SubSection title="Optional: Webhook HMAC verification">
