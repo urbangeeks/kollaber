@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/smtp"
 	"os"
 )
 
@@ -15,15 +16,22 @@ type emailPayload struct {
 	HTML    string   `json:"html"`
 }
 
-// SendOTP sends a one-time code to the given address.
-// If RESEND_API_KEY is unset it logs to stdout instead (local dev).
+// SendOTP delivers a one-time code via:
+//  1. Resend API  — when RESEND_API_KEY is set
+//  2. SMTP        — when SMTP_HOST is set
+//  3. stdout      — fallback for local dev / unconfigured installs
 func SendOTP(to, code string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
-	if apiKey == "" {
-		fmt.Printf("\n[OTP] %s → code: %s\n\n", to, code)
-		return nil
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		return sendViaResend(to, code, key)
 	}
+	if host := os.Getenv("SMTP_HOST"); host != "" {
+		return sendViaSMTP(to, code, host)
+	}
+	fmt.Printf("\n[OTP] %s → code: %s\n\n", to, code)
+	return nil
+}
 
+func sendViaResend(to, code, apiKey string) error {
 	from := os.Getenv("RESEND_FROM")
 	if from == "" {
 		from = "Kollaber <noreply@kollaber.io>"
@@ -60,6 +68,38 @@ func SendOTP(to, code string) error {
 		return fmt.Errorf("resend: %s", e.Message)
 	}
 	return nil
+}
+
+func sendViaSMTP(to, code, host string) error {
+	port := os.Getenv("SMTP_PORT")
+	if port == "" {
+		port = "587"
+	}
+	user := os.Getenv("SMTP_USER")
+	pass := os.Getenv("SMTP_PASSWORD")
+
+	from := user
+	if from == "" {
+		from = "noreply@" + host
+	}
+
+	msg := []byte(
+		"From: Kollaber <" + from + ">\r\n" +
+			"To: " + to + "\r\n" +
+			"Subject: Your Kollaber login code\r\n" +
+			"MIME-Version: 1.0\r\n" +
+			"Content-Type: text/html; charset=UTF-8\r\n" +
+			"\r\n" +
+			otpHTML(code),
+	)
+
+	addr := host + ":" + port
+	var auth smtp.Auth
+	if user != "" && pass != "" {
+		auth = smtp.PlainAuth("", user, pass, host)
+	}
+
+	return smtp.SendMail(addr, auth, from, []string{to}, msg)
 }
 
 func otpHTML(code string) string {
