@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Container,
   Check,
+  Github,
 } from "lucide-react"
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { BlurFade } from "@/components/ui/blur-fade"
@@ -149,6 +150,14 @@ export default function Home() {
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
           <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/urbangeeks/kollaber"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden text-white/50 transition-colors hover:text-white md:inline-flex"
+            >
+              <Github className="h-5 w-5" />
+            </a>
             <Button asChild variant="ghost" className="hidden text-white/70 hover:text-white md:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>
