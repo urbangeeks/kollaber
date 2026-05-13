@@ -522,9 +522,8 @@ export default function Home() {
           <div className="flex items-center gap-8 text-sm font-medium text-white/30">
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
-            {["Terms", "Privacy"].map((label) => (
-              <a key={label} href="#" className="transition-colors hover:text-white">{label}</a>
-            ))}
+            <Link href="/terms" className="transition-colors hover:text-white">Terms</Link>
+            <Link href="/privacy" className="transition-colors hover:text-white">Privacy</Link>
           </div>
           <div className="flex items-center gap-4 text-sm font-medium text-white/30">
             <Link href="/login" className="transition-colors hover:text-white">Sign in</Link>
