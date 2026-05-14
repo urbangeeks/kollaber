@@ -222,13 +222,13 @@ export default function Home() {
         {/* 2. HERO */}
         <section className="relative flex flex-col items-center pt-14 pb-12 text-center sm:pt-20 sm:pb-16 md:pt-32 md:pb-20">
           <BlurFade delay={0.1}>
-            <div className="mb-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium">
+            {/* <div className="mb-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
               </span>
               Now in early access
-            </div>
+            </div> */}
           </BlurFade>
 
           <BlurFade delay={0.2}>
