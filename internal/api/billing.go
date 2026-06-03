@@ -32,6 +32,7 @@ type billingStatusResponse struct {
 		KubernetesIngestion bool `json:"kubernetes_ingestion"`
 		AISummaries         bool `json:"ai_summaries"`
 		AIPostmortems       bool `json:"ai_postmortems"`
+		AIAgent             bool `json:"ai_agent"`
 		SSO                 bool `json:"sso"`
 		AuditLogs           bool `json:"audit_logs"`
 	} `json:"entitlements"`
@@ -65,6 +66,7 @@ func (h *BillingHandler) Get(c echo.Context) error {
 	resp.Entitlements.KubernetesIngestion = ent.KubernetesIngestion
 	resp.Entitlements.AISummaries = ent.AISummaries
 	resp.Entitlements.AIPostmortems = ent.AIPostmortems
+	resp.Entitlements.AIAgent = ent.AIAgent
 	resp.Entitlements.SSO = ent.SSO
 	resp.Entitlements.AuditLogs = ent.AuditLogs
 

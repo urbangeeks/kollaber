@@ -53,6 +53,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	teamsSettings := NewTeamsSettingsHandler(q)
 	billingH := NewBillingHandler(q)
 	aiH := NewAIHandler(q)
+	agentH := NewAgentHandler(q)
 	auditH := NewAuditHandler(q)
 	ssoH := NewSSOHandler(q)
 
@@ -97,6 +98,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/events/:id/comments", comments.List)
 	protected.POST("/events/:id/summary", aiH.SummarizeEvent)
 	protected.POST("/events/:id/postmortem", aiH.PostmortemEvent)
+	protected.POST("/ai/chat", agentH.Chat)
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)

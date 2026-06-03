@@ -21,6 +21,7 @@ type Entitlements struct {
 	KubernetesIngestion bool
 	AISummaries         bool
 	AIPostmortems       bool
+	AIAgent             bool
 	SSO                 bool
 	AuditLogs           bool
 }
@@ -42,6 +43,7 @@ var planEntitlements = map[string]Entitlements{
 		SlackIntegration: true,
 		TeamsIntegration: true,
 		AISummaries:      true,
+		AIAgent:          true,
 	},
 	PlanPro: {
 		Plan:                PlanPro,
@@ -53,6 +55,7 @@ var planEntitlements = map[string]Entitlements{
 		KubernetesIngestion: true,
 		AISummaries:         true,
 		AIPostmortems:       true,
+		AIAgent:             true,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
@@ -66,6 +69,7 @@ var planEntitlements = map[string]Entitlements{
 		KubernetesIngestion: true,
 		AISummaries:         true,
 		AIPostmortems:       true,
+		AIAgent:             true,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
@@ -73,11 +77,11 @@ var planEntitlements = map[string]Entitlements{
 
 // PricingInfo describes public-facing plan pricing.
 type PricingInfo struct {
-	ID          string
-	Name        string
+	ID           string
+	Name         string
 	PricePerSeat int // USD cents per seat per month; 0 = free; -1 = contact sales
-	Description string
-	Features    []string
+	Description  string
+	Features     []string
 }
 
 var PricingTable = []PricingInfo{
@@ -103,6 +107,7 @@ var PricingTable = []PricingInfo{
 			"Unlimited environments",
 			"Unlimited history",
 			"AI event summaries",
+			"AI timeline assistant",
 			"All Free features",
 		},
 	},
