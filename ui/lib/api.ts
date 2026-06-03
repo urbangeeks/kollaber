@@ -332,6 +332,30 @@ export async function getEventPostmortem(eventId: string): Promise<string> {
   return (data as { postmortem: string }).postmortem
 }
 
+export type ChatMessage = { role: "user" | "assistant"; content: string }
+
+export type AgentStep = { tool: string; input: unknown; result: string }
+
+const agentChatSchema = z.object({
+  answer: z.string(),
+  steps: z.array(z.object({
+    tool: z.string(),
+    input: z.unknown(),
+    result: z.string(),
+  })).nullish(),
+})
+
+export async function chatWithAgent(
+  messages: ChatMessage[],
+  environmentId?: string,
+): Promise<{ answer: string; steps: AgentStep[] }> {
+  const data = await request("/ai/chat", agentChatSchema, {
+    method: "POST",
+    body: JSON.stringify({ environment_id: environmentId ?? "", messages }),
+  }) as z.infer<typeof agentChatSchema>
+  return { answer: data.answer, steps: (data.steps as AgentStep[]) ?? [] }
+}
+
 const notificationPrefsSchema = z.object({
   notify_on: z.array(z.string()),
   notification_email: z.string(),

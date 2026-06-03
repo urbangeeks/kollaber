@@ -7,6 +7,7 @@ import { getEvents, createEvent, getServices, getToken, type Event, type EventFi
 import { createEventSchema } from "@/lib/schemas"
 import { useEventStream } from "@/hooks/use-event-stream"
 import { TimelineEvent } from "@/components/timeline-event"
+import { AgentChat } from "@/components/agent-chat"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -476,6 +477,8 @@ function EnvPageInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AgentChat envId={id} />
     </div>
   )
 }
