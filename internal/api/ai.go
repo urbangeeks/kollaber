@@ -17,11 +17,24 @@ import (
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
-const postmortemWindow = 2 * time.Hour
+const (
+	postmortemWindow = 2 * time.Hour
+	// Token budgets for the Haiku completions. Summaries are 1-3 sentences;
+	// postmortems are a multi-section document and need much more room.
+	summaryMaxTokens    = 256
+	postmortemMaxTokens = 1024
+)
 
 type AIHandler struct{ q *store.Queries }
 
 func NewAIHandler(q *store.Queries) *AIHandler { return &AIHandler{q} }
+
+// wantsRefresh reports whether the caller asked to bypass the cached result and
+// regenerate (e.g. ?refresh=true). The freshly generated value overwrites the
+// cache.
+func wantsRefresh(c echo.Context) bool {
+	return c.QueryParam("refresh") == "true"
+}
 
 func (h *AIHandler) SummarizeEvent(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
@@ -50,14 +63,14 @@ func (h *AIHandler) SummarizeEvent(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
 	}
 
-	if event.AISummary != nil {
+	if event.AISummary != nil && !wantsRefresh(c) {
 		return c.JSON(http.StatusOK, echo.Map{"summary": *event.AISummary})
 	}
 
 	comments, _ := h.q.ListCommentsByEvent(ctx, event.ID)
 
 	prompt := buildSummaryPrompt(event, comments)
-	summary, err := kollabai.SummarizeEvent(ctx, prompt)
+	summary, err := kollabai.Generate(ctx, prompt, summaryMaxTokens)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate summary"})
 	}
@@ -93,7 +106,7 @@ func (h *AIHandler) PostmortemEvent(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
 	}
 
-	if event.AIPostmortem != nil {
+	if event.AIPostmortem != nil && !wantsRefresh(c) {
 		return c.JSON(http.StatusOK, echo.Map{"postmortem": *event.AIPostmortem})
 	}
 
@@ -101,7 +114,7 @@ func (h *AIHandler) PostmortemEvent(c echo.Context) error {
 	nearby, _ := h.q.GetEventsAroundTime(ctx, event.EnvironmentID, event.Timestamp.Time, postmortemWindow, event.ID)
 
 	prompt := buildPostmortemPrompt(event, comments, nearby)
-	postmortem, err := kollabai.SummarizeEvent(ctx, prompt)
+	postmortem, err := kollabai.Generate(ctx, prompt, postmortemMaxTokens)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate postmortem"})
 	}

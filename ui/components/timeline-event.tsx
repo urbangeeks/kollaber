@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText } from "lucide-react"
+import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw } from "lucide-react"
 
 const TYPE_CONFIG = {
   deploy: { icon: Rocket, label: "Deploy", variant: "default" },
@@ -66,12 +66,12 @@ export function TimelineEvent({ event }: { event: Event }) {
     setOpen((v) => !v)
   }
 
-  async function handlePostmortem() {
-    if (postmortem) { setPostmortemOpen(true); return }
+  async function handlePostmortem(refresh = false) {
+    if (postmortem && !refresh) { setPostmortemOpen(true); return }
     setPostmortemLoading(true)
     setPostmortemError(null)
     try {
-      const text = await getEventPostmortem(event.id)
+      const text = await getEventPostmortem(event.id, refresh)
       setPostmortem(text)
       setPostmortemOpen(true)
     } catch (err) {
@@ -174,7 +174,7 @@ export function TimelineEvent({ event }: { event: Event }) {
               {summaryLoading ? "Summarizing…" : summary ? "Hide summary" : "Summarize"}
             </button>
             <button
-              onClick={handlePostmortem}
+              onClick={() => handlePostmortem()}
               disabled={postmortemLoading}
               className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
             >
@@ -248,7 +248,19 @@ export function TimelineEvent({ event }: { event: Event }) {
           ) : postmortemError ? (
             <p className="text-destructive text-sm">{postmortemError}</p>
           ) : (
-            <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{postmortem}</pre>
+            <>
+              <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{postmortem}</pre>
+              <button
+                onClick={() => handlePostmortem(true)}
+                disabled={postmortemLoading}
+                className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
+              >
+                {postmortemLoading
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <RefreshCw className="h-3 w-3" />}
+                {postmortemLoading ? "Regenerating…" : "Regenerate"}
+              </button>
+            </>
           )}
         </DialogContent>
       </Dialog>

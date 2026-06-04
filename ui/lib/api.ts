@@ -337,13 +337,15 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
   }) as Promise<Comment>
 }
 
-export async function getEventSummary(eventId: string): Promise<string> {
-  const data = await request(`/events/${eventId}/summary`, null, { method: "POST" })
+export async function getEventSummary(eventId: string, refresh = false): Promise<string> {
+  const q = refresh ? "?refresh=true" : ""
+  const data = await request(`/events/${eventId}/summary${q}`, null, { method: "POST" })
   return (data as { summary: string }).summary
 }
 
-export async function getEventPostmortem(eventId: string): Promise<string> {
-  const data = await request(`/events/${eventId}/postmortem`, null, { method: "POST" })
+export async function getEventPostmortem(eventId: string, refresh = false): Promise<string> {
+  const q = refresh ? "?refresh=true" : ""
+  const data = await request(`/events/${eventId}/postmortem${q}`, null, { method: "POST" })
   return (data as { postmortem: string }).postmortem
 }
 

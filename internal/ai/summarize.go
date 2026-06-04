@@ -29,7 +29,10 @@ type claudeResponse struct {
 	} `json:"error"`
 }
 
-func SummarizeEvent(ctx context.Context, prompt string) (string, error) {
+// Generate runs a single-shot completion against the cheaper Haiku model.
+// maxTokens bounds the response length — keep it small for summaries and larger
+// for structured output like postmortems.
+func Generate(ctx context.Context, prompt string, maxTokens int) (string, error) {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
 		return "", fmt.Errorf("ANTHROPIC_API_KEY not set")
@@ -37,7 +40,7 @@ func SummarizeEvent(ctx context.Context, prompt string) (string, error) {
 
 	body, _ := json.Marshal(claudeRequest{
 		Model:     "claude-haiku-4-5-20251001",
-		MaxTokens: 256,
+		MaxTokens: maxTokens,
 		Messages:  []claudeMessage{{Role: "user", Content: prompt}},
 	})
 
