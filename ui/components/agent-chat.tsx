@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react"
 import { Bot, Send, X, Sparkles, Loader2, Wrench } from "lucide-react"
 import Link from "next/link"
-import { chatWithAgent, ApiError, type ChatMessage, type AgentStep } from "@/lib/api"
+import { chatWithAgent, ApiError, type ChatMessage } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
-type DisplayMessage = ChatMessage & { steps?: AgentStep[] }
+// steps holds the names of lookup tools the agent ran for this message.
+type DisplayMessage = ChatMessage & { steps?: string[] }
 
 // "upgrade" → quota reached / plan gate; "throttle" → too fast; "error" → other.
 type ChatError = { kind: "upgrade" | "throttle" | "error"; message: string }
@@ -44,13 +45,30 @@ export function AgentChat({ envId }: { envId?: string }) {
     setError(null)
     setInput("")
     const history: ChatMessage[] = [...messages.map(({ role, content }) => ({ role, content })), { role: "user", content }]
-    setMessages((m) => [...m, { role: "user", content }])
+    // Append the user turn plus an empty assistant bubble to stream into.
+    setMessages((m) => [...m, { role: "user", content }, { role: "assistant", content: "", steps: [] }])
     setLoading(true)
+
+    // Mutate the trailing assistant message as events arrive.
+    const updateLast = (fn: (last: DisplayMessage) => DisplayMessage) =>
+      setMessages((m) => {
+        const next = [...m]
+        next[next.length - 1] = fn(next[next.length - 1])
+        return next
+      })
+
     try {
-      const { answer, steps } = await chatWithAgent(history, envId)
-      setMessages((m) => [...m, { role: "assistant", content: answer, steps }])
+      await chatWithAgent(history, envId, {
+        onToken: (t) => updateLast((last) => ({ ...last, content: last.content + t })),
+        onStep: (tool) => updateLast((last) => ({ ...last, steps: [...(last.steps ?? []), tool] })),
+      })
     } catch (e) {
       setError(toChatError(e))
+      // Remove the placeholder if nothing streamed into it.
+      setMessages((m) => {
+        const last = m[m.length - 1]
+        return last?.role === "assistant" && !last.content && !last.steps?.length ? m.slice(0, -1) : m
+      })
     } finally {
       setLoading(false)
     }
@@ -115,20 +133,22 @@ export function AgentChat({ envId }: { envId?: string }) {
                     {m.steps.length} lookup{m.steps.length > 1 ? "s" : ""}
                   </summary>
                   <ul className="mt-1 space-y-0.5 pl-4">
-                    {m.steps.map((s, j) => (
-                      <li key={j} className="font-mono">{s.tool}</li>
+                    {m.steps.map((tool, j) => (
+                      <li key={j} className="font-mono">{tool}</li>
                     ))}
                   </ul>
                 </details>
               )}
-              <div className={m.role === "assistant" ? "whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm" : ""}>
-                {m.content}
-              </div>
+              {m.content && (
+                <div className={m.role === "assistant" ? "whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm" : ""}>
+                  {m.content}
+                </div>
+              )}
             </div>
           </div>
         ))}
 
-        {loading && (
+        {loading && !messages[messages.length - 1]?.content && (
           <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             Looking through the timeline…

@@ -130,12 +130,38 @@ func (h *AgentHandler) Chat(c echo.Context) error {
 	tools, handlers := h.buildTools(pgOrgID, defaultEnv)
 	system := buildAgentSystemPrompt(defaultEnvName)
 
-	result, err := kollabai.RunAgent(ctx, system, tools, handlers, history, agentMaxSteps)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "the assistant is unavailable right now"})
+	// All gating has passed; from here we stream Server-Sent Events. Each event
+	// is a JSON object with a "type" of "token" (answer text), "step" (a tool
+	// ran), "error", or "done".
+	res := c.Response()
+	res.Header().Set("Content-Type", "text/event-stream")
+	res.Header().Set("Cache-Control", "no-cache")
+	res.Header().Set("Connection", "keep-alive")
+	res.Header().Set("X-Accel-Buffering", "no") // disable proxy buffering
+	res.WriteHeader(http.StatusOK)
+
+	send := func(v echo.Map) {
+		if data, err := json.Marshal(v); err == nil {
+			fmt.Fprintf(res, "data: %s\n\n", data)
+			res.Flush()
+		}
+	}
+	emit := func(ev kollabai.StreamEvent) {
+		switch ev.Type {
+		case "token":
+			send(echo.Map{"type": "token", "text": ev.Token})
+		case "step":
+			send(echo.Map{"type": "step", "tool": ev.Step.Tool})
+		}
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"answer": result.Answer, "steps": result.Steps})
+	// Tie the agent run to the request so a client disconnect cancels it.
+	if _, err := kollabai.RunAgent(c.Request().Context(), system, tools, handlers, history, agentMaxSteps, emit); err != nil {
+		send(echo.Map{"type": "error", "error": "the assistant is unavailable right now"})
+		return nil
+	}
+	send(echo.Map{"type": "done"})
+	return nil
 }
 
 func buildAgentSystemPrompt(envName string) string {

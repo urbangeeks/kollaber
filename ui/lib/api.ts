@@ -349,26 +349,71 @@ export async function getEventPostmortem(eventId: string): Promise<string> {
 
 export type ChatMessage = { role: "user" | "assistant"; content: string }
 
-export type AgentStep = { tool: string; input: unknown; result: string }
+// Callbacks invoked as the agent streams: onToken for each chunk of the answer,
+// onStep when a lookup tool runs.
+export type AgentStreamHandlers = {
+  onToken: (text: string) => void
+  onStep: (tool: string) => void
+}
 
-const agentChatSchema = z.object({
-  answer: z.string(),
-  steps: z.array(z.object({
-    tool: z.string(),
-    input: z.unknown(),
-    result: z.string(),
-  })).nullish(),
-})
-
+// chatWithAgent opens an SSE stream to the agent and drives the handlers until
+// the stream completes. Pre-stream failures (e.g. 402 quota, 429 throttle) are
+// returned as ApiError before any streaming begins, so callers can branch on
+// them exactly like a normal request.
 export async function chatWithAgent(
   messages: ChatMessage[],
-  environmentId?: string,
-): Promise<{ answer: string; steps: AgentStep[] }> {
-  const data = await request("/ai/chat", agentChatSchema, {
+  environmentId: string | undefined,
+  handlers: AgentStreamHandlers,
+): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API}/ai/chat`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ environment_id: environmentId ?? "", messages }),
-  }) as z.infer<typeof agentChatSchema>
-  return { answer: data.answer, steps: (data.steps as AgentStep[]) ?? [] }
+  })
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(body.error ?? res.statusText, res.status, body)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ""
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    // SSE events are separated by a blank line.
+    let sep: number
+    while ((sep = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, sep)
+      buf = buf.slice(sep + 2)
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"))
+      if (!dataLine) continue
+      let evt: { type: string; text?: string; tool?: string; error?: string }
+      try {
+        evt = JSON.parse(dataLine.slice(5).trim())
+      } catch {
+        continue
+      }
+      switch (evt.type) {
+        case "token":
+          if (evt.text) handlers.onToken(evt.text)
+          break
+        case "step":
+          if (evt.tool) handlers.onStep(evt.tool)
+          break
+        case "error":
+          throw new Error(evt.error ?? "The assistant is unavailable right now")
+        case "done":
+          return
+      }
+    }
+  }
 }
 
 const notificationPrefsSchema = z.object({

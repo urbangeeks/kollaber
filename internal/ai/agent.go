@@ -1,12 +1,14 @@
 package ai
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 )
 
 // agentModel is used for the multi-step tool loop where reasoning matters.
@@ -46,6 +48,19 @@ type AgentResult struct {
 	Steps  []AgentStep `json:"steps"`
 }
 
+// StreamEvent is emitted incrementally during a RunAgent call so callers can
+// stream progress to a client. Type is one of "token" (a chunk of the answer)
+// or "step" (a tool was just executed).
+type StreamEvent struct {
+	Type  string
+	Token string     // set when Type == "token"
+	Step  *AgentStep // set when Type == "step"
+}
+
+// Emitter receives StreamEvents as the agent makes progress. It is called
+// synchronously from RunAgent; pass nil to disable streaming.
+type Emitter func(StreamEvent)
+
 type cacheControl struct {
 	Type string `json:"type"` // "ephemeral"
 }
@@ -84,6 +99,7 @@ type agentMessage struct {
 type agentRequest struct {
 	Model     string         `json:"model"`
 	MaxTokens int            `json:"max_tokens"`
+	Stream    bool           `json:"stream,omitempty"`
 	System    []systemBlock  `json:"system,omitempty"`
 	Tools     []Tool         `json:"tools,omitempty"`
 	Messages  []agentMessage `json:"messages"`
@@ -102,7 +118,9 @@ type agentResponse struct {
 // tools (resolved via handlers) until it produces a final text answer or
 // maxSteps is reached. The static system prompt + tool definitions are marked
 // for prompt caching so repeated calls in a session are cheaper.
-func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[string]ToolHandler, history []Turn, maxSteps int) (AgentResult, error) {
+// As the model produces the answer and calls tools, it emits StreamEvents via
+// emit (which may be nil). It still returns the full AgentResult at the end.
+func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[string]ToolHandler, history []Turn, maxSteps int, emit Emitter) (AgentResult, error) {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
 		return AgentResult{}, fmt.Errorf("ANTHROPIC_API_KEY not set")
@@ -123,7 +141,7 @@ func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[str
 	var steps []AgentStep
 
 	for i := 0; i < maxSteps; i++ {
-		resp, err := callMessages(ctx, apiKey, agentRequest{
+		resp, err := callMessagesStream(ctx, apiKey, agentRequest{
 			Model:     agentModel,
 			MaxTokens: 1024,
 			System: []systemBlock{{
@@ -133,6 +151,10 @@ func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[str
 			}},
 			Tools:    tools,
 			Messages: messages,
+		}, func(text string) {
+			if emit != nil {
+				emit(StreamEvent{Type: "token", Token: text})
+			}
 		})
 		if err != nil {
 			return AgentResult{}, err
@@ -151,6 +173,10 @@ func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[str
 			if block.Type != "tool_use" {
 				continue
 			}
+			input := block.Input
+			if len(input) == 0 {
+				input = json.RawMessage("{}")
+			}
 			handler, ok := handlers[block.Name]
 			var (
 				out     string
@@ -158,12 +184,16 @@ func RunAgent(ctx context.Context, system string, tools []Tool, handlers map[str
 			)
 			if !ok {
 				out, isError = fmt.Sprintf("unknown tool %q", block.Name), true
-			} else if res, herr := handler(ctx, block.Input); herr != nil {
+			} else if res, herr := handler(ctx, input); herr != nil {
 				out, isError = herr.Error(), true
 			} else {
 				out = res
 			}
-			steps = append(steps, AgentStep{Tool: block.Name, Input: block.Input, Result: out})
+			step := AgentStep{Tool: block.Name, Input: input, Result: out}
+			steps = append(steps, step)
+			if emit != nil {
+				emit(StreamEvent{Type: "step", Step: &step})
+			}
 			results = append(results, contentBlock{
 				Type:      "tool_result",
 				ToolUseID: block.ID,
@@ -187,7 +217,34 @@ func collectText(blocks []contentBlock) string {
 	return buf.String()
 }
 
-func callMessages(ctx context.Context, apiKey string, reqBody agentRequest) (agentResponse, error) {
+// streamChunk is one server-sent event from the Anthropic streaming Messages
+// API. Only the fields the agent loop needs are decoded.
+type streamChunk struct {
+	Type         string `json:"type"`
+	Index        int    `json:"index"`
+	ContentBlock struct {
+		Type string `json:"type"`
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"content_block"`
+	Delta struct {
+		Type        string `json:"type"`
+		Text        string `json:"text"`
+		PartialJSON string `json:"partial_json"`
+		StopReason  string `json:"stop_reason"`
+	} `json:"delta"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// callMessagesStream calls the Anthropic Messages API with streaming enabled,
+// invoking onText for each chunk of answer text as it arrives, and reassembles
+// the full response (content blocks + stop reason) to return once the stream
+// completes. tool_use input arrives as incremental JSON and is buffered per
+// block, then attached when the block closes.
+func callMessagesStream(ctx context.Context, apiKey string, reqBody agentRequest, onText func(string)) (agentResponse, error) {
+	reqBody.Stream = true
 	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return agentResponse{}, err
@@ -200,6 +257,7 @@ func callMessages(ctx context.Context, apiKey string, reqBody agentRequest) (age
 	req.Header.Set("x-api-key", apiKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 	req.Header.Set("content-type", "application/json")
+	req.Header.Set("accept", "text/event-stream")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -207,12 +265,105 @@ func callMessages(ctx context.Context, apiKey string, reqBody agentRequest) (age
 	}
 	defer resp.Body.Close()
 
-	var result agentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return agentResponse{}, fmt.Errorf("claude decode: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		// Errors come back as a normal JSON body, not a stream.
+		var er agentResponse
+		_ = json.NewDecoder(resp.Body).Decode(&er)
+		if er.Error != nil {
+			return agentResponse{}, fmt.Errorf("claude error: %s", er.Error.Message)
+		}
+		return agentResponse{}, fmt.Errorf("claude stream status %d", resp.StatusCode)
 	}
-	if result.Error != nil {
-		return agentResponse{}, fmt.Errorf("claude error: %s", result.Error.Message)
+
+	blocks := map[int]*contentBlock{}
+	jsonBufs := map[int]*bytes.Buffer{}
+	var stopReason string
+	maxIdx := -1
+
+	sc := bufio.NewScanner(resp.Body)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		line := sc.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(line[len("data:"):])
+		if data == "" {
+			continue
+		}
+		var ev streamChunk
+		if err := json.Unmarshal([]byte(data), &ev); err != nil {
+			continue
+		}
+		switch ev.Type {
+		case "content_block_start":
+			blocks[ev.Index] = &contentBlock{
+				Type: ev.ContentBlock.Type,
+				ID:   ev.ContentBlock.ID,
+				Name: ev.ContentBlock.Name,
+			}
+			if ev.Index > maxIdx {
+				maxIdx = ev.Index
+			}
+		case "content_block_delta":
+			switch ev.Delta.Type {
+			case "text_delta":
+				if b := blocks[ev.Index]; b != nil {
+					b.Text += ev.Delta.Text
+				}
+				if onText != nil && ev.Delta.Text != "" {
+					onText(ev.Delta.Text)
+				}
+			case "input_json_delta":
+				buf := jsonBufs[ev.Index]
+				if buf == nil {
+					buf = &bytes.Buffer{}
+					jsonBufs[ev.Index] = buf
+				}
+				buf.WriteString(ev.Delta.PartialJSON)
+			}
+		case "content_block_stop":
+			if buf := jsonBufs[ev.Index]; buf != nil && buf.Len() > 0 {
+				if b := blocks[ev.Index]; b != nil {
+					b.Input = json.RawMessage(buf.Bytes())
+				}
+			}
+		case "message_delta":
+			if ev.Delta.StopReason != "" {
+				stopReason = ev.Delta.StopReason
+			}
+		case "error":
+			if ev.Error != nil {
+				return agentResponse{}, fmt.Errorf("claude stream error: %s", ev.Error.Message)
+			}
+			return agentResponse{}, fmt.Errorf("claude stream error")
+		}
 	}
-	return result, nil
+	if err := sc.Err(); err != nil {
+		return agentResponse{}, fmt.Errorf("claude stream read: %w", err)
+	}
+
+	content := make([]contentBlock, 0, maxIdx+1)
+	for i := 0; i <= maxIdx; i++ {
+		b := blocks[i]
+		if b == nil {
+			continue
+		}
+		switch b.Type {
+		case "tool_use":
+			// The API rejects a tool_use block with no input field; tools that
+			// take no arguments produce an empty buffer, so default to {}.
+			if len(b.Input) == 0 {
+				b.Input = json.RawMessage("{}")
+			}
+		case "text":
+			// Skip empty text blocks — the API rejects whitespace-only text and
+			// they carry nothing to round-trip.
+			if strings.TrimSpace(b.Text) == "" {
+				continue
+			}
+		}
+		content = append(content, *b)
+	}
+	return agentResponse{Content: content, StopReason: stopReason}, nil
 }
