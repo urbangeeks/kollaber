@@ -46,6 +46,9 @@ secret:
   smtpPort: "587"
   smtpUser: ""
   smtpPassword: ""
+  # Anthropic API key (optional — AI summaries, postmortems, and the timeline
+  # assistant return an error if unset; the rest of the app works normally)
+  anthropicApiKey: ""
 
 # -- External PostgreSQL connection string
 # If set, the built-in postgres is not needed.

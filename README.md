@@ -198,6 +198,7 @@ Then use `postgres-postgresql.kollaber.svc.cluster.local` as the hostname:
 |---|---|---|
 | `secret.jwtSecret` | Yes | JWT signing secret — `openssl rand -hex 32` |
 | `externalDatabaseUrl` | Yes | Postgres connection string |
+| `secret.anthropicApiKey` | No | Anthropic API key — enables AI summaries, postmortems, and the timeline assistant |
 | `ingress.enabled` | No | Create an Ingress resource (default: `false`) |
 | `ingress.host` | No | Hostname for the Ingress |
 | `ingress.className` | No | Ingress class (e.g. `nginx`) |
@@ -269,6 +270,16 @@ Without email configured, users can still log in by retrieving the OTP from the 
 ```
 
 If not set, webhook payloads are accepted without signature verification.
+
+#### Optional: AI features
+
+AI event summaries, postmortems, and the timeline assistant call the Anthropic API. Provide a key to enable them:
+
+```bash
+--set secret.anthropicApiKey=sk-ant-...
+```
+
+If not set, the AI features return an error and the rest of the app works normally. (Self-hosted installs run with `SELF_HOSTED=true`, so plan entitlements are unlocked — the API key is the only thing the AI features need.)
 
 #### kube-watcher
 
