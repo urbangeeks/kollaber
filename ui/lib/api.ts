@@ -3,6 +3,21 @@ import { environmentSchema, eventSchema, commentResponseSchema } from "./schemas
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? ""
 
+// ApiError carries the HTTP status and parsed error body so callers can branch
+// on cases like 402 (upgrade required) or 429 (rate limited) instead of only
+// seeing a flat message.
+export class ApiError extends Error {
+  status: number
+  upgradeRequired: boolean
+
+  constructor(message: string, status: number, body?: { upgrade_required?: boolean }) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+    this.upgradeRequired = body?.upgrade_required ?? false
+  }
+}
+
 export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>
 export type Comment = z.infer<typeof commentResponseSchema>
@@ -34,7 +49,7 @@ async function request<T>(path: string, schema: z.ZodType<T> | null, init?: Requ
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? res.statusText)
+    throw new ApiError(body.error ?? res.statusText, res.status, body)
   }
   if (res.status === 204 || res.headers.get("content-length") === "0") return undefined
   const data = await res.json()

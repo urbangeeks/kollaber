@@ -2,10 +2,23 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Bot, Send, X, Sparkles, Loader2, Wrench } from "lucide-react"
-import { chatWithAgent, type ChatMessage, type AgentStep } from "@/lib/api"
+import Link from "next/link"
+import { chatWithAgent, ApiError, type ChatMessage, type AgentStep } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
 type DisplayMessage = ChatMessage & { steps?: AgentStep[] }
+
+// "upgrade" → quota reached / plan gate; "throttle" → too fast; "error" → other.
+type ChatError = { kind: "upgrade" | "throttle" | "error"; message: string }
+
+function toChatError(e: unknown): ChatError {
+  if (e instanceof ApiError) {
+    if (e.upgradeRequired) return { kind: "upgrade", message: e.message }
+    if (e.status === 429) return { kind: "throttle", message: e.message }
+    return { kind: "error", message: e.message }
+  }
+  return { kind: "error", message: e instanceof Error ? e.message : "Something went wrong" }
+}
 
 const SUGGESTIONS = [
   "What happened in this environment today?",
@@ -18,7 +31,7 @@ export function AgentChat({ envId }: { envId?: string }) {
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState<ChatError | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -28,7 +41,7 @@ export function AgentChat({ envId }: { envId?: string }) {
   async function send(text: string) {
     const content = text.trim()
     if (!content || loading) return
-    setError("")
+    setError(null)
     setInput("")
     const history: ChatMessage[] = [...messages.map(({ role, content }) => ({ role, content })), { role: "user", content }]
     setMessages((m) => [...m, { role: "user", content }])
@@ -37,7 +50,7 @@ export function AgentChat({ envId }: { envId?: string }) {
       const { answer, steps } = await chatWithAgent(history, envId)
       setMessages((m) => [...m, { role: "assistant", content: answer, steps }])
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong")
+      setError(toChatError(e))
     } finally {
       setLoading(false)
     }
@@ -121,7 +134,16 @@ export function AgentChat({ envId }: { envId?: string }) {
             Looking through the timeline…
           </div>
         )}
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error?.kind === "upgrade" && (
+          <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+            <p>{error.message}</p>
+            <Button asChild size="sm" className="h-7">
+              <Link href="/settings/billing">Upgrade plan</Link>
+            </Button>
+          </div>
+        )}
+        {error?.kind === "throttle" && <p className="text-muted-foreground text-sm">{error.message}</p>}
+        {error?.kind === "error" && <p className="text-sm text-red-500">{error.message}</p>}
       </div>
 
       <form
