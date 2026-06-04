@@ -343,6 +343,105 @@ var deployCmd = &cobra.Command{
 	},
 }
 
+var askCmd = &cobra.Command{
+	Use:   "ask [question]",
+	Short: "Ask the AI timeline assistant a question",
+	Long: `Ask the AI timeline assistant a natural-language question about your events.
+
+The answer is printed to stdout as it streams; tool lookups are reported on
+stderr, so you can pipe the answer cleanly:
+
+  kollaber ask --env prod "what deployed in the last hour?"
+  kollaber ask "summarize today's alerts" > summary.txt`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("provide a question, e.g. kollaber ask \"what deployed today?\"")
+		}
+		question := strings.Join(args, " ")
+		quiet, _ := cmd.Flags().GetBool("quiet")
+
+		var envID string
+		if envName, _ := cmd.Flags().GetString("env"); envName != "" {
+			env, err := findEnv(envName)
+			if err != nil {
+				return err
+			}
+			envID = env.ID
+		}
+
+		payload := map[string]any{
+			"environment_id": envID,
+			"messages":       []map[string]string{{"role": "user", "content": question}},
+		}
+		res, err := do("POST", "/ai/chat", payload)
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+
+		// Gating failures (auth, quota, rate limit) come back as JSON, not a stream.
+		if res.StatusCode >= 400 {
+			var e struct {
+				Error string `json:"error"`
+			}
+			_ = json.NewDecoder(res.Body).Decode(&e)
+			if e.Error != "" {
+				return fmt.Errorf("%s", e.Error)
+			}
+			return fmt.Errorf("HTTP %d", res.StatusCode)
+		}
+
+		// Read the SSE stream: "token" chunks form the answer, "step" reports a
+		// tool lookup, "error"/"done" end it.
+		printedAnswer := false
+		sc := bufio.NewScanner(res.Body)
+		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for sc.Scan() {
+			line := sc.Text()
+			if !strings.HasPrefix(line, "data:") {
+				continue
+			}
+			data := strings.TrimSpace(line[len("data:"):])
+			if data == "" {
+				continue
+			}
+			var ev struct {
+				Type  string `json:"type"`
+				Text  string `json:"text"`
+				Tool  string `json:"tool"`
+				Error string `json:"error"`
+			}
+			if err := json.Unmarshal([]byte(data), &ev); err != nil {
+				continue
+			}
+			switch ev.Type {
+			case "token":
+				fmt.Print(ev.Text)
+				printedAnswer = true
+			case "step":
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "… %s\n", ev.Tool)
+				}
+			case "error":
+				if printedAnswer {
+					fmt.Println()
+				}
+				return fmt.Errorf("%s", ev.Error)
+			case "done":
+				fmt.Println()
+				return nil
+			}
+		}
+		if err := sc.Err(); err != nil {
+			return fmt.Errorf("reading response: %w", err)
+		}
+		if printedAnswer {
+			fmt.Println()
+		}
+		return nil
+	},
+}
+
 func init() {
 	loginCmd.Flags().String("api", "", "API base URL (e.g. https://kollaber.io) — saved to config")
 	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
@@ -357,7 +456,10 @@ func init() {
 	deployCmd.Flags().String("service", "", "Service name")
 	deployCmd.Flags().String("version", "", "Version string (e.g. v1.2.3)")
 
-	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd)
+	askCmd.Flags().String("env", "", "Scope the question to an environment name or ID")
+	askCmd.Flags().Bool("quiet", false, "Suppress tool-lookup progress on stderr")
+
+	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd)
 }
 
 func main() {
