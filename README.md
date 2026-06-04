@@ -50,7 +50,7 @@ Usage:
 
 ```bash
 # Authenticate — --api points the CLI at your Kollaber instance
-kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
+kollaber login --api https://kollaber.io --email you@example.com   # emails a one-time code
 kollaber login --api https://kollaber.io --token <cli-token>
 
 # List environments

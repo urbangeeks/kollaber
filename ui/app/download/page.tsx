@@ -104,7 +104,7 @@ export default function DownloadPage() {
           <Card>
             <CardContent className="pt-4">
               <pre className="text-sm leading-relaxed">{`# Log in (--api points the CLI at your Kollaber instance)
-kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
+kollaber login --api https://kollaber.io --email you@example.com   # emails a one-time code
 
 # List environments
 kollaber envs

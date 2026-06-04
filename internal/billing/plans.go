@@ -106,7 +106,7 @@ var PricingTable = []PricingInfo{
 	{
 		ID:           PlanTeam,
 		Name:         "Team",
-		PricePerSeat: 1500,
+		PricePerSeat: 1200,
 		Description:  "For growing engineering teams.",
 		Features: []string{
 			"Up to 25 members",
@@ -120,7 +120,7 @@ var PricingTable = []PricingInfo{
 	{
 		ID:           PlanPro,
 		Name:         "Pro",
-		PricePerSeat: 3500,
+		PricePerSeat: 2400,
 		Description:  "For teams running production at scale.",
 		Features: []string{
 			"Unlimited members",

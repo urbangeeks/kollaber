@@ -159,7 +159,7 @@ export default function DocsPage() {
                 Install the CLI (see <a href="#cli" className="text-[#60a5fa] hover:underline">CLI Reference</a>) and
                 run:
               </p>
-              <Code>{`kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
+              <Code>{`kollaber login --api https://kollaber.io --email you@example.com
 kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <p>
                 Head back to the dashboard — your deploy event will appear in the timeline immediately.
@@ -324,8 +324,8 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
 
             <SubSection title="kollaber login">
               <p>Authenticate and save a token to <InlineCode>~/.kollaber/config.json</InlineCode>.</p>
-              <Code>{`# Email + password
-kollaber login --api https://kollaber.io --email you@example.com --password yourpassword
+              <Code>{`# Email — sends a one-time code, then prompts you to enter it
+kollaber login --api https://kollaber.io --email you@example.com
 
 # CLI token from Settings → API Tokens (for GitHub OAuth users)
 kollaber login --api https://kollaber.io --token <your-token>`}</Code>
