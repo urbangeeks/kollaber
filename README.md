@@ -69,6 +69,14 @@ kollaber timeline --env production --limit 20
 # tool lookups to stderr, so you can pipe the answer cleanly
 kollaber ask --env production "what deployed in the last hour?"
 kollaber ask "summarize today's alerts" > summary.txt
+
+# Conversations persist across commands, so follow-ups keep context
+kollaber ask "what was the last alert?"
+kollaber ask "yes, show its metadata"   # remembers the previous turn
+
+# Run with no question for an interactive multi-turn session
+kollaber ask --env production
+# --new starts fresh; --no-save makes a one-off call
 ```
 
 The CLI stores its token at `~/.kollaber/config.json`.  

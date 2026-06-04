@@ -196,6 +196,16 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               </p>
             </SubSection>
 
+            <SubSection title="AI timeline assistant">
+              <p>
+                On the Team plan and above, open the assistant from the spark icon in the bottom-right of the timeline.
+                Ask questions in plain language — &ldquo;what deployed today?&rdquo;, &ldquo;summarize the latest alert
+                and its discussion&rdquo; — and it answers by reading your real events and comments, streaming the reply
+                as it goes. It only reports what it finds in your data and never invents events. You can also query it
+                from the terminal with <InlineCode>kollaber ask</InlineCode>.
+              </p>
+            </SubSection>
+
             <SubSection title="Team management">
               <p>
                 Go to <strong className="text-white">Settings → Members</strong> to invite teammates via email. Each
@@ -353,6 +363,30 @@ kollaber login --api https://kollaber.io --token <your-token>`}</Code>
               <div className="mt-2 space-y-1 text-sm">
                 <div className="flex gap-3"><Badge>--env</Badge><span>Environment name or UUID (required)</span></div>
                 <div className="flex gap-3"><Badge>--limit</Badge><span>Number of events to fetch (default 20)</span></div>
+              </div>
+            </SubSection>
+
+            <SubSection title="kollaber ask">
+              <p>
+                Ask the <strong className="text-white">AI timeline assistant</strong> a natural-language question about
+                your events. The answer streams to stdout while tool lookups print to stderr, so you can pipe the
+                answer cleanly. Requires the Team plan or higher.
+              </p>
+              <Code>{`kollaber ask --env production "what deployed in the last hour?"
+kollaber ask "summarize today's alerts" > summary.txt`}</Code>
+              <p className="mt-3">
+                Conversations persist across commands, so follow-ups keep context. Run with no question to open an
+                interactive multi-turn session (type <InlineCode>exit</InlineCode> to quit).
+              </p>
+              <Code>{`kollaber ask "what was the last alert?"
+kollaber ask "yes, show its metadata"   # remembers the previous turn
+
+kollaber ask --env production           # interactive session`}</Code>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex gap-3"><Badge>--env</Badge><span>Scope the question to an environment (optional)</span></div>
+                <div className="flex gap-3"><Badge>--quiet</Badge><span>Suppress tool-lookup progress on stderr</span></div>
+                <div className="flex gap-3"><Badge>--new</Badge><span>Start a fresh conversation, ignoring saved history</span></div>
+                <div className="flex gap-3"><Badge>--no-save</Badge><span>One-off question; don&apos;t read or write saved history</span></div>
               </div>
             </SubSection>
           </Section>

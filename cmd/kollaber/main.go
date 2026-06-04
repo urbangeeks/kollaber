@@ -20,8 +20,8 @@ const defaultAPI = "http://localhost:8080"
 // --- config ---
 
 type config struct {
-	Token   string `json:"token"`
-	APIURL  string `json:"api_url"`
+	Token  string `json:"token"`
+	APIURL string `json:"api_url"`
 }
 
 func configPath() string {
@@ -84,7 +84,9 @@ func do(method, path string, body any) (*http.Response, error) {
 func decodeOK(res *http.Response, dst any) error {
 	defer res.Body.Close()
 	if res.StatusCode >= 400 {
-		var e struct{ Error string `json:"error"` }
+		var e struct {
+			Error string `json:"error"`
+		}
 		_ = json.NewDecoder(res.Body).Decode(&e)
 		if e.Error != "" {
 			return fmt.Errorf("%s", e.Error)
@@ -298,7 +300,9 @@ var noteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		var ev struct{ ID string `json:"id"` }
+		var ev struct {
+			ID string `json:"id"`
+		}
 		if err := decodeOK(res, &ev); err != nil {
 			return err
 		}
@@ -334,7 +338,9 @@ var deployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		var ev struct{ ID string `json:"id"` }
+		var ev struct {
+			ID string `json:"id"`
+		}
 		if err := decodeOK(res, &ev); err != nil {
 			return err
 		}
@@ -343,22 +349,180 @@ var deployCmd = &cobra.Command{
 	},
 }
 
+// --- chat sessions ---
+
+type chatMsg struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// maxSessionMessages caps how much history we keep locally; the server also
+// truncates, so there's no value in persisting more than this.
+const maxSessionMessages = 20
+
+func sessionPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".kollaber", "session.json")
+}
+
+func loadSession() []chatMsg {
+	data, err := os.ReadFile(sessionPath())
+	if err != nil {
+		return nil
+	}
+	var s struct {
+		Messages []chatMsg `json:"messages"`
+	}
+	_ = json.Unmarshal(data, &s)
+	return s.Messages
+}
+
+func saveSession(messages []chatMsg) error {
+	if len(messages) > maxSessionMessages {
+		messages = messages[len(messages)-maxSessionMessages:]
+	}
+	p := sessionPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+		return err
+	}
+	data, _ := json.MarshalIndent(struct {
+		Messages []chatMsg `json:"messages"`
+	}{messages}, "", "  ")
+	return os.WriteFile(p, data, 0600)
+}
+
+// streamAsk sends the conversation to the agent and streams the reply: answer
+// text to stdout, tool-lookup progress to stderr (unless quiet). It returns the
+// full answer text so the caller can append it to the conversation history.
+func streamAsk(envID string, messages []chatMsg, quiet bool) (string, error) {
+	res, err := do("POST", "/ai/chat", map[string]any{
+		"environment_id": envID,
+		"messages":       messages,
+	})
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	// Gating failures (auth, quota, rate limit) come back as JSON, not a stream.
+	if res.StatusCode >= 400 {
+		var e struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(res.Body).Decode(&e)
+		if e.Error != "" {
+			return "", fmt.Errorf("%s", e.Error)
+		}
+		return "", fmt.Errorf("HTTP %d", res.StatusCode)
+	}
+
+	// Read the SSE stream: "token" chunks form the answer, "step" reports a
+	// tool lookup, "error"/"done" end it.
+	var answer strings.Builder
+	sc := bufio.NewScanner(res.Body)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		line := sc.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(line[len("data:"):])
+		if data == "" {
+			continue
+		}
+		var ev struct {
+			Type  string `json:"type"`
+			Text  string `json:"text"`
+			Tool  string `json:"tool"`
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(data), &ev); err != nil {
+			continue
+		}
+		switch ev.Type {
+		case "token":
+			fmt.Print(ev.Text)
+			answer.WriteString(ev.Text)
+		case "step":
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "… %s\n", ev.Tool)
+			}
+		case "error":
+			if answer.Len() > 0 {
+				fmt.Println()
+			}
+			return "", fmt.Errorf("%s", ev.Error)
+		case "done":
+			fmt.Println()
+			return answer.String(), nil
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return answer.String(), fmt.Errorf("reading response: %w", err)
+	}
+	if answer.Len() > 0 {
+		fmt.Println()
+	}
+	return answer.String(), nil
+}
+
+// askREPL runs an interactive multi-turn chat, holding history in memory until
+// the user exits. Prompts and notices go to stderr so stdout stays pipeable.
+func askREPL(envID string, quiet bool) error {
+	fmt.Fprintln(os.Stderr, "Kollaber assistant — ask a question, or type 'exit' to quit.")
+	var history []chatMsg
+	in := bufio.NewScanner(os.Stdin)
+	in.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for {
+		fmt.Fprint(os.Stderr, "you › ")
+		if !in.Scan() {
+			fmt.Fprintln(os.Stderr)
+			return nil // EOF (Ctrl-D)
+		}
+		line := strings.TrimSpace(in.Text())
+		if line == "" {
+			continue
+		}
+		if line == "exit" || line == "quit" {
+			return nil
+		}
+		history = append(history, chatMsg{Role: "user", Content: line})
+		answer, err := streamAsk(envID, history, quiet)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			history = history[:len(history)-1] // drop the failed turn
+			continue
+		}
+		history = append(history, chatMsg{Role: "assistant", Content: answer})
+	}
+}
+
 var askCmd = &cobra.Command{
 	Use:   "ask [question]",
 	Short: "Ask the AI timeline assistant a question",
 	Long: `Ask the AI timeline assistant a natural-language question about your events.
 
-The answer is printed to stdout as it streams; tool lookups are reported on
-stderr, so you can pipe the answer cleanly:
+The answer streams to stdout; tool lookups are reported on stderr, so you can
+pipe the answer cleanly.
 
   kollaber ask --env prod "what deployed in the last hour?"
-  kollaber ask "summarize today's alerts" > summary.txt`,
+  kollaber ask "summarize today's alerts" > summary.txt
+
+Conversations persist across commands by default, so follow-ups work:
+
+  kollaber ask "what was the last alert?"
+  kollaber ask "yes, show its metadata"     # remembers the previous turn
+
+Run with no question to open an interactive multi-turn session:
+
+  kollaber ask --env prod
+
+Use --new to start a fresh conversation and --no-save for a one-off question
+that neither reads nor writes saved history.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("provide a question, e.g. kollaber ask \"what deployed today?\"")
-		}
-		question := strings.Join(args, " ")
 		quiet, _ := cmd.Flags().GetBool("quiet")
+		noSave, _ := cmd.Flags().GetBool("no-save")
+		newConv, _ := cmd.Flags().GetBool("new")
 
 		var envID string
 		if envName, _ := cmd.Flags().GetString("env"); envName != "" {
@@ -369,74 +533,25 @@ stderr, so you can pipe the answer cleanly:
 			envID = env.ID
 		}
 
-		payload := map[string]any{
-			"environment_id": envID,
-			"messages":       []map[string]string{{"role": "user", "content": question}},
+		// No question → interactive REPL (always a fresh in-memory conversation).
+		if len(args) == 0 {
+			return askREPL(envID, quiet)
 		}
-		res, err := do("POST", "/ai/chat", payload)
+
+		question := strings.Join(args, " ")
+		var history []chatMsg
+		if !noSave && !newConv {
+			history = loadSession()
+		}
+		history = append(history, chatMsg{Role: "user", Content: question})
+
+		answer, err := streamAsk(envID, history, quiet)
 		if err != nil {
 			return err
 		}
-		defer res.Body.Close()
-
-		// Gating failures (auth, quota, rate limit) come back as JSON, not a stream.
-		if res.StatusCode >= 400 {
-			var e struct {
-				Error string `json:"error"`
-			}
-			_ = json.NewDecoder(res.Body).Decode(&e)
-			if e.Error != "" {
-				return fmt.Errorf("%s", e.Error)
-			}
-			return fmt.Errorf("HTTP %d", res.StatusCode)
-		}
-
-		// Read the SSE stream: "token" chunks form the answer, "step" reports a
-		// tool lookup, "error"/"done" end it.
-		printedAnswer := false
-		sc := bufio.NewScanner(res.Body)
-		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for sc.Scan() {
-			line := sc.Text()
-			if !strings.HasPrefix(line, "data:") {
-				continue
-			}
-			data := strings.TrimSpace(line[len("data:"):])
-			if data == "" {
-				continue
-			}
-			var ev struct {
-				Type  string `json:"type"`
-				Text  string `json:"text"`
-				Tool  string `json:"tool"`
-				Error string `json:"error"`
-			}
-			if err := json.Unmarshal([]byte(data), &ev); err != nil {
-				continue
-			}
-			switch ev.Type {
-			case "token":
-				fmt.Print(ev.Text)
-				printedAnswer = true
-			case "step":
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "… %s\n", ev.Tool)
-				}
-			case "error":
-				if printedAnswer {
-					fmt.Println()
-				}
-				return fmt.Errorf("%s", ev.Error)
-			case "done":
-				fmt.Println()
-				return nil
-			}
-		}
-		if err := sc.Err(); err != nil {
-			return fmt.Errorf("reading response: %w", err)
-		}
-		if printedAnswer {
-			fmt.Println()
+		if !noSave {
+			history = append(history, chatMsg{Role: "assistant", Content: answer})
+			_ = saveSession(history)
 		}
 		return nil
 	},
@@ -458,6 +573,8 @@ func init() {
 
 	askCmd.Flags().String("env", "", "Scope the question to an environment name or ID")
 	askCmd.Flags().Bool("quiet", false, "Suppress tool-lookup progress on stderr")
+	askCmd.Flags().Bool("new", false, "Start a fresh conversation, ignoring saved history")
+	askCmd.Flags().Bool("no-save", false, "Don't read or write saved conversation history")
 
 	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd)
 }
