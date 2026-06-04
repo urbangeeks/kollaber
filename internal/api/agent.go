@@ -15,6 +15,7 @@ import (
 	"github.com/urbangeeks/kollaber/internal/billing"
 	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/store"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -23,11 +24,22 @@ const (
 	agentDefaultLimit  = 20
 	agentMaxEventLimit = 50
 	agentDefaultWindow = 120 // minutes, for get_events_around_time
+
+	// agentBurstRate/agentBurst bound how fast a single org may call the agent,
+	// smoothing spikes. ~10/min with a small burst comfortably covers
+	// interactive use while blocking scripted hammering.
+	agentBurstRate = rate.Limit(1.0 / 6.0) // tokens per second (10/min)
+	agentBurst     = 3
 )
 
-type AgentHandler struct{ q *store.Queries }
+type AgentHandler struct {
+	q       *store.Queries
+	limiter *orgRateLimiter
+}
 
-func NewAgentHandler(q *store.Queries) *AgentHandler { return &AgentHandler{q} }
+func NewAgentHandler(q *store.Queries) *AgentHandler {
+	return &AgentHandler{q: q, limiter: newOrgRateLimiter(agentBurstRate, agentBurst)}
+}
 
 type agentChatRequest struct {
 	EnvironmentID string `json:"environment_id"`
@@ -50,9 +62,32 @@ func (h *AgentHandler) Chat(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load billing"})
 	}
-	if !billing.EntitlementsFor(b.Plan).AIAgent {
+	ent := billing.EntitlementsFor(b.Plan)
+	if !ent.AIAgent {
 		return c.JSON(http.StatusPaymentRequired, echo.Map{
 			"error":            "The AI timeline assistant requires the Team plan or higher",
+			"upgrade_required": true,
+		})
+	}
+
+	// Burst protection: smooth out spikes from a single org before they reach
+	// the (slow, expensive) model loop.
+	if !h.limiter.Allow(orgID) {
+		return c.JSON(http.StatusTooManyRequests, echo.Map{
+			"error": "You're sending messages too quickly. Give the assistant a moment and try again.",
+		})
+	}
+
+	// Monthly cost cap: atomically reserve a unit of this month's quota. A
+	// rejected call does not consume quota.
+	period := time.Now().UTC().Format("2006-01")
+	_, allowed, err := h.q.IncrementAIAgentUsage(ctx, pgOrgID, period, ent.AIAgentMonthlyQuota)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not check usage"})
+	}
+	if !allowed {
+		return c.JSON(http.StatusTooManyRequests, echo.Map{
+			"error":            "You've reached this month's AI assistant limit. Upgrade your plan for a higher limit.",
 			"upgrade_required": true,
 		})
 	}

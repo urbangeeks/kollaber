@@ -22,6 +22,9 @@ type Entitlements struct {
 	AISummaries         bool
 	AIPostmortems       bool
 	AIAgent             bool
+	// AIAgentMonthlyQuota caps AI agent conversations per calendar month.
+	// 0 when the plan has no agent access; -1 means unlimited.
+	AIAgentMonthlyQuota int
 	SSO                 bool
 	AuditLogs           bool
 }
@@ -36,14 +39,15 @@ var planEntitlements = map[string]Entitlements{
 		TeamsIntegration: true,
 	},
 	PlanTeam: {
-		Plan:             PlanTeam,
-		MaxMembers:       25,
-		MaxEnvironments:  -1,
-		HistoryDays:      -1,
-		SlackIntegration: true,
-		TeamsIntegration: true,
-		AISummaries:      true,
-		AIAgent:          true,
+		Plan:                PlanTeam,
+		MaxMembers:          25,
+		MaxEnvironments:     -1,
+		HistoryDays:         -1,
+		SlackIntegration:    true,
+		TeamsIntegration:    true,
+		AISummaries:         true,
+		AIAgent:             true,
+		AIAgentMonthlyQuota: 200,
 	},
 	PlanPro: {
 		Plan:                PlanPro,
@@ -56,6 +60,7 @@ var planEntitlements = map[string]Entitlements{
 		AISummaries:         true,
 		AIPostmortems:       true,
 		AIAgent:             true,
+		AIAgentMonthlyQuota: 1000,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
@@ -70,6 +75,7 @@ var planEntitlements = map[string]Entitlements{
 		AISummaries:         true,
 		AIPostmortems:       true,
 		AIAgent:             true,
+		AIAgentMonthlyQuota: -1,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
