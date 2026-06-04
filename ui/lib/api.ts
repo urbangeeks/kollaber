@@ -3,6 +3,21 @@ import { environmentSchema, eventSchema, commentResponseSchema } from "./schemas
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? ""
 
+// ApiError carries the HTTP status and parsed error body so callers can branch
+// on cases like 402 (upgrade required) or 429 (rate limited) instead of only
+// seeing a flat message.
+export class ApiError extends Error {
+  status: number
+  upgradeRequired: boolean
+
+  constructor(message: string, status: number, body?: { upgrade_required?: boolean }) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+    this.upgradeRequired = body?.upgrade_required ?? false
+  }
+}
+
 export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>
 export type Comment = z.infer<typeof commentResponseSchema>
@@ -34,7 +49,7 @@ async function request<T>(path: string, schema: z.ZodType<T> | null, init?: Requ
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? res.statusText)
+    throw new ApiError(body.error ?? res.statusText, res.status, body)
   }
   if (res.status === 204 || res.headers.get("content-length") === "0") return undefined
   const data = await res.json()
@@ -330,6 +345,75 @@ export async function getEventSummary(eventId: string): Promise<string> {
 export async function getEventPostmortem(eventId: string): Promise<string> {
   const data = await request(`/events/${eventId}/postmortem`, null, { method: "POST" })
   return (data as { postmortem: string }).postmortem
+}
+
+export type ChatMessage = { role: "user" | "assistant"; content: string }
+
+// Callbacks invoked as the agent streams: onToken for each chunk of the answer,
+// onStep when a lookup tool runs.
+export type AgentStreamHandlers = {
+  onToken: (text: string) => void
+  onStep: (tool: string) => void
+}
+
+// chatWithAgent opens an SSE stream to the agent and drives the handlers until
+// the stream completes. Pre-stream failures (e.g. 402 quota, 429 throttle) are
+// returned as ApiError before any streaming begins, so callers can branch on
+// them exactly like a normal request.
+export async function chatWithAgent(
+  messages: ChatMessage[],
+  environmentId: string | undefined,
+  handlers: AgentStreamHandlers,
+): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API}/ai/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ environment_id: environmentId ?? "", messages }),
+  })
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(body.error ?? res.statusText, res.status, body)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ""
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    // SSE events are separated by a blank line.
+    let sep: number
+    while ((sep = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, sep)
+      buf = buf.slice(sep + 2)
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"))
+      if (!dataLine) continue
+      let evt: { type: string; text?: string; tool?: string; error?: string }
+      try {
+        evt = JSON.parse(dataLine.slice(5).trim())
+      } catch {
+        continue
+      }
+      switch (evt.type) {
+        case "token":
+          if (evt.text) handlers.onToken(evt.text)
+          break
+        case "step":
+          if (evt.tool) handlers.onStep(evt.tool)
+          break
+        case "error":
+          throw new Error(evt.error ?? "The assistant is unavailable right now")
+        case "done":
+          return
+      }
+    }
+  }
 }
 
 const notificationPrefsSchema = z.object({

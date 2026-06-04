@@ -21,6 +21,10 @@ type Entitlements struct {
 	KubernetesIngestion bool
 	AISummaries         bool
 	AIPostmortems       bool
+	AIAgent             bool
+	// AIAgentMonthlyQuota caps AI agent conversations per calendar month.
+	// 0 when the plan has no agent access; -1 means unlimited.
+	AIAgentMonthlyQuota int
 	SSO                 bool
 	AuditLogs           bool
 }
@@ -35,13 +39,15 @@ var planEntitlements = map[string]Entitlements{
 		TeamsIntegration: true,
 	},
 	PlanTeam: {
-		Plan:             PlanTeam,
-		MaxMembers:       25,
-		MaxEnvironments:  -1,
-		HistoryDays:      -1,
-		SlackIntegration: true,
-		TeamsIntegration: true,
-		AISummaries:      true,
+		Plan:                PlanTeam,
+		MaxMembers:          25,
+		MaxEnvironments:     -1,
+		HistoryDays:         -1,
+		SlackIntegration:    true,
+		TeamsIntegration:    true,
+		AISummaries:         true,
+		AIAgent:             true,
+		AIAgentMonthlyQuota: 200,
 	},
 	PlanPro: {
 		Plan:                PlanPro,
@@ -53,6 +59,8 @@ var planEntitlements = map[string]Entitlements{
 		KubernetesIngestion: true,
 		AISummaries:         true,
 		AIPostmortems:       true,
+		AIAgent:             true,
+		AIAgentMonthlyQuota: 1000,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
@@ -66,6 +74,8 @@ var planEntitlements = map[string]Entitlements{
 		KubernetesIngestion: true,
 		AISummaries:         true,
 		AIPostmortems:       true,
+		AIAgent:             true,
+		AIAgentMonthlyQuota: -1,
 		SSO:                 true,
 		AuditLogs:           true,
 	},
@@ -73,11 +83,11 @@ var planEntitlements = map[string]Entitlements{
 
 // PricingInfo describes public-facing plan pricing.
 type PricingInfo struct {
-	ID          string
-	Name        string
+	ID           string
+	Name         string
 	PricePerSeat int // USD cents per seat per month; 0 = free; -1 = contact sales
-	Description string
-	Features    []string
+	Description  string
+	Features     []string
 }
 
 var PricingTable = []PricingInfo{
@@ -103,6 +113,7 @@ var PricingTable = []PricingInfo{
 			"Unlimited environments",
 			"Unlimited history",
 			"AI event summaries",
+			"AI timeline assistant",
 			"All Free features",
 		},
 	},

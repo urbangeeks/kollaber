@@ -12,6 +12,7 @@ Capture deploys, alerts, and manual notes in a shared timeline your whole team c
 - **Timeline** — every deploy, alert, and note in one chronological view per environment
 - **Comments** — annotate any event with root cause, rollback decisions, follow-ups
 - **CLI** — send deploy events and notes from your terminal or CI pipeline
+- **AI timeline assistant** — ask natural-language questions about your events, in the dashboard or from the CLI (Team plan and up)
 - **Webhooks** — integrate GitHub Actions or any HTTP tool without installing anything
 - **Role-based access** — Owner / Admin / Member / Viewer tiers per organization
 
@@ -63,6 +64,11 @@ kollaber note --env production "Rolling back — 5xx spike in us-east-1"
 
 # View the timeline
 kollaber timeline --env production --limit 20
+
+# Ask the AI assistant (Team plan and up); answer streams to stdout,
+# tool lookups to stderr, so you can pipe the answer cleanly
+kollaber ask --env production "what deployed in the last hour?"
+kollaber ask "summarize today's alerts" > summary.txt
 ```
 
 The CLI stores its token at `~/.kollaber/config.json`.  
@@ -105,6 +111,18 @@ No CLI install needed — POST directly from CI:
 | `task db:reset` | Wipe volume and restart |
 | `task generate` | Re-run sqlc codegen |
 | `task migrate` | Run migrations only (MIGRATE_ONLY mode) |
+
+### Tests
+
+```bash
+# Unit tests (no database needed)
+go test ./...
+
+# Include database-backed integration tests (store layer). Point at a
+# throwaway Postgres — migrations are applied automatically, and the
+# tests skip when the variable is unset.
+TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5432/kollaber_test?sslmode=disable' go test ./...
+```
 
 ## Deployment
 
