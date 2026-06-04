@@ -6,10 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 )
+
+// messagesEndpoint is the Anthropic Messages API URL. It is a package var so
+// tests can point the agent at a local server.
+var messagesEndpoint = "https://api.anthropic.com/v1/messages"
 
 // agentModel is used for the multi-step tool loop where reasoning matters.
 // Summaries/postmortems keep using the cheaper Haiku model in summarize.go.
@@ -250,7 +255,7 @@ func callMessagesStream(ctx context.Context, apiKey string, reqBody agentRequest
 		return agentResponse{}, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", messagesEndpoint, bytes.NewReader(body))
 	if err != nil {
 		return agentResponse{}, err
 	}
@@ -275,12 +280,20 @@ func callMessagesStream(ctx context.Context, apiKey string, reqBody agentRequest
 		return agentResponse{}, fmt.Errorf("claude stream status %d", resp.StatusCode)
 	}
 
+	return parseMessageStream(resp.Body, onText)
+}
+
+// parseMessageStream reads an Anthropic streaming Messages response from r,
+// invoking onText for each text chunk, and returns the reassembled content
+// blocks and stop reason. It is separated from the HTTP call so it can be
+// tested directly.
+func parseMessageStream(r io.Reader, onText func(string)) (agentResponse, error) {
 	blocks := map[int]*contentBlock{}
 	jsonBufs := map[int]*bytes.Buffer{}
 	var stopReason string
 	maxIdx := -1
 
-	sc := bufio.NewScanner(resp.Body)
+	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
 		line := sc.Text()
