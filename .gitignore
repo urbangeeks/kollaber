@@ -51,7 +51,10 @@ Thumbs.db
 docker/postgres-data/
 
 # ── Misc ─────────────────────────────────────────────────────────────────────
-image.png
+# Anchored to the repo root so these scratch files don't also match committed
+# assets like ui/public/mascot.png (which build tools' gitignore matchers would
+# otherwise exclude from the deploy context).
+/image.png
 .claude/
-kollaber.png
-mascot.png
+/kollaber.png
+/mascot.png
