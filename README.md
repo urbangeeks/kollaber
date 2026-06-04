@@ -112,6 +112,18 @@ No CLI install needed — POST directly from CI:
 | `task generate` | Re-run sqlc codegen |
 | `task migrate` | Run migrations only (MIGRATE_ONLY mode) |
 
+### Tests
+
+```bash
+# Unit tests (no database needed)
+go test ./...
+
+# Include database-backed integration tests (store layer). Point at a
+# throwaway Postgres — migrations are applied automatically, and the
+# tests skip when the variable is unset.
+TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5432/kollaber_test?sslmode=disable' go test ./...
+```
+
 ## Deployment
 
 ### Railway / single binary
