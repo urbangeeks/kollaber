@@ -92,6 +92,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "kollaber.fullname" . }}
                   key: smtp-password
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kollaber.fullname" . }}
+                  key: anthropic-api-key
           livenessProbe:
             httpGet:
               path: /health

@@ -591,6 +591,7 @@ kube-watcher \\
                 <div className="flex gap-3"><Badge>secret.smtpUser</Badge><span>SMTP username</span></div>
                 <div className="flex gap-3"><Badge>secret.smtpPassword</Badge><span>SMTP password</span></div>
                 <div className="flex gap-3"><Badge>secret.webhookSecret</Badge><span>HMAC secret for webhook verification — skips verification if unset</span></div>
+                <div className="flex gap-3"><Badge>secret.anthropicApiKey</Badge><span>Anthropic API key — enables AI summaries, postmortems, and the timeline assistant</span></div>
               </div>
             </SubSection>
 
@@ -742,6 +743,15 @@ kube-watcher \\
                 <ApiRow method="POST"   path="/invites/:token/accept"      desc="Accept an invite and create account" />
                 <ApiRow method="GET"    path="/members/invites"            desc="List pending invites (authenticated)" />
                 <ApiRow method="DELETE" path="/members/invites/:token"     desc="Revoke a pending invite (authenticated)" />
+              </div>
+            </SubSection>
+
+            <SubSection title="AI">
+              <p>Require the Team plan or higher. Responses need an Anthropic API key configured on the server.</p>
+              <div className="space-y-2">
+                <ApiRow method="POST" path="/ai/chat"                desc="Ask the timeline assistant; streams a Server-Sent Events response (authenticated)" />
+                <ApiRow method="POST" path="/events/:id/summary"     desc="Generate an AI summary of an event (authenticated)" />
+                <ApiRow method="POST" path="/events/:id/postmortem"  desc="Generate an AI postmortem for an event (Pro plan, authenticated)" />
               </div>
             </SubSection>
           </Section>
