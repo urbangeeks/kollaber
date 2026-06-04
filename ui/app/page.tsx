@@ -99,7 +99,7 @@ const PLANS = [
     description: "Growing teams that need more room.",
     cta: "Start free trial",
     highlight: false,
-    features: ["Up to 25 members", "Unlimited environments", "Unlimited history", "AI event summaries", "Slack & Teams alerts", "Email support"],
+    features: ["Up to 25 members", "Unlimited environments", "Unlimited history", "AI event summaries", "AI timeline assistant", "Slack & Teams alerts", "Email support"],
   },
   {
     id: "pro",
@@ -110,7 +110,7 @@ const PLANS = [
     cta: "Start free trial",
     highlight: true,
     badge: "Most popular",
-    features: ["Unlimited members", "Unlimited environments", "Unlimited history", "AI summaries + postmortems", "Kubernetes watcher", "SSO · Audit logs", "Priority support"],
+    features: ["Unlimited members", "Unlimited environments", "Unlimited history", "AI summaries + postmortems", "AI timeline assistant", "Kubernetes watcher", "SSO · Audit logs", "Priority support"],
   },
   {
     id: "enterprise",
