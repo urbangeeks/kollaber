@@ -3,7 +3,7 @@
 //
 // Run one instance per cluster:
 //
-//	kube-watcher --kubeconfig ~/.kube/config --env prod --api https://api.kollaber.io --token <cli-token>
+//	kube-watcher --kubeconfig ~/.kube/config --env prod --api https://kollaber.io --token <cli-token>
 package main
 
 import (

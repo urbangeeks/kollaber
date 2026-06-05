@@ -35,7 +35,7 @@ spec:
       serviceAccountName: kube-watcher
       containers:
         - name: kube-watcher
-          image: ghcr.io/urbangeeks/kube-watcher:latest
+          image: ghcr.io/urbangeeks/kollaber/kube-watcher:latest
           args:
             - --env=prod
             - --api=${apiURL}
@@ -110,7 +110,7 @@ export default function KubernetesSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
 
-  const [apiBase, setApiBase] = useState("https://api.kollaber.io")
+  const [apiBase, setApiBase] = useState("https://kollaber.io")
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
