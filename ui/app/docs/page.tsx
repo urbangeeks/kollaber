@@ -317,8 +317,9 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <Code>go install github.com/urbangeeks/kollaber/cmd/kollaber@latest</Code>
               <p>Or download a pre-built binary from the <Link href="/download" className="text-[#60a5fa] hover:underline">downloads page</Link>.</p>
               <p className="mt-2 text-sm">
-                Set the <InlineCode>KOLLABER_API</InlineCode> environment variable to point at your self-hosted
-                instance. Defaults to <InlineCode>http://localhost:8080</InlineCode>.
+                Defaults to <InlineCode>https://kollaber.io</InlineCode> (the hosted service). Set the
+                <InlineCode>KOLLABER_API</InlineCode> environment variable (or <InlineCode>--api</InlineCode> on
+                login) to point at a self-hosted instance.
               </p>
             </SubSection>
 

@@ -80,7 +80,7 @@ kollaber ask --env production
 ```
 
 The CLI stores its token at `~/.kollaber/config.json`.  
-Set `KOLLABER_API` to point at a self-hosted instance (default: `http://localhost:8080`).
+Defaults to `https://kollaber.io` (the hosted service); set `KOLLABER_API` (or `--api` on login) to point at a self-hosted instance.
 
 ## Webhook
 

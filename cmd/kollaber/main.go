@@ -15,7 +15,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultAPI = "http://localhost:8080"
+// defaultAPI points at the hosted service so a fresh install works out of the
+// box for SaaS users. Self-hosted/local-dev users override via --api or
+// KOLLABER_API (which is then saved to ~/.kollaber/config.json on login).
+const defaultAPI = "https://kollaber.io"
 
 // --- config ---
 
