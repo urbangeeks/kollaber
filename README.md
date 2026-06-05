@@ -299,6 +299,7 @@ helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \
 | `kollaber.token` | CLI token — from `kollaber login` then `Settings → CLI token` |
 | `kollaber.existingSecret` | Name of an existing `Secret` with key `token` (skips creating one) |
 | `watchNamespace` | Limit watching to one namespace; empty = all namespaces |
+| `reportDeletes` | Also fire a `teardown` event when a Deployment is removed (default: `false`) |
 
 **Multi-cluster** — one install per environment:
 

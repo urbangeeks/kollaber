@@ -11,6 +11,10 @@ kollaber:
 # Kubernetes namespace to watch. Empty string = all namespaces.
 watchNamespace: ""
 
+# Also fire a "teardown" event when a Deployment is removed. Off by default —
+# `helm uninstall` and bulk deletes can produce a burst of events.
+reportDeletes: false
+
 image:
   repository: ghcr.io/urbangeeks/kollaber/kube-watcher
   tag: latest
