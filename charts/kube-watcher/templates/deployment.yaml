@@ -25,6 +25,9 @@ spec:
             {{- if .Values.watchNamespace }}
             - --namespace={{ .Values.watchNamespace }}
             {{- end }}
+            {{- if .Values.reportDeletes }}
+            - --report-deletes
+            {{- end }}
           env:
             - name: KOLLABER_TOKEN
               valueFrom:

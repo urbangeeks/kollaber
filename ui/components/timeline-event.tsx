@@ -13,12 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Rocket, Bell, StickyNote, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw } from "lucide-react"
+import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw } from "lucide-react"
 
 const TYPE_CONFIG = {
   deploy: { icon: Rocket, label: "Deploy", variant: "default" },
   alert: { icon: Bell, label: "Alert", variant: "destructive" },
   note: { icon: StickyNote, label: "Note", variant: "secondary" },
+  teardown: { icon: Trash2, label: "Teardown", variant: "outline" },
 } as const
 
 const STATUS_CONFIG = {
@@ -51,6 +52,7 @@ export function TimelineEvent({ event }: { event: Event }) {
 
   const { dotBorder, dotText } = (() => {
     if (event.type === "note") return { dotBorder: "border-border", dotText: "text-muted-foreground" }
+    if (event.type === "teardown") return { dotBorder: "border-orange-200 dark:border-orange-900", dotText: "text-orange-600 dark:text-orange-400" }
     if (event.type === "alert") return { dotBorder: "border-red-200 dark:border-red-900", dotText: "text-red-600 dark:text-red-400" }
     const s = event.status ?? "success"
     if (s === "failure")     return { dotBorder: "border-red-200 dark:border-red-900",   dotText: "text-red-600 dark:text-red-400" }
@@ -133,7 +135,7 @@ export function TimelineEvent({ event }: { event: Event }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Badge variant={variant as "default" | "destructive" | "secondary"}>{label}</Badge>
+            <Badge variant={variant as "default" | "destructive" | "secondary" | "outline"}>{label}</Badge>
             <span className="font-medium truncate max-w-[180px] sm:max-w-none">{event.service}</span>
             {event.metadata?.version != null && (
               <span className="text-muted-foreground text-sm">{String(event.metadata.version)}</span>

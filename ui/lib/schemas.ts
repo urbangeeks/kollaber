@@ -58,7 +58,7 @@ export const environmentSchema = z.object({
 
 export const eventSchema = z.object({
   id: z.string(),
-  type: z.enum(["deploy", "alert", "note"]),
+  type: z.enum(["deploy", "alert", "note", "teardown"]),
   service: z.string(),
   environment_id: z.string(),
   timestamp: z.string(),

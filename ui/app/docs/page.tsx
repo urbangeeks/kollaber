@@ -426,6 +426,7 @@ kollaber ask --env production           # interactive session`}</Code>
                 <div className="flex gap-3"><Badge>kollaber.token</Badge><span>CLI token — from Settings → CLI Token</span></div>
                 <div className="flex gap-3"><Badge>kollaber.existingSecret</Badge><span>Use an existing <InlineCode>Secret</InlineCode> with key <InlineCode>token</InlineCode> instead of creating one</span></div>
                 <div className="flex gap-3"><Badge>watchNamespace</Badge><span>Limit to a single namespace; empty = all namespaces</span></div>
+                <div className="flex gap-3"><Badge>reportDeletes</Badge><span>Also fire a <InlineCode>teardown</InlineCode> event when a Deployment is removed (default: false)</span></div>
               </div>
             </SubSection>
 

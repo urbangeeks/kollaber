@@ -34,6 +34,7 @@ var (
 	apiURL     = flag.String("api", os.Getenv("KOLLABER_API"), "Kollaber API base URL")
 	token      = flag.String("token", os.Getenv("KOLLABER_TOKEN"), "Kollaber CLI token")
 	namespace  = flag.String("namespace", "", "Kubernetes namespace to watch (empty = all namespaces)")
+	reportDeletes = flag.Bool("report-deletes", false, "also fire a teardown event when a Deployment is removed (off by default — helm uninstall can produce a burst of events)")
 )
 
 func main() {
@@ -115,29 +116,44 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 		}
 
 		for event := range watcher.ResultChan() {
-			if event.Type != watch.Modified {
-				continue
-			}
 			dep, ok := event.Object.(*appsv1.Deployment)
 			if !ok {
 				continue
 			}
-			if !deploymentReady(dep) {
-				continue
-			}
 			key := dep.Namespace + "/" + dep.Name
-			if fired[key] == dep.Generation {
-				continue
-			}
-			fired[key] = dep.Generation
-			image := primaryImage(dep)
-			log.Printf("deploy: %s image=%s generation=%d", dep.Name, image, dep.Generation)
-			if err := k.sendEvent("deploy", dep.Name, map[string]any{
-				"version":   image,
-				"namespace": dep.Namespace,
-				"replicas":  dep.Status.ReadyReplicas,
-			}); err != nil {
-				log.Printf("error sending deploy event for %s: %v", dep.Name, err)
+
+			switch event.Type {
+			case watch.Deleted:
+				if !*reportDeletes {
+					continue
+				}
+				// Forget the generation so a later re-create fires a fresh deploy event.
+				delete(fired, key)
+				log.Printf("teardown: %s namespace=%s", dep.Name, dep.Namespace)
+				if err := k.sendEvent("teardown", dep.Name, map[string]any{
+					"namespace": dep.Namespace,
+					"version":   primaryImage(dep),
+				}); err != nil {
+					log.Printf("error sending teardown event for %s: %v", dep.Name, err)
+				}
+
+			case watch.Modified:
+				if !deploymentReady(dep) {
+					continue
+				}
+				if fired[key] == dep.Generation {
+					continue
+				}
+				fired[key] = dep.Generation
+				image := primaryImage(dep)
+				log.Printf("deploy: %s image=%s generation=%d", dep.Name, image, dep.Generation)
+				if err := k.sendEvent("deploy", dep.Name, map[string]any{
+					"version":   image,
+					"namespace": dep.Namespace,
+					"replicas":  dep.Status.ReadyReplicas,
+				}); err != nil {
+					log.Printf("error sending deploy event for %s: %v", dep.Name, err)
+				}
 			}
 		}
 	}
