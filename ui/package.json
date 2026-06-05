@@ -27,9 +27,10 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "hono": "4.12.18",
+    "hono": "4.12.21",
     "fast-uri": "3.1.2",
-    "postcss": "8.5.14"
+    "postcss": "$postcss",
+    "qs": "6.15.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
