@@ -25,11 +25,6 @@ spec:
           env:
             - name: MIGRATE_ONLY
               value: "true"
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kollaber.fullname" . }}
-                  key: db-password
             - name: DATABASE_URL
               value: {{ include "kollaber.databaseUrl" . | quote }}
             - name: JWT_SECRET

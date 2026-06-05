@@ -46,11 +46,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "kollaber.fullname" . }}
                   key: jwt-secret
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kollaber.fullname" . }}
-                  key: db-password
             - name: DATABASE_URL
               value: {{ include "kollaber.databaseUrl" . | quote }}
             - name: GITHUB_CLIENT_ID

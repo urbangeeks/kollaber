@@ -34,8 +34,6 @@ urls:
 secret:
   # JWT signing secret — required, generate with: openssl rand -hex 32
   jwtSecret: ""
-  # Postgres password
-  dbPassword: kollaber
   # GitHub OAuth credentials (optional — disables GitHub login if unset)
   githubClientId: ""
   githubClientSecret: ""
