@@ -77,6 +77,10 @@ const UPGRADE_PLANS = [
   },
 ]
 
+// Self-hosted instances have no SaaS billing — there are no plans to buy and
+// no Stripe configured, so the billing route is not exposed in those builds.
+const SELF_HOSTED = process.env.NEXT_PUBLIC_SELF_HOSTED === "true"
+
 export default function BillingPage() {
   const router = useRouter()
   const [billing, setBilling] = useState<BillingStatus | null>(null)
@@ -86,6 +90,7 @@ export default function BillingPage() {
   const [role, setRole] = useState<string | null>(null)
 
   useEffect(() => {
+    if (SELF_HOSTED) { router.replace("/settings/notifications"); return }
     if (!getToken()) { router.replace("/login"); return }
     setRole(getCurrentRole())
     getBillingStatus()
@@ -93,6 +98,8 @@ export default function BillingPage() {
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false))
   }, [router])
+
+  if (SELF_HOSTED) return null
 
   const isAdminOrOwner = role === "owner" || role === "admin"
 

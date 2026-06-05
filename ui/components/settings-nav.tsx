@@ -7,6 +7,10 @@ import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard, ScrollText, ShieldCheck, Container, Sun, Moon } from "lucide-react"
 
+// Self-hosted instances have no SaaS billing relationship, so the Billing
+// section (plans, upgrades, Stripe) is omitted in self-hosted builds.
+const SELF_HOSTED = process.env.NEXT_PUBLIC_SELF_HOSTED === "true"
+
 const NAV = [
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/slack",         label: "Slack",         icon: Hash },
@@ -16,7 +20,7 @@ const NAV = [
   { href: "/settings/kubernetes",    label: "Kubernetes",    icon: Container },
   { href: "/settings/sso",           label: "SSO",           icon: ShieldCheck },
   { href: "/settings/audit-logs",    label: "Audit Logs",    icon: ScrollText },
-]
+].filter((item) => !(SELF_HOSTED && item.href === "/settings/billing"))
 
 export function SettingsNav() {
   const pathname = usePathname()
