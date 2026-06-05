@@ -50,8 +50,10 @@ secret:
   # assistant return an error if unset; the rest of the app works normally)
   anthropicApiKey: ""
 
-# -- External PostgreSQL connection string
-# If set, the built-in postgres is not needed.
+# -- PostgreSQL connection string (REQUIRED).
+# The chart does not bundle a database — point this at any reachable Postgres
+# (a managed instance, or one you deploy in-cluster such as a Bitnami
+# postgresql release). Install fails fast with a helpful message if unset.
 # Example: postgres://user:pass@my-rds-host:5432/kollaber
 externalDatabaseUrl: ""
 

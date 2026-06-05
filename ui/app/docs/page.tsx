@@ -559,7 +559,7 @@ kube-watcher \\
               <div className="mt-2 space-y-2 text-sm">
                 <p className="text-white/40 uppercase tracking-widest text-xs font-semibold">Core</p>
                 <div className="flex gap-3"><Badge>secret.jwtSecret</Badge><span>JWT signing secret — <InlineCode>openssl rand -hex 32</InlineCode> (required)</span></div>
-                <div className="flex gap-3"><Badge>externalDatabaseUrl</Badge><span>Postgres connection string (required)</span></div>
+                <div className="flex gap-3"><Badge>externalDatabaseUrl</Badge><span>Postgres connection string (required — the chart does not bundle a database; install fails fast if unset)</span></div>
                 <div className="flex gap-3"><Badge>replicaCount</Badge><span>Number of API replicas (default: 1)</span></div>
                 <div className="flex gap-3"><Badge>migrate.enabled</Badge><span>Run DB migrations on install/upgrade (default: true)</span></div>
 

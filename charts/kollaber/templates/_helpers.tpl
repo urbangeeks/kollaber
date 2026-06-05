@@ -28,12 +28,10 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Database URL — prefer externalDatabaseUrl, otherwise build from secret
+Database connection string. The chart does not bundle a database, so
+externalDatabaseUrl is required — point it at any reachable Postgres (a managed
+instance, or one you deploy in-cluster such as a Bitnami postgresql release).
 */}}
 {{- define "kollaber.databaseUrl" -}}
-{{- if .Values.externalDatabaseUrl -}}
-{{ .Values.externalDatabaseUrl }}
-{{- else -}}
-postgres://kollaber:$(DB_PASSWORD)@{{ include "kollaber.fullname" . }}-postgres:5432/kollaber
-{{- end -}}
+{{ required "externalDatabaseUrl is required: set --set externalDatabaseUrl=postgres://user:pass@host:5432/kollaber — the chart does not bundle Postgres (see https://kollaber.io/docs)" .Values.externalDatabaseUrl }}
 {{- end }}

@@ -52,11 +52,7 @@ spec:
                   name: {{ include "kollaber.fullname" . }}
                   key: db-password
             - name: DATABASE_URL
-              {{- if .Values.externalDatabaseUrl }}
-              value: {{ .Values.externalDatabaseUrl | quote }}
-              {{- else }}
-              value: "postgres://kollaber:$(DB_PASSWORD)@{{ include "kollaber.fullname" . }}-postgres:5432/kollaber"
-              {{- end }}
+              value: {{ include "kollaber.databaseUrl" . | quote }}
             - name: GITHUB_CLIENT_ID
               valueFrom:
                 secretKeyRef:
