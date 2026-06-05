@@ -27,7 +27,7 @@ builds:
 
 archives:
     - id: kollaber
-      builds: [kollaber]
+      ids: [kollaber]
       name_template: 'kollaber_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
       format_overrides:
           - goos: windows
