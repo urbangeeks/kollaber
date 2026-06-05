@@ -42,7 +42,9 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
 
-      - name: Package and push Helm chart
+      - name: Package and push Helm charts
         run: |
-          helm package charts/kollaber --destination /tmp/charts
-          helm push /tmp/charts/kollaber-*.tgz oci://ghcr.io/urbangeeks/charts
+          helm package charts/kollaber charts/kube-watcher --destination /tmp/charts
+          for chart in /tmp/charts/*.tgz; do
+            helm push "$chart" oci://ghcr.io/urbangeeks/charts
+          done

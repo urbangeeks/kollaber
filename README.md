@@ -286,7 +286,7 @@ If not set, the AI features return an error and the rest of the app works normal
 Watches a cluster for Deployment rollouts and `CrashLoopBackOff` pods, and fires events to your Kollaber timeline. Deploy one release per cluster — the pod uses its `ServiceAccount` token, no kubeconfig needed.
 
 ```bash
-helm install kollaber-watcher ./charts/kube-watcher \
+helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \
   --set kollaber.env=prod \
   --set kollaber.api=https://api.kollaber.example.com \
   --set kollaber.token=<cli-token>
@@ -303,8 +303,8 @@ helm install kollaber-watcher ./charts/kube-watcher \
 **Multi-cluster** — one install per environment:
 
 ```bash
-helm install kollaber-watcher-prod    ./charts/kube-watcher --set kollaber.env=prod    ...
-helm install kollaber-watcher-staging ./charts/kube-watcher --set kollaber.env=staging ...
+helm install kollaber-watcher-prod    oci://ghcr.io/urbangeeks/charts/kube-watcher --set kollaber.env=prod    ...
+helm install kollaber-watcher-staging oci://ghcr.io/urbangeeks/charts/kube-watcher --set kollaber.env=staging ...
 ```
 
 The watcher image is built and pushed to `ghcr.io/urbangeeks/kollaber/kube-watcher:latest` automatically on every merge to `main`.

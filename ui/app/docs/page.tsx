@@ -410,7 +410,7 @@ kollaber ask --env production           # interactive session`}</Code>
                 <InlineCode>ServiceAccount</InlineCode> with read-only access to Deployments and Pods.
                 Install one release per cluster:
               </p>
-              <Code>{`helm install kollaber-watcher ./charts/kube-watcher \\
+              <Code>{`helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \\
   --set kollaber.env=prod \\
   --set kollaber.api=https://kollaber.io \\
   --set kollaber.token=<cli-token>`}</Code>
@@ -433,8 +433,8 @@ kollaber ask --env production           # interactive session`}</Code>
               <p>
                 Install a separate Helm release for each cluster, pointing each one at the matching Kollaber environment:
               </p>
-              <Code>{`helm install kollaber-watcher-prod    ./charts/kube-watcher --set kollaber.env=prod    ...
-helm install kollaber-watcher-staging ./charts/kube-watcher --set kollaber.env=staging ...`}</Code>
+              <Code>{`helm install kollaber-watcher-prod    oci://ghcr.io/urbangeeks/charts/kube-watcher --set kollaber.env=prod    ...
+helm install kollaber-watcher-staging oci://ghcr.io/urbangeeks/charts/kube-watcher --set kollaber.env=staging ...`}</Code>
               <p>
                 Events from each cluster will appear in their respective environment timelines in the dashboard.
               </p>
@@ -448,7 +448,7 @@ helm install kollaber-watcher-staging ./charts/kube-watcher --set kollaber.env=s
               <Code>{`# Your secret must have a key named "token"
 kubectl create secret generic my-kollaber-token --from-literal=token=<cli-token>
 
-helm install kollaber-watcher ./charts/kube-watcher \\
+helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \\
   --set kollaber.env=prod \\
   --set kollaber.api=https://kollaber.io \\
   --set kollaber.existingSecret=my-kollaber-token`}</Code>
