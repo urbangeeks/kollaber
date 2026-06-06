@@ -41,13 +41,24 @@ function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
   return Array.from(map.entries()).map(([label, events]) => ({ label, events }))
 }
 
-type EventType = "deploy" | "alert" | "note"
+// Teardown is emitted by kube-watcher, not created by hand — so it's filterable
+// but not a creatable type.
+type CreatableEventType = "deploy" | "alert" | "note"
+type EventType = CreatableEventType | "teardown"
 type EventStatus = "success" | "failure" | "in_progress"
 
-const EVENT_TYPES: { value: EventType; label: string }[] = [
+// Creatable types — shown in the "New event" form.
+const EVENT_TYPES: { value: CreatableEventType; label: string }[] = [
   { value: "deploy", label: "Deploy" },
   { value: "alert", label: "Alert" },
   { value: "note",  label: "Note"   },
+]
+
+// Filterable types — includes teardown so watcher-emitted teardowns can be
+// filtered on the timeline.
+const FILTER_TYPES: { value: EventType; label: string }[] = [
+  ...EVENT_TYPES,
+  { value: "teardown", label: "Teardown" },
 ]
 
 const EVENT_STATUSES: { value: EventStatus; label: string }[] = [
@@ -71,7 +82,7 @@ function EnvPageInner() {
   const allEvents = [...topEvents, ...moreEvents]
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [type, setType] = useState<EventType>("note")
+  const [type, setType] = useState<CreatableEventType>("note")
   const [service, setService] = useState("")
   const [version, setVersion] = useState("")
   const [message, setMessage] = useState("")
@@ -234,7 +245,7 @@ function EnvPageInner() {
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
           {/* Type group */}
           <div className="flex items-center rounded-md border border-border overflow-hidden">
-            {EVENT_TYPES.map((t) => (
+            {FILTER_TYPES.map((t) => (
               <button
                 key={t.value}
                 onClick={() => setFilterType(filterType === t.value ? "" : t.value)}
