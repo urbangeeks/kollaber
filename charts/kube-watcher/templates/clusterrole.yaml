@@ -6,7 +6,7 @@ metadata:
     {{- include "kube-watcher.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["apps"]
-    resources: ["deployments"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods"]
