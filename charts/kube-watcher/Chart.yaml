@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kube-watcher
-description: Kollaber Kubernetes watcher — fires deploy and alert events to your Kollaber timeline
+description: Kollaber Kubernetes watcher — fires deploy, teardown, and alert events to your Kollaber timeline
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "latest"

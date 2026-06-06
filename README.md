@@ -283,7 +283,7 @@ If not set, the AI features return an error and the rest of the app works normal
 
 #### kube-watcher
 
-Watches a cluster for Deployment rollouts and `CrashLoopBackOff` pods, and fires events to your Kollaber timeline. Deploy one release per cluster — the pod uses its `ServiceAccount` token, no kubeconfig needed.
+Watches a cluster for Deployment/StatefulSet/DaemonSet rollouts (and teardowns, with `reportDeletes`) and `CrashLoopBackOff` pods, and fires events to your Kollaber timeline. Deploy one release per cluster — the pod uses its `ServiceAccount` token, no kubeconfig needed.
 
 ```bash
 helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \

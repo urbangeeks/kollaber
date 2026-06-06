@@ -400,14 +400,15 @@ kollaber ask --env production           # interactive session`}</Code>
               CI steps needed.
             </p>
             <ul className="mt-2 space-y-1 pl-4 text-sm">
-              <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment completes a rollout, capturing the image tag and replica count</li>
+              <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment, StatefulSet, or DaemonSet completes a rollout, capturing the image tag and replica count</li>
+              <li><span className="text-orange-400 font-mono">TEARDOWN</span> — fired when a Deployment, StatefulSet, or DaemonSet is removed (requires <InlineCode>reportDeletes</InlineCode>)</li>
               <li><span className="text-red-400 font-mono">ALERT</span> — fired when a pod enters <InlineCode>CrashLoopBackOff</InlineCode>, capturing the pod and container name</li>
             </ul>
 
             <SubSection title="Deploy with Helm">
               <p>
                 The watcher runs as a <InlineCode>Deployment</InlineCode> inside your cluster using a{" "}
-                <InlineCode>ServiceAccount</InlineCode> with read-only access to Deployments and Pods.
+                <InlineCode>ServiceAccount</InlineCode> with read-only access to Deployments, StatefulSets, DaemonSets, and Pods.
                 Install one release per cluster:
               </p>
               <Code>{`helm install kollaber-watcher oci://ghcr.io/urbangeeks/charts/kube-watcher \\

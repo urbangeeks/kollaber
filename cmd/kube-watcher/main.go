@@ -1,5 +1,6 @@
 // kube-watcher watches a Kubernetes cluster and fires Kollaber events for
-// Deployment rollouts and CrashLoopBackOff pods.
+// Deployment/StatefulSet/DaemonSet rollouts (and teardowns) and
+// CrashLoopBackOff pods.
 //
 // Run one instance per cluster:
 //
@@ -22,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -73,7 +75,9 @@ func main() {
 
 	log.Printf("watching cluster for env=%q namespace=%q api=%q", *envName, *namespace, *apiURL)
 
-	go watchDeployments(ctx, client, kollaber)
+	go watchWorkload(ctx, kollaber, deploymentAdapter(client))
+	go watchWorkload(ctx, kollaber, statefulSetAdapter(client))
+	go watchWorkload(ctx, kollaber, daemonSetAdapter(client))
 	go watchPods(ctx, client, kollaber)
 
 	<-ctx.Done()
@@ -81,20 +85,41 @@ func main() {
 }
 
 // watchDeployments fires a deploy event whenever a Deployment completes a rollout.
-func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kollaberClient) {
-	// Track the last generation we fired for per deployment (namespace/name → generation).
-	// Generation increments on every spec change, so this ensures exactly one event per rollout.
+// workloadAdapter lets one watch loop handle any workload controller —
+// Deployment, StatefulSet, DaemonSet — since they share rollout/teardown
+// semantics. kind appears in logs and event metadata.
+type workloadAdapter struct {
+	kind  string
+	list  func(ctx context.Context) (resourceVersion string, err error)
+	watch func(ctx context.Context, resourceVersion string) (watch.Interface, error)
+	info  func(obj runtime.Object) (workloadMeta, bool)
+}
+
+type workloadMeta struct {
+	namespace  string
+	name       string
+	generation int64
+	image      string
+	ready      bool
+	replicas   int32
+}
+
+// watchWorkload fires a deploy event when a workload completes a rollout and,
+// when --report-deletes is set, a teardown event when one is removed.
+func watchWorkload(ctx context.Context, k *kollaberClient, a workloadAdapter) {
+	// Track the last generation we fired per object (namespace/name → generation).
+	// Generation increments on every spec change, so each rollout fires exactly once.
 	fired := map[string]int64{}
 
 	for {
 		if ctx.Err() != nil {
 			return
 		}
-		// List first to get the current ResourceVersion so the watch only
-		// sees changes that happen after the watcher starts, not existing state.
-		list, err := client.AppsV1().Deployments(*namespace).List(ctx, metav1.ListOptions{})
+		// List first to capture the current ResourceVersion so the watch only
+		// sees changes after the watcher starts, not existing state.
+		rv, err := a.list(ctx)
 		if err != nil {
-			log.Printf("deployment list error: %v — retrying in 10s", err)
+			log.Printf("%s list error: %v — retrying in 10s", a.kind, err)
 			select {
 			case <-ctx.Done():
 				return
@@ -102,11 +127,9 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 				continue
 			}
 		}
-		watcher, err := client.AppsV1().Deployments(*namespace).Watch(ctx, metav1.ListOptions{
-			ResourceVersion: list.ResourceVersion,
-		})
+		watcher, err := a.watch(ctx, rv)
 		if err != nil {
-			log.Printf("deployment watch error: %v — retrying in 10s", err)
+			log.Printf("%s watch error: %v — retrying in 10s", a.kind, err)
 			select {
 			case <-ctx.Done():
 				return
@@ -116,11 +139,11 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 		}
 
 		for event := range watcher.ResultChan() {
-			dep, ok := event.Object.(*appsv1.Deployment)
+			m, ok := a.info(event.Object)
 			if !ok {
 				continue
 			}
-			key := dep.Namespace + "/" + dep.Name
+			key := m.namespace + "/" + m.name
 
 			switch event.Type {
 			case watch.Deleted:
@@ -129,33 +152,133 @@ func watchDeployments(ctx context.Context, client kubernetes.Interface, k *kolla
 				}
 				// Forget the generation so a later re-create fires a fresh deploy event.
 				delete(fired, key)
-				log.Printf("teardown: %s namespace=%s", dep.Name, dep.Namespace)
-				if err := k.sendEvent("teardown", dep.Name, map[string]any{
-					"namespace": dep.Namespace,
-					"version":   primaryImage(dep),
+				log.Printf("teardown: %s %s namespace=%s", a.kind, m.name, m.namespace)
+				if err := k.sendEvent("teardown", m.name, map[string]any{
+					"namespace": m.namespace,
+					"kind":      a.kind,
+					"version":   m.image,
 				}); err != nil {
-					log.Printf("error sending teardown event for %s: %v", dep.Name, err)
+					log.Printf("error sending teardown event for %s: %v", m.name, err)
 				}
 
 			case watch.Modified:
-				if !deploymentReady(dep) {
+				if !m.ready {
 					continue
 				}
-				if fired[key] == dep.Generation {
+				if fired[key] == m.generation {
 					continue
 				}
-				fired[key] = dep.Generation
-				image := primaryImage(dep)
-				log.Printf("deploy: %s image=%s generation=%d", dep.Name, image, dep.Generation)
-				if err := k.sendEvent("deploy", dep.Name, map[string]any{
-					"version":   image,
-					"namespace": dep.Namespace,
-					"replicas":  dep.Status.ReadyReplicas,
+				fired[key] = m.generation
+				log.Printf("deploy: %s %s image=%s generation=%d", a.kind, m.name, m.image, m.generation)
+				if err := k.sendEvent("deploy", m.name, map[string]any{
+					"version":   m.image,
+					"namespace": m.namespace,
+					"kind":      a.kind,
+					"replicas":  m.replicas,
 				}); err != nil {
-					log.Printf("error sending deploy event for %s: %v", dep.Name, err)
+					log.Printf("error sending deploy event for %s: %v", m.name, err)
 				}
 			}
 		}
+	}
+}
+
+func deploymentAdapter(client kubernetes.Interface) workloadAdapter {
+	c := client.AppsV1().Deployments(*namespace)
+	return workloadAdapter{
+		kind: "deployment",
+		list: func(ctx context.Context) (string, error) {
+			l, err := c.List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return "", err
+			}
+			return l.ResourceVersion, nil
+		},
+		watch: func(ctx context.Context, rv string) (watch.Interface, error) {
+			return c.Watch(ctx, metav1.ListOptions{ResourceVersion: rv})
+		},
+		info: func(obj runtime.Object) (workloadMeta, bool) {
+			d, ok := obj.(*appsv1.Deployment)
+			if !ok {
+				return workloadMeta{}, false
+			}
+			return workloadMeta{
+				namespace:  d.Namespace,
+				name:       d.Name,
+				generation: d.Generation,
+				image:      containerImage(d.Spec.Template.Spec.Containers),
+				ready: d.Status.ReadyReplicas > 0 &&
+					d.Status.ReadyReplicas == d.Status.Replicas &&
+					d.Status.UnavailableReplicas == 0,
+				replicas: d.Status.ReadyReplicas,
+			}, true
+		},
+	}
+}
+
+func statefulSetAdapter(client kubernetes.Interface) workloadAdapter {
+	c := client.AppsV1().StatefulSets(*namespace)
+	return workloadAdapter{
+		kind: "statefulset",
+		list: func(ctx context.Context) (string, error) {
+			l, err := c.List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return "", err
+			}
+			return l.ResourceVersion, nil
+		},
+		watch: func(ctx context.Context, rv string) (watch.Interface, error) {
+			return c.Watch(ctx, metav1.ListOptions{ResourceVersion: rv})
+		},
+		info: func(obj runtime.Object) (workloadMeta, bool) {
+			s, ok := obj.(*appsv1.StatefulSet)
+			if !ok {
+				return workloadMeta{}, false
+			}
+			return workloadMeta{
+				namespace:  s.Namespace,
+				name:       s.Name,
+				generation: s.Generation,
+				image:      containerImage(s.Spec.Template.Spec.Containers),
+				ready: s.Status.ReadyReplicas > 0 &&
+					s.Status.ReadyReplicas == s.Status.Replicas &&
+					s.Status.CurrentRevision == s.Status.UpdateRevision,
+				replicas: s.Status.ReadyReplicas,
+			}, true
+		},
+	}
+}
+
+func daemonSetAdapter(client kubernetes.Interface) workloadAdapter {
+	c := client.AppsV1().DaemonSets(*namespace)
+	return workloadAdapter{
+		kind: "daemonset",
+		list: func(ctx context.Context) (string, error) {
+			l, err := c.List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return "", err
+			}
+			return l.ResourceVersion, nil
+		},
+		watch: func(ctx context.Context, rv string) (watch.Interface, error) {
+			return c.Watch(ctx, metav1.ListOptions{ResourceVersion: rv})
+		},
+		info: func(obj runtime.Object) (workloadMeta, bool) {
+			d, ok := obj.(*appsv1.DaemonSet)
+			if !ok {
+				return workloadMeta{}, false
+			}
+			return workloadMeta{
+				namespace:  d.Namespace,
+				name:       d.Name,
+				generation: d.Generation,
+				image:      containerImage(d.Spec.Template.Spec.Containers),
+				ready: d.Status.DesiredNumberScheduled > 0 &&
+					d.Status.NumberReady == d.Status.DesiredNumberScheduled &&
+					d.Status.UpdatedNumberScheduled == d.Status.DesiredNumberScheduled,
+				replicas: d.Status.NumberReady,
+			}, true
+		},
 	}
 }
 
@@ -223,17 +346,11 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 	}
 }
 
-func deploymentReady(dep *appsv1.Deployment) bool {
-	return dep.Status.ReadyReplicas > 0 &&
-		dep.Status.ReadyReplicas == dep.Status.Replicas &&
-		dep.Status.UnavailableReplicas == 0
-}
-
-func primaryImage(dep *appsv1.Deployment) string {
-	if len(dep.Spec.Template.Spec.Containers) == 0 {
+func containerImage(containers []corev1.Container) string {
+	if len(containers) == 0 {
 		return "unknown"
 	}
-	return dep.Spec.Template.Spec.Containers[0].Image
+	return containers[0].Image
 }
 
 // podServiceName returns the best service name for a pod, trying common label
