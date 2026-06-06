@@ -12,9 +12,10 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 
 const EVENT_TYPES = [
-  { value: "deploy", label: "Deployments", description: "When a deploy event is recorded" },
-  { value: "alert",  label: "Alerts",      description: "When an alert event is recorded" },
-  { value: "note",   label: "Notes",       description: "When a note is added to the timeline" },
+  { value: "deploy",   label: "Deployments", description: "When a deploy event is recorded" },
+  { value: "alert",    label: "Alerts",      description: "When an alert event is recorded" },
+  { value: "note",     label: "Notes",       description: "When a note is added to the timeline" },
+  { value: "teardown", label: "Teardowns",   description: "When a workload is removed from a cluster" },
 ]
 
 export default function NotificationsSettingsPage() {
