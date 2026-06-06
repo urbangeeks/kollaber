@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ArrowLeft, Plus } from "lucide-react"
+import { DotBackground } from "@/components/dot-background"
 
 function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
   const now = new Date()
@@ -222,6 +223,7 @@ function EnvPageInner() {
 
   return (
     <div className="min-h-screen px-4 py-6 sm:p-8">
+      <DotBackground />
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>

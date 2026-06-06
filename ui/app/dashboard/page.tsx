@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DotBackground } from "@/components/dot-background"
 import {
   Dialog,
   DialogContent,
@@ -277,6 +278,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
+      <DotBackground />
       {/* Top bar */}
       <header className="border-b px-4 py-4 sm:px-8">
         <div className="mx-auto max-w-5xl flex items-center gap-4">
