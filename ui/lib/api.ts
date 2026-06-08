@@ -35,6 +35,18 @@ export function removeToken() {
   localStorage.removeItem("token")
 }
 
+// handleUnauthorized clears a dead session and bounces to login. It only fires
+// for authenticated requests (token present) so a failed login/OTP attempt —
+// also a 401, but with no token — never triggers a redirect. Guarded against
+// redirect loops when we're already on the login page.
+function handleUnauthorized() {
+  if (typeof window === "undefined") return
+  removeToken()
+  if (!window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login?error=session_expired"
+  }
+}
+
 async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T>
 async function request(path: string, schema: null, init?: RequestInit): Promise<unknown>
 async function request<T>(path: string, schema: z.ZodType<T> | null, init?: RequestInit): Promise<T | unknown> {
@@ -49,6 +61,7 @@ async function request<T>(path: string, schema: z.ZodType<T> | null, init?: Requ
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401 && token) handleUnauthorized()
     throw new ApiError(body.error ?? res.statusText, res.status, body)
   }
   if (res.status === 204 || res.headers.get("content-length") === "0") return undefined
@@ -379,6 +392,7 @@ export async function chatWithAgent(
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401 && token) handleUnauthorized()
     throw new ApiError(body.error ?? res.statusText, res.status, body)
   }
 

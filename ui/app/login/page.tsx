@@ -22,6 +22,13 @@ export default function LoginPage() {
   const [codeError, setCodeError] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  // Set when the API client bounces us here after a 401 on an authenticated
+  // request (expired/invalid token), so the user understands why they're back.
+  const [notice] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error") === "session_expired"
+      ? "Your session expired. Please sign in again."
+      : "",
+  )
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
@@ -74,6 +81,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">Kollaber</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {notice && <p className="text-muted-foreground text-sm">{notice}</p>}
           <GitHubButton label="Continue with GitHub" />
           <div className="flex items-center gap-3">
             <Separator className="flex-1" />
