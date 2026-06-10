@@ -19,7 +19,7 @@ func NewNotificationsHandler(q *store.Queries) *NotificationsHandler {
 	return &NotificationsHandler{q}
 }
 
-var validEventTypes = map[string]bool{"deploy": true, "alert": true, "note": true, "teardown": true}
+var validEventTypes = map[string]bool{"deploy": true, "alert": true, "note": true, "teardown": true, "incident": true}
 
 func (h *NotificationsHandler) Get(c echo.Context) error {
 	userID := c.Get(middleware.UserIDKey).(uuid.UUID)

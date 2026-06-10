@@ -75,5 +75,23 @@ export const commentResponseSchema = z.object({
   created_at: z.string(),
 })
 
+export const incidentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  severity: z.enum(["sev1", "sev2", "sev3", "sev4"]),
+  status: z.enum(["open", "mitigated", "resolved"]),
+  // owner_id and resolved_at are omitted by the API when unset.
+  owner_id: z.string().optional().default(""),
+  opened_at: z.string(),
+  resolved_at: z.string().optional().default(""),
+  created_at: z.string(),
+  event_count: z.number().optional().default(0),
+})
+
+export const createIncidentSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title is too long"),
+  severity: z.enum(["sev1", "sev2", "sev3", "sev4"]).default("sev3"),
+})
+
 export type LoginInput = z.infer<typeof loginSchema>
 export type CommentInput = z.infer<typeof commentSchema>

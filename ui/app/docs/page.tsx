@@ -367,6 +367,28 @@ kollaber login --api https://kollaber.io --token <your-token>`}</Code>
               </div>
             </SubSection>
 
+            <SubSection title="kollaber incident">
+              <p>
+                Group related events into an <strong className="text-white">incident</strong>, track its status, and
+                link events together. Useful from CI — open an incident and attach the failing deploy in one step.
+              </p>
+              <Code>{`kollaber incident list                      # all incidents
+kollaber incident list --status open        # filter by status
+
+kollaber incident open --title "5xx spike on api" --severity sev2
+kollaber incident open --title "Deploy failed" --severity sev2 --event <event-id>
+
+kollaber incident attach <incident-id> --event <event-id>
+kollaber incident resolve <incident-id>                  # defaults to resolved
+kollaber incident resolve <incident-id> --status mitigated`}</Code>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex gap-3"><Badge>--status</Badge><span>Filter (list) or set status: open, mitigated, resolved</span></div>
+                <div className="flex gap-3"><Badge>--title</Badge><span>Incident title (required for open)</span></div>
+                <div className="flex gap-3"><Badge>--severity</Badge><span>sev1, sev2, sev3, sev4 (default sev3)</span></div>
+                <div className="flex gap-3"><Badge>--event</Badge><span>Event ID to attach — repeatable</span></div>
+              </div>
+            </SubSection>
+
             <SubSection title="kollaber ask">
               <p>
                 Ask the <strong className="text-white">AI timeline assistant</strong> a natural-language question about
@@ -720,6 +742,17 @@ kube-watcher \\
               <div className="space-y-2">
                 <ApiRow method="GET"  path="/events/:id/comments" desc="List comments on an event (authenticated)" />
                 <ApiRow method="POST" path="/events/:id/comments" desc="Add a comment to an event (authenticated)" />
+              </div>
+            </SubSection>
+
+            <SubSection title="Incidents">
+              <div className="space-y-2">
+                <ApiRow method="GET"   path="/incidents"               desc="List incidents, filter by status (authenticated)" />
+                <ApiRow method="POST"  path="/incidents"               desc="Open an incident, optionally with event_ids (authenticated)" />
+                <ApiRow method="GET"   path="/incidents/:id"           desc="Get an incident with its linked events (authenticated)" />
+                <ApiRow method="PATCH" path="/incidents/:id"           desc="Update title, severity, status, or owner (authenticated)" />
+                <ApiRow method="POST"  path="/incidents/:id/events"    desc="Attach events to an incident (authenticated)" />
+                <ApiRow method="POST"  path="/incidents/:id/postmortem" desc="Generate an AI postmortem (Pro plan)" />
               </div>
             </SubSection>
 

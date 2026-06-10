@@ -65,6 +65,15 @@ kollaber note --env production "Rolling back — 5xx spike in us-east-1"
 # View the timeline
 kollaber timeline --env production --limit 20
 
+# Incidents — group events, track status, link them together
+kollaber incident list                       # all incidents
+kollaber incident list --status open         # filter by status
+kollaber incident open --title "5xx spike on api" --severity sev2
+kollaber incident open --title "Deploy failed" --severity sev2 --event <event-id>
+kollaber incident attach <incident-id> --event <event-id>   # repeatable
+kollaber incident resolve <incident-id>      # defaults to resolved
+kollaber incident resolve <incident-id> --status mitigated
+
 # Ask the AI assistant (Team plan and up); answer streams to stdout,
 # tool lookups to stderr, so you can pipe the answer cleanly
 kollaber ask --env production "what deployed in the last hour?"

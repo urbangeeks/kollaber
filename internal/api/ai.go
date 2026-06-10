@@ -124,6 +124,101 @@ func (h *AIHandler) PostmortemEvent(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"postmortem": postmortem})
 }
 
+func (h *AIHandler) PostmortemIncident(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+	pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
+	ctx := context.Background()
+
+	b, err := h.q.GetOrgBilling(ctx, pgOrgID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load billing"})
+	}
+	if !billing.EntitlementsFor(b.Plan).AIPostmortems {
+		return c.JSON(http.StatusPaymentRequired, echo.Map{
+			"error":            "AI postmortems require the Pro plan",
+			"upgrade_required": true,
+		})
+	}
+
+	incidentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid incident id"})
+	}
+	pgID := pgtype.UUID{Bytes: incidentID, Valid: true}
+
+	incident, err := h.q.GetIncidentByID(ctx, pgID, pgOrgID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "incident not found"})
+	}
+
+	if incident.AIPostmortem != nil && !wantsRefresh(c) {
+		return c.JSON(http.StatusOK, echo.Map{"postmortem": *incident.AIPostmortem})
+	}
+
+	events, err := h.q.ListIncidentEvents(ctx, pgID, pgOrgID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not load incident events"})
+	}
+
+	// Gather comments across all linked events so the model sees the discussion.
+	var comments []store.Comment
+	for _, e := range events {
+		ec, _ := h.q.ListCommentsByEvent(ctx, e.ID)
+		comments = append(comments, ec...)
+	}
+
+	prompt := buildIncidentPostmortemPrompt(incident, events, comments)
+	postmortem, err := kollabai.Generate(ctx, prompt, postmortemMaxTokens)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate postmortem"})
+	}
+
+	_ = h.q.SetIncidentAIPostmortem(ctx, incident.ID, postmortem)
+
+	return c.JSON(http.StatusOK, echo.Map{"postmortem": postmortem})
+}
+
+func buildIncidentPostmortemPrompt(incident store.Incident, events []store.Event, comments []store.Comment) string {
+	var sb strings.Builder
+	sb.WriteString(`You are an SRE assistant. Write a concise incident postmortem based on the information below.
+Use this exact structure with these section headers:
+
+## What Happened
+## Timeline
+## Impact
+## Root Cause
+## Action Items
+
+Be factual and concise. Use only information provided — do not invent details.
+
+---
+INCIDENT
+`)
+	fmt.Fprintf(&sb, "Title: %s\n", incident.Title)
+	fmt.Fprintf(&sb, "Severity: %s\n", incident.Severity)
+	fmt.Fprintf(&sb, "Status: %s\n", incident.Status)
+	fmt.Fprintf(&sb, "Opened: %s UTC\n", incident.OpenedAt.Time.UTC().Format(time.RFC3339))
+	if incident.ResolvedAt.Valid {
+		fmt.Fprintf(&sb, "Resolved: %s UTC\n", incident.ResolvedAt.Time.UTC().Format(time.RFC3339))
+	}
+
+	if len(events) > 0 {
+		sb.WriteString("\nLINKED EVENTS\n")
+		for _, e := range events {
+			writeEventBlock(&sb, e)
+		}
+	}
+
+	if len(comments) > 0 {
+		sb.WriteString("\nCOMMENTS\n")
+		for _, cm := range comments {
+			fmt.Fprintf(&sb, "- %s\n", cm.Body)
+		}
+	}
+
+	return sb.String()
+}
+
 func buildPostmortemPrompt(event store.Event, comments []store.Comment, nearby []store.Event) string {
 	var sb strings.Builder
 	sb.WriteString(`You are an SRE assistant. Write a concise incident postmortem based on the information below.

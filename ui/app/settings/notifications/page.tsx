@@ -16,6 +16,7 @@ const EVENT_TYPES = [
   { value: "alert",    label: "Alerts",      description: "When an alert event is recorded" },
   { value: "note",     label: "Notes",       description: "When a note is added to the timeline" },
   { value: "teardown", label: "Teardowns",   description: "When a workload is removed from a cluster" },
+  { value: "incident", label: "Incidents",   description: "When an incident is opened or its status changes" },
 ]
 
 export default function NotificationsSettingsPage() {

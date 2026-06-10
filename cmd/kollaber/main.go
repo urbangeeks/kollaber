@@ -560,6 +560,126 @@ that neither reads nor writes saved history.`,
 	},
 }
 
+// --- incident commands ---
+
+type incidentResp struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Severity   string `json:"severity"`
+	Status     string `json:"status"`
+	OpenedAt   string `json:"opened_at"`
+	ResolvedAt string `json:"resolved_at"`
+	EventCount int    `json:"event_count"`
+}
+
+var incidentCmd = &cobra.Command{
+	Use:   "incident",
+	Short: "Manage incidents",
+}
+
+var incidentListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List incidents",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		status, _ := cmd.Flags().GetString("status")
+		path := "/incidents"
+		if status != "" {
+			path += "?status=" + status
+		}
+		res, err := do("GET", path, nil)
+		if err != nil {
+			return err
+		}
+		var incidents []incidentResp
+		if err := decodeOK(res, &incidents); err != nil {
+			return err
+		}
+		if len(incidents) == 0 {
+			fmt.Println("No incidents.")
+			return nil
+		}
+		for _, in := range incidents {
+			opened, _ := time.Parse(time.RFC3339, in.OpenedAt)
+			fmt.Printf("%-36s  %-4s  %-9s  %2d events  %s  %s\n",
+				in.ID, strings.ToUpper(in.Severity), in.Status, in.EventCount,
+				opened.Format("2006-01-02 15:04"), in.Title)
+		}
+		return nil
+	},
+}
+
+var incidentOpenCmd = &cobra.Command{
+	Use:   "open",
+	Short: "Open a new incident",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		title, _ := cmd.Flags().GetString("title")
+		severity, _ := cmd.Flags().GetString("severity")
+		eventIDs, _ := cmd.Flags().GetStringSlice("event")
+		if title == "" {
+			return fmt.Errorf("--title is required")
+		}
+
+		payload := map[string]interface{}{
+			"title":     title,
+			"severity":  severity,
+			"event_ids": eventIDs,
+		}
+		res, err := do("POST", "/incidents", payload)
+		if err != nil {
+			return err
+		}
+		var in incidentResp
+		if err := decodeOK(res, &in); err != nil {
+			return err
+		}
+		fmt.Printf("Incident opened: %s\n", in.ID)
+		return nil
+	},
+}
+
+var incidentResolveCmd = &cobra.Command{
+	Use:   "resolve <incident-id>",
+	Short: "Change an incident's status (defaults to resolved)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		status, _ := cmd.Flags().GetString("status")
+		res, err := do("PATCH", "/incidents/"+args[0], map[string]string{"status": status})
+		if err != nil {
+			return err
+		}
+		var in incidentResp
+		if err := decodeOK(res, &in); err != nil {
+			return err
+		}
+		fmt.Printf("Incident %s → %s\n", in.ID, in.Status)
+		return nil
+	},
+}
+
+var incidentAttachCmd = &cobra.Command{
+	Use:   "attach <incident-id>",
+	Short: "Attach one or more events to an incident",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		eventIDs, _ := cmd.Flags().GetStringSlice("event")
+		if len(eventIDs) == 0 {
+			return fmt.Errorf("at least one --event is required")
+		}
+		res, err := do("POST", "/incidents/"+args[0]+"/events", map[string]interface{}{"event_ids": eventIDs})
+		if err != nil {
+			return err
+		}
+		var out struct {
+			Attached int `json:"attached"`
+		}
+		if err := decodeOK(res, &out); err != nil {
+			return err
+		}
+		fmt.Printf("Attached %d event(s) to incident %s\n", out.Attached, args[0])
+		return nil
+	},
+}
+
 func init() {
 	loginCmd.Flags().String("api", "", "API base URL (e.g. https://kollaber.io) — saved to config")
 	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
@@ -579,7 +699,15 @@ func init() {
 	askCmd.Flags().Bool("new", false, "Start a fresh conversation, ignoring saved history")
 	askCmd.Flags().Bool("no-save", false, "Don't read or write saved conversation history")
 
-	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd)
+	incidentListCmd.Flags().String("status", "", "Filter by status: open, mitigated, resolved")
+	incidentOpenCmd.Flags().String("title", "", "Incident title")
+	incidentOpenCmd.Flags().String("severity", "sev3", "Severity: sev1, sev2, sev3, sev4")
+	incidentOpenCmd.Flags().StringSlice("event", nil, "Event ID to attach (repeatable)")
+	incidentResolveCmd.Flags().String("status", "resolved", "New status: open, mitigated, resolved")
+	incidentAttachCmd.Flags().StringSlice("event", nil, "Event ID to attach (repeatable)")
+	incidentCmd.AddCommand(incidentListCmd, incidentOpenCmd, incidentResolveCmd, incidentAttachCmd)
+
+	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd, incidentCmd)
 }
 
 func main() {

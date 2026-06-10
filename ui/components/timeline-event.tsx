@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { type Event, type Comment, getComments, createComment, getEventSummary, getEventPostmortem } from "@/lib/api"
-import { commentSchema } from "@/lib/schemas"
+import { toast } from "sonner"
+import { type Event, type Comment, type Incident, type IncidentSeverity, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole } from "@/lib/api"
+import { commentSchema, createIncidentSchema } from "@/lib/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,7 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2 } from "lucide-react"
+
+const SEVERITIES: IncidentSeverity[] = ["sev1", "sev2", "sev3", "sev4"]
 
 const TYPE_CONFIG = {
   deploy: { icon: Rocket, label: "Deploy", variant: "default" },
@@ -45,6 +49,14 @@ export function TimelineEvent({ event }: { event: Event }) {
   const [postmortemOpen, setPostmortemOpen] = useState(false)
   const [postmortemLoading, setPostmortemLoading] = useState(false)
   const [postmortemError, setPostmortemError] = useState<string | null>(null)
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [openIncidents, setOpenIncidents] = useState<Incident[] | null>(null)
+  const [attaching, setAttaching] = useState(false)
+  const [newTitle, setNewTitle] = useState("")
+  const [newSeverity, setNewSeverity] = useState<IncidentSeverity>("sev3")
+
+  const role = getCurrentRole()
+  const canAttach = role === "owner" || role === "admin" || role === "member"
 
   const { icon: Icon, label, variant } = TYPE_CONFIG[event.type]
   const statusCfg = STATUS_CONFIG[event.status ?? "success"]
@@ -106,6 +118,51 @@ export function TimelineEvent({ event }: { event: Event }) {
       }
     } finally {
       setSummaryLoading(false)
+    }
+  }
+
+  async function openAttach() {
+    setAttachOpen(true)
+    setNewTitle("")
+    setNewSeverity("sev3")
+    if (openIncidents === null) {
+      try {
+        setOpenIncidents(await getIncidents("open"))
+      } catch {
+        setOpenIncidents([])
+      }
+    }
+  }
+
+  async function attachTo(incidentId: string) {
+    setAttaching(true)
+    try {
+      await attachEvents(incidentId, [event.id])
+      setAttachOpen(false)
+      toast.success("Event attached to incident")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to attach event")
+    } finally {
+      setAttaching(false)
+    }
+  }
+
+  async function createAndAttach(e: React.FormEvent) {
+    e.preventDefault()
+    const result = createIncidentSchema.safeParse({ title: newTitle, severity: newSeverity })
+    if (!result.success) {
+      toast.error(result.error.flatten().fieldErrors.title?.[0] ?? "Invalid title")
+      return
+    }
+    setAttaching(true)
+    try {
+      await createIncident(result.data.title, result.data.severity, [event.id])
+      setAttachOpen(false)
+      toast.success("Incident opened with this event")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create incident")
+    } finally {
+      setAttaching(false)
     }
   }
 
@@ -185,6 +242,15 @@ export function TimelineEvent({ event }: { event: Event }) {
                 : <FileText className="h-3 w-3" />}
               {postmortemLoading ? "Generating…" : "Postmortem"}
             </button>
+            {canAttach && (
+              <button
+                onClick={openAttach}
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
+              >
+                <Link2 className="h-3 w-3" />
+                Attach to incident
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -232,6 +298,65 @@ export function TimelineEvent({ event }: { event: Event }) {
           </form>
         </div>
       )}
+
+      <Dialog open={attachOpen} onOpenChange={setAttachOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Attach to incident
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Open incidents</p>
+              {openIncidents === null ? (
+                <p className="text-muted-foreground text-sm">Loading…</p>
+              ) : openIncidents.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No open incidents.</p>
+              ) : (
+                <div className="max-h-48 space-y-1 overflow-y-auto">
+                  {openIncidents.map((inc) => (
+                    <button
+                      key={inc.id}
+                      onClick={() => attachTo(inc.id)}
+                      disabled={attaching}
+                      className="w-full rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      {inc.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Separator />
+            <form onSubmit={createAndAttach} className="space-y-3">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Or open a new incident</p>
+              <Input
+                placeholder="Incident title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+              />
+              <div className="flex gap-2">
+                {SEVERITIES.map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    size="sm"
+                    variant={newSeverity === s ? "default" : "outline"}
+                    onClick={() => setNewSeverity(s)}
+                  >
+                    {s.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+              <Button type="submit" size="sm" disabled={attaching || !newTitle.trim()}>
+                {attaching ? "Working…" : "Create & attach"}
+              </Button>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={postmortemOpen} onOpenChange={setPostmortemOpen}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[80vh] overflow-y-auto">

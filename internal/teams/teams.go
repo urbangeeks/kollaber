@@ -33,6 +33,50 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
+// SendIncidentNotification posts an incident update to a Teams incoming webhook.
+// verb describes what happened, e.g. "opened", "mitigated", "resolved".
+func SendIncidentNotification(webhookURL, title, severity, verb string) error {
+	summary := fmt.Sprintf("Incident %s: %s (%s)", verb, title, strings.ToUpper(severity))
+
+	if webhookURL == "" {
+		fmt.Printf("\n[TEAMS] %s\n\n", summary)
+		return nil
+	}
+
+	msg := messageCard{
+		Type:       "MessageCard",
+		Context:    "http://schema.org/extensions",
+		ThemeColor: "D83B01",
+		Summary:    summary,
+		Title:      fmt.Sprintf("Kollaber — Incident %s", capitalize(verb)),
+		Sections: []section{
+			{
+				Facts: []fact{
+					{Name: "Title", Value: title},
+					{Name: "Severity", Value: strings.ToUpper(severity)},
+					{Name: "Status", Value: capitalize(verb)},
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(body)) //nolint:noctx
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("teams: unexpected status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // SendEventNotification posts an event notification to a Teams incoming webhook URL.
 // Logs to stdout when webhookURL is empty (local dev / unconfigured).
 func SendEventNotification(webhookURL, eventType, service, envName string) error {
