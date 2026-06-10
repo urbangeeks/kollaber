@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema } from "./schemas"
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -21,6 +21,9 @@ export class ApiError extends Error {
 export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>
 export type Comment = z.infer<typeof commentResponseSchema>
+export type Incident = z.infer<typeof incidentSchema>
+export type IncidentSeverity = Incident["severity"]
+export type IncidentStatus = Incident["status"]
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null
@@ -554,4 +557,49 @@ export function getSSOConfig(): Promise<SSOConfig> {
 
 export async function saveSSOConfig(cfg: Omit<SSOConfig, "callback_url">): Promise<void> {
   await request("/settings/sso", null, { method: "PUT", body: JSON.stringify(cfg) })
+}
+
+export function getIncidents(status?: IncidentStatus): Promise<Incident[]> {
+  const q = status ? `?status=${status}` : ""
+  return request(`/incidents${q}`, z.array(incidentSchema)) as Promise<Incident[]>
+}
+
+export function getIncident(id: string): Promise<{ incident: Incident; events: Event[] }> {
+  return request(
+    `/incidents/${id}`,
+    z.object({ incident: incidentSchema, events: z.array(eventSchema) }),
+  ) as Promise<{ incident: Incident; events: Event[] }>
+}
+
+export function createIncident(
+  title: string,
+  severity: IncidentSeverity,
+  eventIds: string[] = [],
+): Promise<Incident> {
+  return request("/incidents", incidentSchema, {
+    method: "POST",
+    body: JSON.stringify({ title, severity, event_ids: eventIds }),
+  }) as Promise<Incident>
+}
+
+export type IncidentPatch = {
+  title?: string
+  severity?: IncidentSeverity
+  status?: IncidentStatus
+  owner_id?: string
+}
+
+export function updateIncident(id: string, patch: IncidentPatch): Promise<Incident> {
+  return request(`/incidents/${id}`, incidentSchema, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  }) as Promise<Incident>
+}
+
+export async function attachEvents(id: string, eventIds: string[]): Promise<number> {
+  const data = await request(`/incidents/${id}/events`, z.object({ attached: z.number() }), {
+    method: "POST",
+    body: JSON.stringify({ event_ids: eventIds }),
+  })
+  return (data as { attached: number }).attached
 }

@@ -286,6 +286,10 @@ export default function DashboardPage() {
           <div className="ml-auto flex items-center gap-2">
             <OrgSwitcher />
             <ThemeToggle />
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/incidents")}>
+              <TriangleAlert className="mr-1.5 h-4 w-4" />
+              Incidents
+            </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push("/settings/notifications")}>
               <Settings className="h-4 w-4" />
             </Button>
