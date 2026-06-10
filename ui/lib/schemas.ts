@@ -85,6 +85,7 @@ export const incidentSchema = z.object({
   opened_at: z.string(),
   resolved_at: z.string().optional().default(""),
   created_at: z.string(),
+  event_count: z.number().optional().default(0),
 })
 
 export const createIncidentSchema = z.object({

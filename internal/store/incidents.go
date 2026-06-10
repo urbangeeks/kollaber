@@ -141,6 +141,34 @@ func (q *Queries) AttachEventsToIncident(ctx context.Context, incidentID, orgID 
 	return tag.RowsAffected(), nil
 }
 
+// CountEventsByIncidentForOrg returns a map of incident id -> linked event count
+// for every incident in the org that has at least one event. Incidents with no
+// events are absent from the map (callers should treat missing as zero).
+func (q *Queries) CountEventsByIncidentForOrg(ctx context.Context, orgID pgtype.UUID) (map[uuid.UUID]int, error) {
+	rows, err := q.db.Query(ctx, `
+		SELECT e.incident_id, COUNT(*)
+		FROM events e
+		JOIN environments env ON env.id = e.environment_id
+		WHERE env.org_id = $1 AND e.incident_id IS NOT NULL
+		GROUP BY e.incident_id`,
+		orgID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := map[uuid.UUID]int{}
+	for rows.Next() {
+		var id pgtype.UUID
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		counts[id.Bytes] = n
+	}
+	return counts, rows.Err()
+}
+
 // ListIncidentEvents returns the events linked to an incident (org-scoped),
 // ordered chronologically. Only the core event columns are populated.
 func (q *Queries) ListIncidentEvents(ctx context.Context, incidentID, orgID pgtype.UUID) ([]Event, error) {

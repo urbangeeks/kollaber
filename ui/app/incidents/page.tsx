@@ -155,6 +155,8 @@ function IncidentList() {
                 <div className="mt-1.5 flex items-center gap-2 pl-[18px] text-xs text-muted-foreground">
                   <span className={STATUS[inc.status].className}>{STATUS[inc.status].label}</span>
                   <span>·</span>
+                  <span>{inc.event_count} {inc.event_count === 1 ? "event" : "events"}</span>
+                  <span>·</span>
                   <span>opened {fmtDate(inc.opened_at)}</span>
                 </div>
               </button>

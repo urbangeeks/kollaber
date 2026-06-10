@@ -27,6 +27,7 @@ type incidentResponse struct {
 	OpenedAt   string `json:"opened_at"`
 	ResolvedAt string `json:"resolved_at,omitempty"`
 	CreatedAt  string `json:"created_at"`
+	EventCount int    `json:"event_count"`
 }
 
 const tsLayout = "2006-01-02T15:04:05Z07:00"
@@ -157,13 +158,21 @@ func (h *IncidentsHandler) List(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "status must be open, mitigated, or resolved"})
 	}
 
-	incidents, err := h.q.ListIncidents(context.Background(), pgtype.UUID{Bytes: orgID, Valid: true}, status)
+	ctx := context.Background()
+	pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
+
+	incidents, err := h.q.ListIncidents(ctx, pgOrgID, status)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not fetch incidents"})
 	}
+	// Best-effort event counts; absence just renders as zero.
+	counts, _ := h.q.CountEventsByIncidentForOrg(ctx, pgOrgID)
+
 	out := make([]incidentResponse, len(incidents))
 	for i, inc := range incidents {
-		out[i] = toIncidentResponse(inc)
+		r := toIncidentResponse(inc)
+		r.EventCount = counts[inc.ID.Bytes]
+		out[i] = r
 	}
 	return c.JSON(http.StatusOK, out)
 }
@@ -192,8 +201,11 @@ func (h *IncidentsHandler) Get(c echo.Context) error {
 		eventsOut[i] = toEventResponse(e)
 	}
 
+	incResp := toIncidentResponse(incident)
+	incResp.EventCount = len(events)
+
 	return c.JSON(http.StatusOK, echo.Map{
-		"incident": toIncidentResponse(incident),
+		"incident": incResp,
 		"events":   eventsOut,
 	})
 }
