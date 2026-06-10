@@ -596,6 +596,12 @@ export function updateIncident(id: string, patch: IncidentPatch): Promise<Incide
   }) as Promise<Incident>
 }
 
+export async function getIncidentPostmortem(id: string, refresh = false): Promise<string> {
+  const q = refresh ? "?refresh=true" : ""
+  const data = await request(`/incidents/${id}/postmortem${q}`, null, { method: "POST" })
+  return (data as { postmortem: string }).postmortem
+}
+
 export async function attachEvents(id: string, eventIds: string[]): Promise<number> {
   const data = await request(`/incidents/${id}/events`, z.object({ attached: z.number() }), {
     method: "POST",

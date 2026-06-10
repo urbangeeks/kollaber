@@ -8,7 +8,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
+	"github.com/urbangeeks/kollaber/internal/resend"
+	"github.com/urbangeeks/kollaber/internal/slack"
 	"github.com/urbangeeks/kollaber/internal/store"
+	"github.com/urbangeeks/kollaber/internal/teams"
 )
 
 type IncidentsHandler struct{ q *store.Queries }
@@ -60,6 +63,30 @@ func validIncidentStatus(s string) bool {
 		return true
 	}
 	return false
+}
+
+// notifyIncident fans an incident update out to email (opted-in members), Slack,
+// and Teams. verb describes what happened, e.g. "opened" or "resolved". Runs in
+// a goroutine off the request path, mirroring the event notification flow.
+func (h *IncidentsHandler) notifyIncident(orgID uuid.UUID, inc store.Incident, verb string) {
+	go func() {
+		ctx := context.Background()
+		pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
+
+		recipients, err := h.q.GetOrgMembersToNotify(ctx, store.GetOrgMembersToNotifyParams{
+			OrgID:   pgOrgID,
+			Column2: "incident",
+		})
+		if err == nil && len(recipients) > 0 {
+			_ = resend.SendIncidentNotification(recipients, inc.Title, inc.Severity, verb)
+		}
+
+		slackURL, _ := h.q.GetOrgSlackWebhook(ctx, pgOrgID)
+		_ = slack.SendIncidentNotification(slackURL, inc.Title, inc.Severity, verb)
+
+		teamsURL, _ := h.q.GetOrgTeamsWebhook(ctx, pgOrgID)
+		_ = teams.SendIncidentNotification(teamsURL, inc.Title, inc.Severity, verb)
+	}()
 }
 
 type createIncidentRequest struct {
@@ -116,6 +143,8 @@ func (h *IncidentsHandler) Create(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "incident created but events could not be attached"})
 		}
 	}
+
+	h.notifyIncident(orgID, incident, "opened")
 
 	return c.JSON(http.StatusCreated, toIncidentResponse(incident))
 }
@@ -243,6 +272,12 @@ func (h *IncidentsHandler) Update(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not update incident"})
 	}
+
+	// Notify only when the status actually changed, using the new status as the verb.
+	if req.Status != nil && incident.Status != current.Status {
+		h.notifyIncident(orgID, incident, incident.Status)
+	}
+
 	return c.JSON(http.StatusOK, toIncidentResponse(incident))
 }
 

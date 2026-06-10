@@ -105,6 +105,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.GET("/incidents/:id", incidents.Get)
 	protected.PATCH("/incidents/:id", incidents.Update)
 	protected.POST("/incidents/:id/events", incidents.AttachEvents)
+	protected.POST("/incidents/:id/postmortem", aiH.PostmortemIncident)
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)

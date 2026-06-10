@@ -1,0 +1,1 @@
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS ai_postmortem TEXT;

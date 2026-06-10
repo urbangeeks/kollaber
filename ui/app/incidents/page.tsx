@@ -8,6 +8,7 @@ import {
   getIncident,
   createIncident,
   updateIncident,
+  getIncidentPostmortem,
   getToken,
   getCurrentRole,
   type Incident,
@@ -28,7 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, FileText, Loader2, RefreshCw } from "lucide-react"
 
 const SEVERITY: Record<IncidentSeverity, { label: string; className: string }> = {
   sev1: { label: "SEV1", className: "bg-red-500/15 text-red-600 border-red-500/30" },
@@ -217,6 +218,10 @@ function IncidentDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [updating, setUpdating] = useState(false)
+  const [postmortem, setPostmortem] = useState<string | null>(null)
+  const [postmortemOpen, setPostmortemOpen] = useState(false)
+  const [postmortemLoading, setPostmortemLoading] = useState(false)
+  const [postmortemError, setPostmortemError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -237,6 +242,23 @@ function IncidentDetail({ id }: { id: string }) {
       toast.error(err instanceof Error ? err.message : "Failed to update incident")
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function handlePostmortem(refresh = false) {
+    if (postmortem && !refresh) { setPostmortemOpen(true); return }
+    setPostmortemLoading(true)
+    setPostmortemError(null)
+    try {
+      const text = await getIncidentPostmortem(id, refresh)
+      setPostmortem(text)
+      setPostmortemOpen(true)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to generate postmortem"
+      setPostmortemError(msg.includes("402") || msg.toLowerCase().includes("upgrade") ? "upgrade" : msg)
+      setPostmortemOpen(true)
+    } finally {
+      setPostmortemLoading(false)
     }
   }
 
@@ -291,21 +313,31 @@ function IncidentDetail({ id }: { id: string }) {
             <span>Opened {fmtDate(incident.opened_at)}</span>
             {incident.resolved_at && <span>Resolved {fmtDate(incident.resolved_at)}</span>}
           </div>
-          {editable && (
-            <div className="flex items-center gap-2">
-              {STATUSES.map((s) => (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={incident.status === s ? "default" : "outline"}
-                  disabled={updating}
-                  onClick={() => setStatus(s)}
-                >
-                  {STATUS[s].label}
-                </Button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {editable && STATUSES.map((s) => (
+              <Button
+                key={s}
+                size="sm"
+                variant={incident.status === s ? "default" : "outline"}
+                disabled={updating}
+                onClick={() => setStatus(s)}
+              >
+                {STATUS[s].label}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              className={editable ? "ml-auto" : ""}
+              disabled={postmortemLoading}
+              onClick={() => handlePostmortem()}
+            >
+              {postmortemLoading
+                ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                : <FileText className="mr-1.5 h-4 w-4" />}
+              {postmortemLoading ? "Generating…" : "Postmortem"}
+            </Button>
+          </div>
         </div>
 
         <div>
@@ -327,6 +359,39 @@ function IncidentDetail({ id }: { id: string }) {
             </div>
           )}
         </div>
+        <Dialog open={postmortemOpen} onOpenChange={setPostmortemOpen}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Postmortem — {incident.title}
+              </DialogTitle>
+            </DialogHeader>
+            {postmortemError === "upgrade" ? (
+              <p className="text-muted-foreground text-sm">
+                AI postmortems are available on the{" "}
+                <span className="text-foreground font-medium">Pro plan</span>.{" "}
+                <a href="/settings/billing" className="text-primary underline underline-offset-2">Upgrade</a>
+              </p>
+            ) : postmortemError ? (
+              <p className="text-destructive text-sm">{postmortemError}</p>
+            ) : (
+              <>
+                <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{postmortem}</pre>
+                <button
+                  onClick={() => handlePostmortem(true)}
+                  disabled={postmortemLoading}
+                  className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
+                >
+                  {postmortemLoading
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <RefreshCw className="h-3 w-3" />}
+                  {postmortemLoading ? "Regenerating…" : "Regenerate"}
+                </button>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

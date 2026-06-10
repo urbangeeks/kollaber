@@ -8,24 +8,25 @@ import (
 )
 
 type Incident struct {
-	ID         pgtype.UUID        `json:"id"`
-	OrgID      pgtype.UUID        `json:"org_id"`
-	Title      string             `json:"title"`
-	Severity   string             `json:"severity"`
-	Status     string             `json:"status"`
-	OwnerID    pgtype.UUID        `json:"owner_id"`
-	OpenedAt   pgtype.Timestamptz `json:"opened_at"`
-	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ID           pgtype.UUID        `json:"id"`
+	OrgID        pgtype.UUID        `json:"org_id"`
+	Title        string             `json:"title"`
+	Severity     string             `json:"severity"`
+	Status       string             `json:"status"`
+	OwnerID      pgtype.UUID        `json:"owner_id"`
+	OpenedAt     pgtype.Timestamptz `json:"opened_at"`
+	ResolvedAt   pgtype.Timestamptz `json:"resolved_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	AIPostmortem *string            `json:"ai_postmortem,omitempty"`
 }
 
-const incidentColumns = `id, org_id, title, severity, status, owner_id, opened_at, resolved_at, created_at`
+const incidentColumns = `id, org_id, title, severity, status, owner_id, opened_at, resolved_at, created_at, ai_postmortem`
 
 func scanIncident(row interface {
 	Scan(dest ...any) error
 }) (Incident, error) {
 	var i Incident
-	err := row.Scan(&i.ID, &i.OrgID, &i.Title, &i.Severity, &i.Status, &i.OwnerID, &i.OpenedAt, &i.ResolvedAt, &i.CreatedAt)
+	err := row.Scan(&i.ID, &i.OrgID, &i.Title, &i.Severity, &i.Status, &i.OwnerID, &i.OpenedAt, &i.ResolvedAt, &i.CreatedAt, &i.AIPostmortem)
 	return i, err
 }
 
@@ -112,6 +113,11 @@ func (q *Queries) UpdateIncident(ctx context.Context, arg UpdateIncidentParams) 
 		arg.ID, arg.OrgID, arg.Title, arg.Severity, arg.Status, arg.OwnerID,
 	)
 	return scanIncident(row)
+}
+
+func (q *Queries) SetIncidentAIPostmortem(ctx context.Context, id pgtype.UUID, postmortem string) error {
+	_, err := q.db.Exec(ctx, `UPDATE incidents SET ai_postmortem = $1 WHERE id = $2`, postmortem, id)
+	return err
 }
 
 // AttachEventsToIncident links the given events to an incident, but only events
