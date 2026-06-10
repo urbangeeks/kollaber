@@ -18,7 +18,7 @@ Capture deploys, alerts, and manual notes in a shared timeline your whole team c
 
 ## Quick start (local)
 
-**Prerequisites:** Docker, Go 1.22+, Node 20+, [Task](https://taskfile.dev)
+**Prerequisites:** Podman, Go 1.26+, Node 20+, [Task](https://taskfile.dev)
 
 ```bash
 # 1. Copy environment config
@@ -114,6 +114,8 @@ No CLI install needed — POST directly from CI:
 | `task run` | Build and run the single binary |
 | `task build:cli` | Compile CLI binary |
 | `task install:cli` | Install CLI to `$GOPATH/bin` |
+| `task build:kube-watcher` | Compile kube-watcher binary |
+| `task install:kube-watcher` | Install kube-watcher to `$GOPATH/bin` |
 | `task db:up` | Start PostgreSQL container |
 | `task db:down` | Stop PostgreSQL container |
 | `task db:reset` | Wipe volume and restart |
@@ -315,7 +317,7 @@ The watcher image is built and pushed to `ghcr.io/urbangeeks/kollaber/kube-watch
 | Layer | Technology |
 |---|---|
 | Backend | Go, [Echo](https://echo.labstack.com), [sqlc](https://sqlc.dev), pgx |
-| Frontend | Next.js 15, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 16, React 19, Tailwind CSS, shadcn/ui |
 | Database | PostgreSQL 16 |
 | CLI | Go, [Cobra](https://github.com/spf13/cobra) |
 | Deploy | Railway (backend), single-binary embed |
