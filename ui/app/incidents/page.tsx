@@ -51,15 +51,24 @@ function fmtDate(ts: string) {
   return new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-function canEdit() {
-  const role = getCurrentRole()
-  return role === "owner" || role === "admin" || role === "member"
+// useCanEdit reads the role only after mount. The token lives in localStorage,
+// which is unavailable during SSR, so reading it during render would make the
+// server and client disagree and trigger a hydration mismatch. Returning false
+// until mounted keeps the first client render identical to the server's.
+function useCanEdit() {
+  const [canEdit, setCanEdit] = useState(false)
+  useEffect(() => {
+    const role = getCurrentRole()
+    setCanEdit(role === "owner" || role === "admin" || role === "member")
+  }, [])
+  return canEdit
 }
 
 // ---- List view ----
 
 function IncidentList() {
   const router = useRouter()
+  const canEdit = useCanEdit()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<IncidentStatus | "">("")
@@ -108,7 +117,7 @@ function IncidentList() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl font-semibold">Incidents</h1>
-          {canEdit() && (
+          {canEdit && (
             <Button size="sm" className="ml-auto" onClick={() => { setTitle(""); setSeverity("sev3"); setTitleError(""); setDialogOpen(true) }}>
               <Plus className="mr-1.5 h-4 w-4" />
               New incident
@@ -215,6 +224,7 @@ function IncidentList() {
 
 function IncidentDetail({ id }: { id: string }) {
   const router = useRouter()
+  const editable = useCanEdit()
   const [incident, setIncident] = useState<Incident | null>(null)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -289,8 +299,6 @@ function IncidentDetail({ id }: { id: string }) {
       </div>
     )
   }
-
-  const editable = canEdit()
 
   return (
     <div className="min-h-screen px-4 py-6 sm:p-8">
