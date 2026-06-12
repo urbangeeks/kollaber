@@ -480,7 +480,7 @@ func askREPL(envID string, quiet bool) error {
 		fmt.Fprint(os.Stderr, "you › ")
 		if !in.Scan() {
 			fmt.Fprintln(os.Stderr)
-			return nil // EOF (Ctrl-D)
+			return in.Err() // nil on EOF (Ctrl-D), non-nil on read error
 		}
 		line := strings.TrimSpace(in.Text())
 		if line == "" {
