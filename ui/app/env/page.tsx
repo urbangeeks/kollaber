@@ -42,10 +42,10 @@ function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
   return Array.from(map.entries()).map(([label, events]) => ({ label, events }))
 }
 
-// Teardown is emitted by kube-watcher, not created by hand — so it's filterable
-// but not a creatable type.
+// Teardown, rollback and scale are emitted by kube-watcher, not created by
+// hand — so they're filterable but not creatable types.
 type CreatableEventType = "deploy" | "alert" | "note"
-type EventType = CreatableEventType | "teardown"
+type EventType = CreatableEventType | "teardown" | "rollback" | "scale"
 type EventStatus = "success" | "failure" | "in_progress"
 
 // Creatable types — shown in the "New event" form.
@@ -55,11 +55,13 @@ const EVENT_TYPES: { value: CreatableEventType; label: string }[] = [
   { value: "note",  label: "Note"   },
 ]
 
-// Filterable types — includes teardown so watcher-emitted teardowns can be
-// filtered on the timeline.
+// Filterable types — includes the watcher-emitted types so they can be filtered
+// on the timeline.
 const FILTER_TYPES: { value: EventType; label: string }[] = [
   ...EVENT_TYPES,
   { value: "teardown", label: "Teardown" },
+  { value: "rollback", label: "Rollback" },
+  { value: "scale",    label: "Scale"    },
 ]
 
 const EVENT_STATUSES: { value: EventStatus; label: string }[] = [

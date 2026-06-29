@@ -422,9 +422,11 @@ kollaber ask --env production           # interactive session`}</Code>
               CI steps needed.
             </p>
             <ul className="mt-2 space-y-1 pl-4 text-sm">
-              <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment, StatefulSet, or DaemonSet completes a rollout, capturing the image tag and replica count</li>
+              <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment, StatefulSet, or DaemonSet completes a rollout, capturing the image tag, replica count, and rollout duration</li>
+              <li><span className="text-amber-400 font-mono">ROLLBACK</span> — fired when a workload&apos;s image reverts to a previously seen tag, instead of a generic deploy</li>
+              <li><span className="text-blue-400 font-mono">SCALE</span> — fired when a workload&apos;s replica count changes (manual or HPA-driven), capturing the direction and old/new counts</li>
               <li><span className="text-orange-400 font-mono">TEARDOWN</span> — fired when a Deployment, StatefulSet, or DaemonSet is removed (requires <InlineCode>reportDeletes</InlineCode>)</li>
-              <li><span className="text-red-400 font-mono">ALERT</span> — fired when a pod enters <InlineCode>CrashLoopBackOff</InlineCode>, capturing the pod and container name</li>
+              <li><span className="text-red-400 font-mono">ALERT</span> — fired on pod failures: <InlineCode>CrashLoopBackOff</InlineCode>, image pull errors, <InlineCode>OOMKilled</InlineCode>, and unschedulable pods, capturing the pod, container, and reason</li>
             </ul>
 
             <SubSection title="Deploy with Helm">

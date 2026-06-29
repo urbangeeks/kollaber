@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2 } from "lucide-react"
+import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2, Undo2, Scaling } from "lucide-react"
 
 const SEVERITIES: IncidentSeverity[] = ["sev1", "sev2", "sev3", "sev4"]
 
@@ -24,6 +24,8 @@ const TYPE_CONFIG = {
   alert: { icon: Bell, label: "Alert", variant: "destructive" },
   note: { icon: StickyNote, label: "Note", variant: "secondary" },
   teardown: { icon: Trash2, label: "Teardown", variant: "outline" },
+  rollback: { icon: Undo2, label: "Rollback", variant: "outline" },
+  scale: { icon: Scaling, label: "Scale", variant: "secondary" },
 } as const
 
 const STATUS_CONFIG = {
@@ -66,6 +68,8 @@ export function TimelineEvent({ event }: { event: Event }) {
     if (event.type === "note") return { dotBorder: "border-border", dotText: "text-muted-foreground" }
     if (event.type === "teardown") return { dotBorder: "border-orange-200 dark:border-orange-900", dotText: "text-orange-600 dark:text-orange-400" }
     if (event.type === "alert") return { dotBorder: "border-red-200 dark:border-red-900", dotText: "text-red-600 dark:text-red-400" }
+    if (event.type === "rollback") return { dotBorder: "border-amber-200 dark:border-amber-900", dotText: "text-amber-600 dark:text-amber-400" }
+    if (event.type === "scale") return { dotBorder: "border-blue-200 dark:border-blue-900", dotText: "text-blue-600 dark:text-blue-400" }
     const s = event.status ?? "success"
     if (s === "failure")     return { dotBorder: "border-red-200 dark:border-red-900",   dotText: "text-red-600 dark:text-red-400" }
     if (s === "in_progress") return { dotBorder: "border-amber-200 dark:border-amber-900", dotText: "text-amber-500 dark:text-amber-400" }

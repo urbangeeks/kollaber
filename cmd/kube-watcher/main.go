@@ -1,6 +1,9 @@
 // kube-watcher watches a Kubernetes cluster and fires Kollaber events for
-// Deployment/StatefulSet/DaemonSet rollouts (and teardowns) and
-// CrashLoopBackOff pods.
+// Deployment/StatefulSet/DaemonSet workloads — deploys, rollbacks (image
+// reverting to a previously seen tag), scales (replica changes), and teardowns —
+// plus pod failures: CrashLoopBackOff, image pull errors, OOM kills, and
+// unschedulable pods. Deploy events carry replica counts, image tag, and rollout
+// duration.
 //
 // Run one instance per cluster:
 //
@@ -17,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,11 +35,11 @@ import (
 )
 
 var (
-	kubeconfig = flag.String("kubeconfig", os.Getenv("KUBECONFIG"), "path to kubeconfig file")
-	envName    = flag.String("env", "", "Kollaber environment name (required)")
-	apiURL     = flag.String("api", os.Getenv("KOLLABER_API"), "Kollaber API base URL")
-	token      = flag.String("token", os.Getenv("KOLLABER_TOKEN"), "Kollaber CLI token")
-	namespace  = flag.String("namespace", "", "Kubernetes namespace to watch (empty = all namespaces)")
+	kubeconfig    = flag.String("kubeconfig", os.Getenv("KUBECONFIG"), "path to kubeconfig file")
+	envName       = flag.String("env", "", "Kollaber environment name (required)")
+	apiURL        = flag.String("api", os.Getenv("KOLLABER_API"), "Kollaber API base URL")
+	token         = flag.String("token", os.Getenv("KOLLABER_TOKEN"), "Kollaber CLI token")
+	namespace     = flag.String("namespace", "", "Kubernetes namespace to watch (empty = all namespaces)")
 	reportDeletes = flag.Bool("report-deletes", false, "also fire a teardown event when a Deployment is removed (off by default — helm uninstall can produce a burst of events)")
 )
 
@@ -101,15 +105,31 @@ type workloadMeta struct {
 	generation int64
 	image      string
 	ready      bool
-	replicas   int32
+	replicas   int32 // ready replicas
+	desired    int32 // spec replicas (DaemonSet: desired scheduled)
+}
+
+// workloadState is the last-fired snapshot of one workload, used to classify
+// the next change: an image change is a deploy (or rollback if we've seen that
+// image before), a replica change with the same image is a scale event, and a
+// new generation observation starts the rollout-duration clock.
+type workloadState struct {
+	firedGen     int64
+	image        string
+	desired      int32
+	seenImages   map[string]bool
+	rolloutGen   int64
+	rolloutStart time.Time
 }
 
 // watchWorkload fires a deploy event when a workload completes a rollout and,
 // when --report-deletes is set, a teardown event when one is removed.
 func watchWorkload(ctx context.Context, k *kollaberClient, a workloadAdapter) {
-	// Track the last generation we fired per object (namespace/name → generation).
-	// Generation increments on every spec change, so each rollout fires exactly once.
-	fired := map[string]int64{}
+	// Per-workload state (namespace/name → snapshot) so we can tell a deploy from
+	// a rollback from a scale, and time the rollout. Persists across watch
+	// reconnects below; lost on process restart, which is fine — the initial LIST
+	// resync means existing workloads aren't replayed as fresh events.
+	state := map[string]*workloadState{}
 
 	for {
 		if ctx.Err() != nil {
@@ -150,8 +170,8 @@ func watchWorkload(ctx context.Context, k *kollaberClient, a workloadAdapter) {
 				if !*reportDeletes {
 					continue
 				}
-				// Forget the generation so a later re-create fires a fresh deploy event.
-				delete(fired, key)
+				// Forget state so a later re-create fires a fresh deploy event.
+				delete(state, key)
 				log.Printf("teardown: %s %s namespace=%s", a.kind, m.name, m.namespace)
 				if err := k.sendEvent("teardown", m.name, map[string]any{
 					"namespace": m.namespace,
@@ -161,26 +181,106 @@ func watchWorkload(ctx context.Context, k *kollaberClient, a workloadAdapter) {
 					log.Printf("error sending teardown event for %s: %v", m.name, err)
 				}
 
-			case watch.Modified:
+			case watch.Added, watch.Modified:
+				st := state[key]
+				if st == nil {
+					st = &workloadState{seenImages: map[string]bool{}}
+					state[key] = st
+				}
+				// Start (or restart) the rollout clock the moment a new spec
+				// generation appears, before it has become ready.
+				if m.generation != st.rolloutGen {
+					st.rolloutGen = m.generation
+					st.rolloutStart = time.Now()
+				}
 				if !m.ready {
 					continue
 				}
-				if fired[key] == m.generation {
+				// Only act once per generation; repeated status updates for an
+				// already-ready generation carry the same generation number.
+				if st.firedGen == m.generation {
 					continue
 				}
-				fired[key] = m.generation
-				log.Printf("deploy: %s %s image=%s generation=%d", a.kind, m.name, m.image, m.generation)
-				if err := k.sendEvent("deploy", m.name, map[string]any{
-					"version":   m.image,
-					"namespace": m.namespace,
-					"kind":      a.kind,
-					"replicas":  m.replicas,
-				}); err != nil {
-					log.Printf("error sending deploy event for %s: %v", m.name, err)
+
+				eventType, meta := classifyChange(a.kind, m, st)
+				st.firedGen = m.generation
+				st.image = m.image
+				st.desired = m.desired
+				st.seenImages[m.image] = true
+
+				log.Printf("%s: %s %s image=%s generation=%d", eventType, a.kind, m.name, m.image, m.generation)
+				if err := k.sendEvent(eventType, m.name, meta); err != nil {
+					log.Printf("error sending %s event for %s: %v", eventType, m.name, err)
 				}
 			}
 		}
 	}
+}
+
+// classifyChange decides whether a ready workload change is a deploy, a
+// rollback (image reverting to one we've already seen this session), or a scale
+// (replica count changed with the same image), and builds the event metadata.
+func classifyChange(kind string, m workloadMeta, st *workloadState) (string, map[string]any) {
+	meta := map[string]any{
+		"namespace":        m.namespace,
+		"kind":             kind,
+		"version":          m.image,
+		"image_tag":        imageTag(m.image),
+		"replicas":         m.replicas,
+		"replicas_desired": m.desired,
+	}
+	if !st.rolloutStart.IsZero() {
+		meta["rollout_seconds"] = int(time.Since(st.rolloutStart).Seconds())
+	}
+
+	switch {
+	case m.image != st.image && st.image != "":
+		// Image changed on a workload we've seen before.
+		meta["previous_image"] = st.image
+		if st.seenImages[m.image] {
+			return "rollback", meta
+		}
+		return "deploy", meta
+	case m.image == st.image && st.firedGen != 0 && m.desired != st.desired:
+		// Same image, replica count moved → a scale (manual or HPA-driven).
+		meta["previous_replicas"] = st.desired
+		if m.desired > st.desired {
+			meta["direction"] = "up"
+		} else {
+			meta["direction"] = "down"
+		}
+		return "scale", meta
+	default:
+		// First sighting, or a spec bump that's neither an image nor replica
+		// change — treat as a deploy.
+		return "deploy", meta
+	}
+}
+
+// imageTag extracts the tag (or a short digest) from a container image ref,
+// handling registry ports (host:5000/img:tag) and digests (img@sha256:…).
+func imageTag(image string) string {
+	if at := strings.LastIndex(image, "@"); at != -1 {
+		digest := image[at+1:]
+		if len(digest) > 19 { // "sha256:" + 12 hex chars
+			return digest[:19]
+		}
+		return digest
+	}
+	slash := strings.LastIndex(image, "/")
+	if colon := strings.LastIndex(image, ":"); colon > slash {
+		return image[colon+1:]
+	}
+	return "latest"
+}
+
+// int32OrOne dereferences an optional replica count, treating nil as 1 (the
+// Kubernetes default when spec.replicas is unset).
+func int32OrOne(p *int32) int32 {
+	if p == nil {
+		return 1
+	}
+	return *p
 }
 
 func deploymentAdapter(client kubernetes.Interface) workloadAdapter {
@@ -211,6 +311,7 @@ func deploymentAdapter(client kubernetes.Interface) workloadAdapter {
 					d.Status.ReadyReplicas == d.Status.Replicas &&
 					d.Status.UnavailableReplicas == 0,
 				replicas: d.Status.ReadyReplicas,
+				desired:  int32OrOne(d.Spec.Replicas),
 			}, true
 		},
 	}
@@ -244,6 +345,7 @@ func statefulSetAdapter(client kubernetes.Interface) workloadAdapter {
 					s.Status.ReadyReplicas == s.Status.Replicas &&
 					s.Status.CurrentRevision == s.Status.UpdateRevision,
 				replicas: s.Status.ReadyReplicas,
+				desired:  int32OrOne(s.Spec.Replicas),
 			}, true
 		},
 	}
@@ -277,15 +379,18 @@ func daemonSetAdapter(client kubernetes.Interface) workloadAdapter {
 					d.Status.NumberReady == d.Status.DesiredNumberScheduled &&
 					d.Status.UpdatedNumberScheduled == d.Status.DesiredNumberScheduled,
 				replicas: d.Status.NumberReady,
+				desired:  d.Status.DesiredNumberScheduled,
 			}, true
 		},
 	}
 }
 
-// watchPods fires an alert event when a pod enters CrashLoopBackOff.
+// watchPods fires an alert event when a pod hits a failure condition —
+// CrashLoopBackOff, an image pull failure, an OOM kill, or being unschedulable.
 func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClient) {
-	// Track pods we've already alerted on so we don't spam.
-	alerted := map[string]bool{}
+	// Track the reason we last alerted per pod so we don't spam, but still
+	// re-alert if the failure reason changes (e.g. ImagePull → CrashLoop).
+	alerted := map[string]string{}
 
 	for {
 		if ctx.Err() != nil {
@@ -315,7 +420,9 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 		}
 
 		for event := range watcher.ResultChan() {
-			if event.Type != watch.Modified {
+			// Added covers pods that arrive already unschedulable; Modified covers
+			// containers that fail after starting.
+			if event.Type != watch.Added && event.Type != watch.Modified {
 				continue
 			}
 			pod, ok := event.Object.(*corev1.Pod)
@@ -323,24 +430,28 @@ func watchPods(ctx context.Context, client kubernetes.Interface, k *kollaberClie
 				continue
 			}
 			key := pod.Namespace + "/" + pod.Name
-			if alerted[key] {
+			container, reason, problem := podProblem(pod)
+			if !problem {
+				// Recovered (or never failing) — clear so a future failure alerts.
+				delete(alerted, key)
 				continue
 			}
-			if container, crash := crashLoopContainer(pod); crash {
-				alerted[key] = true
-				service := podServiceName(pod)
-				log.Printf("alert: CrashLoopBackOff pod=%s container=%s service=%s", pod.Name, container, service)
-				if err := k.sendEvent("alert", service, map[string]any{
-					"reason":    "CrashLoopBackOff",
-					"pod":       pod.Name,
-					"container": container,
-					"namespace": pod.Namespace,
-				}); err != nil {
-					log.Printf("error sending alert event for pod %s: %v", pod.Name, err)
-				}
-			} else {
-				// Clear alert once pod recovers.
-				delete(alerted, key)
+			if alerted[key] == reason {
+				continue // already alerted for this same reason
+			}
+			alerted[key] = reason
+			service := podServiceName(pod)
+			log.Printf("alert: %s pod=%s container=%s service=%s", reason, pod.Name, container, service)
+			meta := map[string]any{
+				"reason":    reason,
+				"pod":       pod.Name,
+				"namespace": pod.Namespace,
+			}
+			if container != "" {
+				meta["container"] = container
+			}
+			if err := k.sendEvent("alert", service, meta); err != nil {
+				log.Printf("error sending alert event for pod %s: %v", pod.Name, err)
 			}
 		}
 	}
@@ -364,13 +475,38 @@ func podServiceName(pod *corev1.Pod) string {
 	return pod.Name
 }
 
-func crashLoopContainer(pod *corev1.Pod) (string, bool) {
+// podProblem reports the first failure condition found on a pod and the
+// container it belongs to ("" for pod-level problems like scheduling). It covers
+// the common "why is this broken" reasons: crash loops, image pull failures,
+// OOM kills, and unschedulable pods.
+func podProblem(pod *corev1.Pod) (container, reason string, ok bool) {
 	for _, cs := range pod.Status.ContainerStatuses {
-		if cs.State.Waiting != nil && cs.State.Waiting.Reason == "CrashLoopBackOff" {
-			return cs.Name, true
+		if w := cs.State.Waiting; w != nil {
+			switch w.Reason {
+			case "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull",
+				"CreateContainerConfigError", "CreateContainerError":
+				return cs.Name, w.Reason, true
+			}
+		}
+		// OOM shows up on the current or previous termination state.
+		if t := cs.State.Terminated; t != nil && t.Reason == "OOMKilled" {
+			return cs.Name, "OOMKilled", true
+		}
+		if t := cs.LastTerminationState.Terminated; t != nil && t.Reason == "OOMKilled" {
+			return cs.Name, "OOMKilled", true
 		}
 	}
-	return "", false
+	// Pod-level: pending and rejected by the scheduler.
+	if pod.Status.Phase == corev1.PodPending {
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodScheduled &&
+				cond.Status == corev1.ConditionFalse &&
+				cond.Reason == "Unschedulable" {
+				return "", "FailedScheduling", true
+			}
+		}
+	}
+	return "", "", false
 }
 
 type kollaberClient struct {
@@ -424,7 +560,9 @@ func (k *kollaberClient) sendEvent(eventType, service string, metadata map[strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		var e struct{ Error string `json:"error"` }
+		var e struct {
+			Error string `json:"error"`
+		}
 		_ = json.NewDecoder(resp.Body).Decode(&e)
 		return fmt.Errorf("kollaber api %d: %s", resp.StatusCode, e.Error)
 	}

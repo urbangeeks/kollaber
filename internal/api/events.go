@@ -73,9 +73,9 @@ func (h *EventsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type, service, and environment_id are required"})
 	}
 	switch req.Type {
-	case "deploy", "alert", "note", "teardown":
+	case "deploy", "alert", "note", "teardown", "rollback", "scale":
 	default:
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type must be deploy, alert, note, or teardown"})
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type must be deploy, alert, note, teardown, rollback, or scale"})
 	}
 	if req.Status == "" {
 		req.Status = "success"
