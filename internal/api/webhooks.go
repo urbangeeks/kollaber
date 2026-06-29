@@ -118,9 +118,7 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 			return
 		}
 		orgID := uuid.UUID(env.OrgID.Bytes)
-		if data, err := json.Marshal(toEventResponse(event)); err == nil {
-			h.hub.Broadcast(orgID.String(), envID.String(), data)
-		}
+		broadcastEvent(h.hub, orgID.String(), envID.String(), toEventResponse(event))
 	}()
 
 	return c.JSON(http.StatusCreated, event)

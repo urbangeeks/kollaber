@@ -41,7 +41,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	otp := NewOTPHandler(q)
 	envs := NewEnvironmentsHandler(q)
 	events := NewEventsHandler(q, hub)
-	comments := NewCommentsHandler(q)
+	comments := NewCommentsHandler(q, hub)
 	webhooks := NewWebhookHandler(q, hub)
 	streamH := NewStreamHandler(hub)
 	admin := NewAdminHandler(q)

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { getEvents, createEvent, getServices, getToken, type Event, type EventFilters } from "@/lib/api"
+import { getEvents, createEvent, getServices, getToken, type Event, type EventFilters, type Comment, type StreamMessage } from "@/lib/api"
 import { createEventSchema } from "@/lib/schemas"
 import { useEventStream } from "@/hooks/use-event-stream"
 import { TimelineEvent } from "@/components/timeline-event"
@@ -99,6 +99,9 @@ function EnvPageInner() {
   const [filterAfter, setFilterAfter] = useState("")
   const [filterBefore, setFilterBefore] = useState("")
   const [knownServices, setKnownServices] = useState<string[]>([])
+  // Comments arriving live over SSE, keyed by event id, merged into each
+  // event's thread by TimelineEvent.
+  const [liveComments, setLiveComments] = useState<Record<string, Comment[]>>({})
 
   const PRESETS = [
     { label: "Today",   after: () => startOfDay(new Date()) },
@@ -150,11 +153,22 @@ function EnvPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, filterType, filterStatus, filterService, filterAfter, filterBefore])
 
-  // Real-time updates via SSE — prepend new events as they arrive.
+  // Real-time updates via SSE — prepend new events and route new comments to
+  // their open threads as they arrive.
   useEventStream(
     id,
     (data) => {
-      const event = data as Event
+      const msg = data as StreamMessage
+      if (msg.kind === "comment") {
+        setLiveComments((prev) => {
+          const list = prev[msg.event_id] ?? []
+          if (list.some((c) => c.id === msg.comment.id)) return prev
+          return { ...prev, [msg.event_id]: [...list, msg.comment] }
+        })
+        return
+      }
+      if (msg.kind !== "event") return
+      const event = msg.event
       if (filterType && event.type !== filterType) return
       if (filterStatus && event.status !== filterStatus) return
       if (filterService && event.service !== filterService) return
@@ -382,7 +396,7 @@ function EnvPageInner() {
                   </div>
                   {group.events.map((event) => (
                     <div key={event.id} className="mb-5">
-                      <TimelineEvent event={event} />
+                      <TimelineEvent event={event} liveComments={liveComments[event.id]} />
                     </div>
                   ))}
                 </div>

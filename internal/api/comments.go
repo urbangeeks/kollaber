@@ -11,9 +11,14 @@ import (
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
-type CommentsHandler struct{ q *store.Queries }
+type CommentsHandler struct {
+	q   *store.Queries
+	hub *Hub
+}
 
-func NewCommentsHandler(q *store.Queries) *CommentsHandler { return &CommentsHandler{q} }
+func NewCommentsHandler(q *store.Queries, hub *Hub) *CommentsHandler {
+	return &CommentsHandler{q: q, hub: hub}
+}
 
 type commentResponse struct {
 	ID        string `json:"id"`
@@ -66,7 +71,19 @@ func (h *CommentsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create comment"})
 	}
 
-	return c.JSON(http.StatusCreated, toCommentResponse(comment))
+	resp := toCommentResponse(comment)
+
+	// Push the new comment to anyone watching this event's environment so open
+	// timeline threads update live. Best-effort: a failed env lookup just skips
+	// the broadcast, it doesn't fail the request.
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+	if event, err := h.q.GetEventByIDForOrg(c.Request().Context(),
+		pgtype.UUID{Bytes: eventID, Valid: true},
+		pgtype.UUID{Bytes: orgID, Valid: true}); err == nil {
+		broadcastComment(h.hub, orgID.String(), uuid.UUID(event.EnvironmentID.Bytes).String(), eventID.String(), resp)
+	}
+
+	return c.JSON(http.StatusCreated, resp)
 }
 
 func (h *CommentsHandler) List(c echo.Context) error {

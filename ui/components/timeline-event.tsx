@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { type Event, type Comment, type Incident, type IncidentSeverity, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole } from "@/lib/api"
 import { commentSchema, createIncidentSchema } from "@/lib/schemas"
@@ -38,7 +38,13 @@ function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
-export function TimelineEvent({ event }: { event: Event }) {
+export function TimelineEvent({
+  event,
+  liveComments,
+}: {
+  event: Event
+  liveComments?: Comment[]
+}) {
   const [comments, setComments] = useState<Comment[] | null>(null)
   const [body, setBody] = useState("")
   const [bodyError, setBodyError] = useState("")
@@ -56,6 +62,21 @@ export function TimelineEvent({ event }: { event: Event }) {
   const [attaching, setAttaching] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newSeverity, setNewSeverity] = useState<IncidentSeverity>("sev3")
+
+  // Merge fetched comments with any that arrived live over SSE, de-duped by id
+  // (the poster receives their own broadcast) and ordered oldest-first.
+  const mergedComments = useMemo(() => {
+    const byID = new Map<string, Comment>()
+    for (const c of comments ?? []) byID.set(c.id, c)
+    for (const c of liveComments ?? []) byID.set(c.id, c)
+    return [...byID.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }, [comments, liveComments])
+
+  // Live comments not yet in the loaded set — surfaced as a hint on the closed
+  // thread so you know there's new discussion without opening it.
+  const unseenLive = (liveComments ?? []).filter(
+    (c) => !(comments ?? []).some((x) => x.id === c.id),
+  ).length
 
   const role = getCurrentRole()
   const canAttach = role === "owner" || role === "admin" || role === "member"
@@ -225,6 +246,11 @@ export function TimelineEvent({ event }: { event: Event }) {
             >
               <MessageCircle className="h-3 w-3" />
               {open ? "Hide comments" : "Comments"}
+              {!open && unseenLive > 0 && (
+                <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-primary">
+                  {unseenLive} new
+                </span>
+              )}
             </button>
             <button
               onClick={handleSummarize}
@@ -280,7 +306,7 @@ export function TimelineEvent({ event }: { event: Event }) {
 
       {open && (
         <div className="ml-10 sm:ml-11 space-y-2">
-          {(comments ?? []).map((c) => (
+          {mergedComments.map((c) => (
             <p key={c.id} className="bg-muted rounded px-3 py-2 text-sm">
               💬 {c.body}
             </p>

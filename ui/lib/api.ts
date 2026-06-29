@@ -22,6 +22,13 @@ export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>
 export type Comment = z.infer<typeof commentResponseSchema>
 export type Incident = z.infer<typeof incidentSchema>
+
+// StreamMessage is the envelope pushed over the SSE event stream. The server
+// tags each message with a "kind" so one connection can carry new events and
+// new comments; consumers branch on it.
+export type StreamMessage =
+  | { kind: "event"; event: Event }
+  | { kind: "comment"; comment: Comment; event_id: string }
 export type IncidentSeverity = Incident["severity"]
 export type IncidentStatus = Incident["status"]
 

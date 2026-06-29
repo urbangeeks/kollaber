@@ -8,6 +8,9 @@ const API_BASE =
     ? ""
     : "http://localhost:8080"
 
+// useEventStream subscribes to the SSE event stream. Pass a specific envID to
+// scope to one environment, or "" to receive every environment in the org
+// (used by org-wide views like the dashboard).
 export function useEventStream(
   envID: string,
   onEvent: (data: unknown) => void,
@@ -17,7 +20,7 @@ export function useEventStream(
   onEventRef.current = onEvent
 
   useEffect(() => {
-    if (!enabled || !envID) return
+    if (!enabled) return
 
     let active = true
     let retryTimer: ReturnType<typeof setTimeout>
@@ -26,7 +29,7 @@ export function useEventStream(
       const token = getToken()
       if (!token) return
 
-      const url = `${API_BASE}/events/stream?environment_id=${envID}`
+      const url = `${API_BASE}/events/stream${envID ? `?environment_id=${envID}` : ""}`
       let response: Response
       try {
         response = await fetch(url, {
