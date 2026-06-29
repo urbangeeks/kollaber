@@ -17,7 +17,9 @@ import {
   deleteEnvironment,
   type Environment,
   type EnvStat,
+  type StreamMessage,
 } from "@/lib/api"
+import { useEventStream } from "@/hooks/use-event-stream"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
 import { ThemeToggle } from "@/components/settings-nav"
@@ -102,6 +104,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [envs, setEnvs] = useState<Environment[]>([])
   const [stats, setStats] = useState<Record<string, EnvStat>>({})
+  const authed = Boolean(getToken())
   // dialogs
   const [newEnvOpen, setNewEnvOpen] = useState(false)
   const [downloadOpen, setDownloadOpen] = useState(false)
@@ -151,6 +154,29 @@ export default function DashboardPage() {
       .then((rows) => setStats(Object.fromEntries(rows.map((r) => [r.environment_id, r]))))
       .catch(() => {/* non-critical */})
   }, [router])
+
+  // Live env-card counts: subscribe org-wide and bump the matching card when a
+  // deploy/alert/note arrives, so the dashboard updates without a refetch.
+  useEventStream(
+    "",
+    (data) => {
+      const msg = data as StreamMessage
+      if (msg.kind !== "event") return
+      const ev = msg.event
+      const field =
+        ev.type === "deploy" ? "deploys" : ev.type === "alert" ? "alerts" : ev.type === "note" ? "notes" : null
+      if (!field) return
+      setStats((prev) => {
+        const cur = prev[ev.environment_id]
+        if (!cur) return prev // stats for this env not loaded yet
+        return {
+          ...prev,
+          [ev.environment_id]: { ...cur, [field]: cur[field] + 1, last_event_at: ev.timestamp },
+        }
+      })
+    },
+    authed,
+  )
 
   function handleLogout() {
     removeToken()

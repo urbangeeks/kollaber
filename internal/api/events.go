@@ -105,9 +105,7 @@ func (h *EventsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not create event"})
 	}
 
-	if data, err := json.Marshal(toEventResponse(event)); err == nil {
-		h.hub.Broadcast(orgID.String(), req.EnvironmentID.String(), data)
-	}
+	broadcastEvent(h.hub, orgID.String(), req.EnvironmentID.String(), toEventResponse(event))
 
 	go func() {
 		env, err := h.q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: req.EnvironmentID, Valid: true})
