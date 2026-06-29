@@ -27,7 +27,7 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "hono": "4.12.21",
+    "hono": "4.12.25",
     "fast-uri": "3.1.2",
     "postcss": "$postcss",
     "qs": "6.15.2"
