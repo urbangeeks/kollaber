@@ -28,10 +28,13 @@ type DORAMetrics struct {
 }
 
 // DeployTrendPoint is one day's deploy count, used to draw a sparkline of
-// deployment frequency over the window.
+// deployment frequency over the window. Failed counts the subset of that day's
+// deploys with a failure status, so the UI can flag days that shipped a bad
+// change.
 type DeployTrendPoint struct {
 	Day     pgtype.Timestamptz `json:"day"`
 	Deploys int64              `json:"deploys"`
+	Failed  int64              `json:"failed"`
 }
 
 // DORAParams scopes a metrics query. EnvironmentID is optional; when nil the
@@ -110,7 +113,10 @@ func (q *Queries) DORA(ctx context.Context, arg DORAParams) (DORAMetrics, error)
 // dense series.
 func (q *Queries) DeployTrend(ctx context.Context, arg DORAParams) ([]DeployTrendPoint, error) {
 	rows, err := q.db.Query(ctx, `
-		SELECT date_trunc('day', e.timestamp) AS day, COUNT(*)
+		SELECT
+			date_trunc('day', e.timestamp) AS day,
+			COUNT(*),
+			COUNT(*) FILTER (WHERE e.status = 'failure')
 		FROM events e
 		JOIN environments env ON env.id = e.environment_id
 		WHERE env.org_id = $1
@@ -129,7 +135,7 @@ func (q *Queries) DeployTrend(ctx context.Context, arg DORAParams) ([]DeployTren
 	var out []DeployTrendPoint
 	for rows.Next() {
 		var p DeployTrendPoint
-		if err := rows.Scan(&p.Day, &p.Deploys); err != nil {
+		if err := rows.Scan(&p.Day, &p.Deploys, &p.Failed); err != nil {
 			return nil, err
 		}
 		out = append(out, p)

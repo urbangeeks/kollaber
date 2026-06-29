@@ -91,12 +91,16 @@ func TestDORA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeployTrend: %v", err)
 	}
-	var trendTotal int64
+	var trendTotal, trendFailed int64
 	for _, p := range trend {
 		trendTotal += p.Deploys
+		trendFailed += p.Failed
 	}
 	if trendTotal != 4 {
 		t.Errorf("trend total = %d, want 4 (in-window deploys)", trendTotal)
+	}
+	if trendFailed != 1 {
+		t.Errorf("trend failed = %d, want 1 (in-window failed deploys)", trendFailed)
 	}
 }
 

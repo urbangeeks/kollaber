@@ -96,18 +96,31 @@ function fmtDay(day: string): string {
 
 // TrendChart draws a bar-per-day sparkline of deploy counts. Bars are
 // height-scaled to the busiest day so a quiet week still reads clearly.
-// Because heights are relative, the chart annotates the peak (Y reference),
-// the window's start/end dates (X), and the total/average (a key for scale).
-// Each bar is a shadcn Tooltip trigger; content renders in a portal so it is
-// never clipped by the card or the chart's own bounds.
+// Because heights are relative, the chart gives the reader a key and scale:
+// y-axis ticks + gridlines (0 / mid / peak), the window's start/end dates (X),
+// and a total/average/failed caption. Days that shipped a failed deploy are
+// tinted with the destructive colour so the chart shows quality, not just
+// volume. Each bar is a shadcn Tooltip trigger; content renders in a portal so
+// it is never clipped by the card or the chart's own bounds.
 function TrendChart({ trend }: { trend: Dora["trend"] }) {
-  if (trend.length === 0) {
-    return <p className="text-sm text-muted-foreground">No deploys in this window.</p>
-  }
   const counts = trend.map((p) => p.deploys)
-  const max = Math.max(...counts, 1)
   const total = counts.reduce((a, b) => a + b, 0)
+  const failedTotal = trend.reduce((a, p) => a + p.failed, 0)
+
+  // Empty state: no deploys at all in the window. Keep the chart's height so
+  // the surrounding layout doesn't jump when a window has data vs. not.
+  if (total === 0) {
+    return (
+      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+        No deploys in the last {trend.length || "—"} days.
+      </div>
+    )
+  }
+
+  const max = Math.max(...counts, 1)
   const perDay = total / trend.length
+  const mid = Math.round(max / 2)
+  const showMid = max > 1 && mid > 0 && mid < max
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -115,29 +128,60 @@ function TrendChart({ trend }: { trend: Dora["trend"] }) {
         <span>
           <span className="font-medium text-foreground">{total}</span> deploy
           {total === 1 ? "" : "s"} · ~{perDay.toFixed(1)}/day
+          {failedTotal > 0 && (
+            <span className="text-destructive"> · {failedTotal} failed</span>
+          )}
         </span>
         <span>peak {max}/day</span>
       </div>
-      {/* Bars sit on a baseline; height is a fraction of the peak day. */}
-      <div className="flex h-32 items-end gap-1 border-b border-border">
-        {trend.map((p) => (
-          <Tooltip key={p.day}>
-            <TooltipTrigger asChild>
-              <div
-                className="flex-1 rounded-t bg-primary/70 transition-colors hover:bg-primary data-[state=delayed-open]:bg-primary"
-                style={{ height: `${Math.max(4, (p.deploys / max) * 100)}%` }}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="font-medium">{fmtDay(p.day)}</div>
-              <div className="opacity-80">
-                {p.deploys} deploy{p.deploys === 1 ? "" : "s"}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        ))}
+
+      <div className="flex gap-2">
+        {/* Y-axis tick labels, aligned to the gridlines in the plot area. */}
+        <div className="flex h-32 w-5 flex-col justify-between text-right text-[10px] leading-none text-muted-foreground tabular-nums">
+          <span>{max}</span>
+          {showMid ? <span>{mid}</span> : <span />}
+          <span>0</span>
+        </div>
+
+        {/* Plot area: gridlines behind, bars in front on a shared baseline. */}
+        <div className="relative h-32 flex-1">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-x-0 top-0 border-t border-border/60" />
+            {showMid && (
+              <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-border/40" />
+            )}
+          </div>
+          <div className="flex h-full items-end gap-1 border-b border-border">
+            {trend.map((p) => {
+              const failed = p.failed > 0
+              return (
+                <Tooltip key={p.day}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={
+                        failed
+                          ? "flex-1 rounded-t bg-destructive/70 transition-colors hover:bg-destructive data-[state=delayed-open]:bg-destructive"
+                          : "flex-1 rounded-t bg-primary/70 transition-colors hover:bg-primary data-[state=delayed-open]:bg-primary"
+                      }
+                      style={{ height: `${Math.max(4, (p.deploys / max) * 100)}%` }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="font-medium">{fmtDay(p.day)}</div>
+                    <div className="opacity-80">
+                      {p.deploys} deploy{p.deploys === 1 ? "" : "s"}
+                      {failed && <span> · {p.failed} failed</span>}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
+          </div>
+        </div>
       </div>
-      <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+
+      {/* X labels offset by the y-axis column width so they track the plot. */}
+      <div className="mt-1 flex justify-between pl-7 text-xs text-muted-foreground">
         <span>{fmtDay(trend[0].day)}</span>
         <span>{fmtDay(trend[trend.length - 1].day)}</span>
       </div>
