@@ -320,7 +320,7 @@ export default function MetricsPage() {
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Dashboard
           </Button>
-          <span className="font-semibold tracking-tight">DORA metrics</span>
+          <span className="font-semibold tracking-tight">Metrics</span>
           <div className="ml-auto">
             <ThemeToggle />
           </div>
