@@ -321,9 +321,20 @@ var deployCmd = &cobra.Command{
 		envName, _ := cmd.Flags().GetString("env")
 		service, _ := cmd.Flags().GetString("service")
 		version, _ := cmd.Flags().GetString("version")
+		committedAt, _ := cmd.Flags().GetString("committed-at")
 
 		if envName == "" || service == "" || version == "" {
 			return fmt.Errorf("--env, --service, and --version are required")
+		}
+
+		metadata := map[string]string{"version": version, "author": os.Getenv("USER")}
+		// committed_at feeds the DORA lead-time metric (commit -> deploy). It
+		// must be RFC3339 so the server can diff it against the deploy time.
+		if committedAt != "" {
+			if _, err := time.Parse(time.RFC3339, committedAt); err != nil {
+				return fmt.Errorf("--committed-at must be an RFC3339 timestamp (e.g. 2026-06-29T10:00:00Z)")
+			}
+			metadata["committed_at"] = committedAt
 		}
 
 		env, err := findEnv(envName)
@@ -335,7 +346,7 @@ var deployCmd = &cobra.Command{
 			"type":           "deploy",
 			"service":        service,
 			"environment_id": env.ID,
-			"metadata":       map[string]string{"version": version, "author": os.Getenv("USER")},
+			"metadata":       metadata,
 		}
 		res, err := do("POST", "/events", payload)
 		if err != nil {
@@ -680,6 +691,68 @@ var incidentAttachCmd = &cobra.Command{
 	},
 }
 
+type doraMetricResp struct {
+	Value   float64 `json:"value"`
+	Display string  `json:"display"`
+	Rating  string  `json:"rating"`
+	Samples int64   `json:"samples"`
+}
+
+type doraResp struct {
+	WindowDays      int            `json:"window_days"`
+	DeployFrequency doraMetricResp `json:"deploy_frequency"`
+	LeadTime        doraMetricResp `json:"lead_time"`
+	ChangeFailRate  doraMetricResp `json:"change_failure_rate"`
+	TimeToRestore   doraMetricResp `json:"time_to_restore"`
+}
+
+var doraCmd = &cobra.Command{
+	Use:   "dora",
+	Short: "Show DORA metrics (deploy frequency, lead time, change failure rate, time to restore)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		days, _ := cmd.Flags().GetInt("days")
+		envName, _ := cmd.Flags().GetString("env")
+
+		path := fmt.Sprintf("/metrics/dora?days=%d", days)
+		if envName != "" {
+			env, err := findEnv(envName)
+			if err != nil {
+				return err
+			}
+			path += "&environment_id=" + env.ID
+		}
+
+		res, err := do("GET", path, nil)
+		if err != nil {
+			return err
+		}
+		var d doraResp
+		if err := decodeOK(res, &d); err != nil {
+			return err
+		}
+
+		scope := "all environments"
+		if envName != "" {
+			scope = envName
+		}
+		fmt.Printf("DORA metrics — last %d days — %s\n\n", d.WindowDays, scope)
+		row := func(label string, m doraMetricResp, note string) {
+			fmt.Printf("  %-22s %-14s %-7s %s\n", label, m.Display, strings.ToUpper(m.Rating), note)
+		}
+		// Time to restore comes from incidents, which aren't tied to an
+		// environment — so it's always org-wide. Flag that when a scope is set.
+		mttrNote := ""
+		if envName != "" {
+			mttrNote = "(org-wide)"
+		}
+		row("Deployment frequency", d.DeployFrequency, "")
+		row("Lead time for changes", d.LeadTime, "")
+		row("Change failure rate", d.ChangeFailRate, "")
+		row("Time to restore", d.TimeToRestore, mttrNote)
+		return nil
+	},
+}
+
 func init() {
 	loginCmd.Flags().String("api", "", "API base URL (e.g. https://kollaber.io) — saved to config")
 	loginCmd.Flags().String("token", "", "CLI token from the web UI (for GitHub OAuth users)")
@@ -693,6 +766,7 @@ func init() {
 	deployCmd.Flags().String("env", "", "Environment name or ID")
 	deployCmd.Flags().String("service", "", "Service name")
 	deployCmd.Flags().String("version", "", "Version string (e.g. v1.2.3)")
+	deployCmd.Flags().String("committed-at", "", "Commit time (RFC3339) — powers the DORA lead-time metric")
 
 	askCmd.Flags().String("env", "", "Scope the question to an environment name or ID")
 	askCmd.Flags().Bool("quiet", false, "Suppress tool-lookup progress on stderr")
@@ -707,7 +781,10 @@ func init() {
 	incidentAttachCmd.Flags().StringSlice("event", nil, "Event ID to attach (repeatable)")
 	incidentCmd.AddCommand(incidentListCmd, incidentOpenCmd, incidentResolveCmd, incidentAttachCmd)
 
-	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd, incidentCmd)
+	doraCmd.Flags().Int("days", 30, "Window size in days")
+	doraCmd.Flags().String("env", "", "Scope to an environment name or ID (omit for all)")
+
+	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd, incidentCmd, doraCmd)
 }
 
 func main() {

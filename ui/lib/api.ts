@@ -609,3 +609,35 @@ export async function attachEvents(id: string, eventIds: string[]): Promise<numb
   })
   return (data as { attached: number }).attached
 }
+
+// --- DORA metrics ---
+
+export type DoraRating = "elite" | "high" | "medium" | "low" | "n/a"
+
+const doraMetricSchema = z.object({
+  value: z.number(),
+  display: z.string(),
+  rating: z.enum(["elite", "high", "medium", "low", "n/a"]),
+  samples: z.number(),
+})
+
+const doraSchema = z.object({
+  window_days: z.number(),
+  since: z.string(),
+  environment_id: z.string().optional().default(""),
+  deploy_frequency: doraMetricSchema,
+  lead_time: doraMetricSchema,
+  change_failure_rate: doraMetricSchema,
+  time_to_restore: doraMetricSchema,
+  time_to_restore_scope: z.string(),
+  trend: z.array(z.object({ day: z.string(), deploys: z.number() })),
+})
+
+export type DoraMetric = z.infer<typeof doraMetricSchema>
+export type Dora = z.infer<typeof doraSchema>
+
+export function getDora(days: number, environmentId?: string): Promise<Dora> {
+  const params = new URLSearchParams({ days: String(days) })
+  if (environmentId) params.set("environment_id", environmentId)
+  return request(`/metrics/dora?${params}`, doraSchema) as Promise<Dora>
+}

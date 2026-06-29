@@ -59,6 +59,10 @@ kollaber envs
 # Send a deploy event
 kollaber deploy --env production --service api --version v1.2.3
 
+# Pass the commit time to power the DORA lead-time metric
+kollaber deploy --env production --service api --version v1.2.3 \
+  --committed-at "$(git show -s --format=%cI HEAD)"
+
 # Add a note
 kollaber note --env production "Rolling back — 5xx spike in us-east-1"
 
@@ -73,6 +77,14 @@ kollaber incident open --title "Deploy failed" --severity sev2 --event <event-id
 kollaber incident attach <incident-id> --event <event-id>   # repeatable
 kollaber incident resolve <incident-id>      # defaults to resolved
 kollaber incident resolve <incident-id> --status mitigated
+
+# DORA metrics — deploy frequency, lead time, change failure rate, time to restore
+kollaber dora                                # last 30 days, all environments
+kollaber dora --days 7                       # last 7 days
+kollaber dora --env production --days 90      # scope to one environment
+# Lead time needs a commit timestamp on deploys (deploy --committed-at, or a
+# committed_at field in webhook metadata). Time to restore is derived from
+# incidents and is always org-wide; --env narrows the other three metrics only.
 
 # Ask the AI assistant (Team plan and up); answer streams to stdout,
 # tool lookups to stderr, so you can pipe the answer cleanly
@@ -107,7 +119,8 @@ No CLI install needed — POST directly from CI:
         "environment_id": "${{ secrets.KOLLABER_ENV_ID }}",
         "metadata": {
           "version": "${{ github.sha }}",
-          "author": "${{ github.actor }}"
+          "author": "${{ github.actor }}",
+          "committed_at": "${{ github.event.head_commit.timestamp }}"
         }
       }'
 ```
