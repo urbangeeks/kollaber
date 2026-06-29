@@ -57,6 +57,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	auditH := NewAuditHandler(q)
 	ssoH := NewSSOHandler(q)
 	incidents := NewIncidentsHandler(q)
+	doraH := NewDORAHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -106,6 +107,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.PATCH("/incidents/:id", incidents.Update)
 	protected.POST("/incidents/:id/events", incidents.AttachEvents)
 	protected.POST("/incidents/:id/postmortem", aiH.PostmortemIncident)
+	protected.GET("/metrics/dora", doraH.Metrics)
 	protected.GET("/services", services.List)
 	protected.POST("/invites", invites.Create)
 	protected.POST("/invites/:token/join", invites.Join)
