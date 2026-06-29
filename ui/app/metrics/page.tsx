@@ -16,6 +16,12 @@ import { ThemeToggle } from "@/components/settings-nav"
 import { DotBackground } from "@/components/dot-background"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ArrowLeft, Loader2, Rocket, Timer, TriangleAlert, Wrench } from "lucide-react"
 
 // DORA performance tiers map to a consistent colour across badge and value.
@@ -80,24 +86,62 @@ function MetricCard({ def, metric, note }: { def: CardDef; metric: DoraMetric; n
   )
 }
 
-// TrendChart draws a simple bar-per-day sparkline of deploy counts. Bars are
+// fmtDay turns an ISO "YYYY-MM-DD" day key into a short "Mon D" label.
+function fmtDay(day: string): string {
+  // Parse as UTC so the label matches the bucket key regardless of local tz.
+  const d = new Date(`${day}T00:00:00Z`)
+  if (isNaN(d.getTime())) return day
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })
+}
+
+// TrendChart draws a bar-per-day sparkline of deploy counts. Bars are
 // height-scaled to the busiest day so a quiet week still reads clearly.
+// Because heights are relative, the chart annotates the peak (Y reference),
+// the window's start/end dates (X), and the total/average (a key for scale).
+// Each bar is a shadcn Tooltip trigger; content renders in a portal so it is
+// never clipped by the card or the chart's own bounds.
 function TrendChart({ trend }: { trend: Dora["trend"] }) {
   if (trend.length === 0) {
     return <p className="text-sm text-muted-foreground">No deploys in this window.</p>
   }
-  const max = Math.max(...trend.map((p) => p.deploys), 1)
+  const counts = trend.map((p) => p.deploys)
+  const max = Math.max(...counts, 1)
+  const total = counts.reduce((a, b) => a + b, 0)
+  const perDay = total / trend.length
+
   return (
-    <div className="flex h-32 items-end gap-1">
-      {trend.map((p) => (
-        <div
-          key={p.day}
-          className="flex-1 rounded-t bg-primary/70 transition-all hover:bg-primary"
-          style={{ height: `${Math.max(4, (p.deploys / max) * 100)}%` }}
-          title={`${p.day}: ${p.deploys} deploy${p.deploys === 1 ? "" : "s"}`}
-        />
-      ))}
-    </div>
+    <TooltipProvider delayDuration={0}>
+      <div className="mb-2 flex items-baseline justify-between text-xs text-muted-foreground">
+        <span>
+          <span className="font-medium text-foreground">{total}</span> deploy
+          {total === 1 ? "" : "s"} · ~{perDay.toFixed(1)}/day
+        </span>
+        <span>peak {max}/day</span>
+      </div>
+      {/* Bars sit on a baseline; height is a fraction of the peak day. */}
+      <div className="flex h-32 items-end gap-1 border-b border-border">
+        {trend.map((p) => (
+          <Tooltip key={p.day}>
+            <TooltipTrigger asChild>
+              <div
+                className="flex-1 rounded-t bg-primary/70 transition-colors hover:bg-primary data-[state=delayed-open]:bg-primary"
+                style={{ height: `${Math.max(4, (p.deploys / max) * 100)}%` }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="font-medium">{fmtDay(p.day)}</div>
+              <div className="opacity-80">
+                {p.deploys} deploy{p.deploys === 1 ? "" : "s"}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+        <span>{fmtDay(trend[0].day)}</span>
+        <span>{fmtDay(trend[trend.length - 1].day)}</span>
+      </div>
+    </TooltipProvider>
   )
 }
 
