@@ -45,14 +45,21 @@ type doraResponse struct {
 	TimeToRestore   doraMetric `json:"time_to_restore"`
 	// TimeToRestoreScope is always "org": incidents have no environment, so MTTR
 	// covers the whole org even when environment_id narrows the other metrics.
-	TimeToRestoreScope string           `json:"time_to_restore_scope"`
-	Trend              []doraTrendPoint `json:"trend"`
+	TimeToRestoreScope string              `json:"time_to_restore_scope"`
+	Trend              []doraTrendPoint    `json:"trend"`
+	RestoreTrend       []restoreTrendPoint `json:"restore_trend"`
 }
 
 type doraTrendPoint struct {
-	Day     string `json:"day"`
-	Deploys int64  `json:"deploys"`
-	Failed  int64  `json:"failed"`
+	Day         string  `json:"day"`
+	Deploys     int64   `json:"deploys"`
+	Failed      int64   `json:"failed"`
+	LeadSeconds float64 `json:"lead_seconds"`
+}
+
+type restoreTrendPoint struct {
+	Day     string  `json:"day"`
+	Seconds float64 `json:"seconds"`
 }
 
 // Metrics handles GET /metrics/dora?days=30&environment_id=uuid.
@@ -95,6 +102,10 @@ func (h *DORAHandler) Metrics(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not compute trend"})
 	}
+	restoreTrend, err := h.q.RestoreTrend(ctx, params)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not compute restore trend"})
+	}
 
 	resp.DeployFrequency = deployFrequencyMetric(m.TotalDeploys, int(days))
 	resp.LeadTime = leadTimeMetric(m.LeadTimeSeconds, m.LeadTimeSamples)
@@ -104,9 +115,18 @@ func (h *DORAHandler) Metrics(c echo.Context) error {
 	resp.Trend = make([]doraTrendPoint, 0, len(trend))
 	for _, p := range trend {
 		resp.Trend = append(resp.Trend, doraTrendPoint{
+			Day:         p.Day.Time.UTC().Format("2006-01-02"),
+			Deploys:     p.Deploys,
+			Failed:      p.Failed,
+			LeadSeconds: p.LeadSeconds,
+		})
+	}
+
+	resp.RestoreTrend = make([]restoreTrendPoint, 0, len(restoreTrend))
+	for _, p := range restoreTrend {
+		resp.RestoreTrend = append(resp.RestoreTrend, restoreTrendPoint{
 			Day:     p.Day.Time.UTC().Format("2006-01-02"),
-			Deploys: p.Deploys,
-			Failed:  p.Failed,
+			Seconds: p.Seconds,
 		})
 	}
 

@@ -630,7 +630,15 @@ const doraSchema = z.object({
   change_failure_rate: doraMetricSchema,
   time_to_restore: doraMetricSchema,
   time_to_restore_scope: z.string(),
-  trend: z.array(z.object({ day: z.string(), deploys: z.number(), failed: z.number() })),
+  trend: z.array(
+    z.object({
+      day: z.string(),
+      deploys: z.number(),
+      failed: z.number(),
+      lead_seconds: z.number(),
+    }),
+  ),
+  restore_trend: z.array(z.object({ day: z.string(), seconds: z.number() })),
 })
 
 export type DoraMetric = z.infer<typeof doraMetricSchema>

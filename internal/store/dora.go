@@ -30,11 +30,21 @@ type DORAMetrics struct {
 // DeployTrendPoint is one day's deploy count, used to draw a sparkline of
 // deployment frequency over the window. Failed counts the subset of that day's
 // deploys with a failure status, so the UI can flag days that shipped a bad
-// change.
+// change. LeadSeconds is that day's average commit→deploy lead time (0 when no
+// deploy that day carried parseable commit metadata).
 type DeployTrendPoint struct {
+	Day         pgtype.Timestamptz `json:"day"`
+	Deploys     int64              `json:"deploys"`
+	Failed      int64              `json:"failed"`
+	LeadSeconds float64            `json:"lead_seconds"`
+}
+
+// RestoreTrendPoint is one resolved incident's restore time, keyed by the day
+// it resolved. Unlike the deploy series this is sparse (only days with a
+// resolution appear) and org-wide, since incidents carry no environment.
+type RestoreTrendPoint struct {
 	Day     pgtype.Timestamptz `json:"day"`
-	Deploys int64              `json:"deploys"`
-	Failed  int64              `json:"failed"`
+	Seconds float64            `json:"seconds"`
 }
 
 // DORAParams scopes a metrics query. EnvironmentID is optional; when nil the
@@ -113,16 +123,35 @@ func (q *Queries) DORA(ctx context.Context, arg DORAParams) (DORAMetrics, error)
 // dense series.
 func (q *Queries) DeployTrend(ctx context.Context, arg DORAParams) ([]DeployTrendPoint, error) {
 	rows, err := q.db.Query(ctx, `
+		WITH deploys AS (
+			SELECT
+				e.timestamp,
+				e.status,
+				CASE
+					WHEN commit_raw ~ '^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}'
+					THEN commit_raw::timestamptz
+				END AS committed_at
+			FROM events e
+			JOIN environments env ON env.id = e.environment_id
+			CROSS JOIN LATERAL (
+				SELECT COALESCE(
+					e.metadata->>'committed_at',
+					e.metadata->>'commit_time',
+					e.metadata->>'commit_timestamp'
+				) AS commit_raw
+			) c
+			WHERE env.org_id = $1
+			  AND e.type = 'deploy'
+			  AND e.timestamp >= $2
+			  AND ($3::uuid IS NULL OR e.environment_id = $3::uuid)
+		)
 		SELECT
-			date_trunc('day', e.timestamp) AS day,
+			date_trunc('day', timestamp) AS day,
 			COUNT(*),
-			COUNT(*) FILTER (WHERE e.status = 'failure')
-		FROM events e
-		JOIN environments env ON env.id = e.environment_id
-		WHERE env.org_id = $1
-		  AND e.type = 'deploy'
-		  AND e.timestamp >= $2
-		  AND ($3::uuid IS NULL OR e.environment_id = $3::uuid)
+			COUNT(*) FILTER (WHERE status = 'failure'),
+			COALESCE(EXTRACT(EPOCH FROM AVG(timestamp - committed_at)
+				FILTER (WHERE committed_at IS NOT NULL AND timestamp >= committed_at)), 0)
+		FROM deploys
 		GROUP BY 1
 		ORDER BY 1`,
 		arg.OrgID, arg.Since, envArg(arg.EnvironmentID),
@@ -135,7 +164,39 @@ func (q *Queries) DeployTrend(ctx context.Context, arg DORAParams) ([]DeployTren
 	var out []DeployTrendPoint
 	for rows.Next() {
 		var p DeployTrendPoint
-		if err := rows.Scan(&p.Day, &p.Deploys, &p.Failed); err != nil {
+		if err := rows.Scan(&p.Day, &p.Deploys, &p.Failed, &p.LeadSeconds); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// RestoreTrend returns the restore time of each incident resolved within the
+// window, keyed by its resolution day and ordered oldest first. Org-wide, since
+// incidents have no environment; used to draw an MTTR sparkline.
+func (q *Queries) RestoreTrend(ctx context.Context, arg DORAParams) ([]RestoreTrendPoint, error) {
+	rows, err := q.db.Query(ctx, `
+		SELECT
+			date_trunc('day', resolved_at) AS day,
+			EXTRACT(EPOCH FROM (resolved_at - opened_at))
+		FROM incidents
+		WHERE org_id = $1
+		  AND status = 'resolved'
+		  AND resolved_at IS NOT NULL
+		  AND resolved_at >= $2
+		ORDER BY resolved_at`,
+		arg.OrgID, arg.Since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []RestoreTrendPoint
+	for rows.Next() {
+		var p RestoreTrendPoint
+		if err := rows.Scan(&p.Day, &p.Seconds); err != nil {
 			return nil, err
 		}
 		out = append(out, p)

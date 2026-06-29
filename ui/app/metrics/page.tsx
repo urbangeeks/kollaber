@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -49,7 +49,17 @@ const CARDS: CardDef[] = [
   { key: "time_to_restore",     label: "Time to restore",       hint: "Incident open → resolved",           icon: Wrench },
 ]
 
-function MetricCard({ def, metric, note }: { def: CardDef; metric: DoraMetric; note?: string }) {
+function MetricCard({
+  def,
+  metric,
+  note,
+  sparkline,
+}: {
+  def: CardDef
+  metric: DoraMetric
+  note?: string
+  sparkline?: ReactNode
+}) {
   const rating = RATING[metric.rating]
   const Icon = def.icon
   // With no data (n/a) the "display" is a short explanatory phrase, not a
@@ -81,6 +91,7 @@ function MetricCard({ def, metric, note }: { def: CardDef; metric: DoraMetric; n
           {note ? <span className="ml-1 italic">· {note}</span> : null}
           {metric.samples > 0 ? <span className="ml-1">· {metric.samples} sample{metric.samples === 1 ? "" : "s"}</span> : null}
         </div>
+        {sparkline ? <div className="mt-3">{sparkline}</div> : null}
       </CardContent>
     </Card>
   )
@@ -92,6 +103,53 @@ function fmtDay(day: string): string {
   const d = new Date(`${day}T00:00:00Z`)
   if (isNaN(d.getTime())) return day
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })
+}
+
+// fmtDuration renders a span of seconds compactly (e.g. "3.2h", "1.5d"),
+// mirroring the backend's humanDuration so card and sparkline agree.
+function fmtDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`
+  return `${(seconds / 86400).toFixed(1)}d`
+}
+
+// MiniSparkline draws a compact bar-per-point trend for a secondary metric,
+// sized to fit inside a metric card. Heights are relative to the series max, so
+// the tallest bar is the period's worst (lead time / failure rate / MTTR are
+// all "lower is better"). `format` builds each bar's hover label; points with
+// no value render as a faint stub.
+function MiniSparkline({
+  series,
+  format,
+}: {
+  series: { label: string; value: number }[]
+  format: (v: number) => string
+}) {
+  const max = Math.max(...series.map((p) => p.value), 0)
+  if (series.length === 0 || max === 0) {
+    return <div className="h-8 text-[10px] leading-8 text-muted-foreground">no trend data</div>
+  }
+  return (
+    <TooltipProvider delayDuration={0}>
+      <div className="flex h-8 items-end gap-px">
+        {series.map((p, i) => (
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              <div
+                className="flex-1 rounded-t bg-muted-foreground/40 transition-colors hover:bg-muted-foreground data-[state=delayed-open]:bg-muted-foreground"
+                style={{ height: p.value > 0 ? `${Math.max(6, (p.value / max) * 100)}%` : "2px" }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="font-medium">{p.label}</div>
+              <div className="opacity-80">{p.value > 0 ? format(p.value) : "—"}</div>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
+  )
 }
 
 // TrendChart draws a bar-per-day sparkline of deploy counts. Bars are
@@ -189,6 +247,41 @@ function TrendChart({ trend }: { trend: Dora["trend"] }) {
   )
 }
 
+// sparklineFor builds the in-card trend for a secondary metric from the DORA
+// payload, or returns null for deployment frequency (which has the big chart).
+// Lead time and CFR share the dense per-day deploy series; MTTR uses the sparse
+// per-incident restore series.
+function sparklineFor(key: CardDef["key"], data: Dora): ReactNode {
+  switch (key) {
+    case "lead_time":
+      return (
+        <MiniSparkline
+          series={data.trend.map((p) => ({ label: fmtDay(p.day), value: p.lead_seconds }))}
+          format={fmtDuration}
+        />
+      )
+    case "change_failure_rate":
+      return (
+        <MiniSparkline
+          series={data.trend.map((p) => ({
+            label: fmtDay(p.day),
+            value: p.deploys > 0 ? p.failed / p.deploys : 0,
+          }))}
+          format={(v) => `${Math.round(v * 100)}%`}
+        />
+      )
+    case "time_to_restore":
+      return (
+        <MiniSparkline
+          series={data.restore_trend.map((p) => ({ label: fmtDay(p.day), value: p.seconds }))}
+          format={fmtDuration}
+        />
+      )
+    default:
+      return null
+  }
+}
+
 export default function MetricsPage() {
   const router = useRouter()
   const [envs, setEnvs] = useState<Environment[]>([])
@@ -282,6 +375,9 @@ export default function MetricsPage() {
                   // MTTR is computed from incidents, which carry no environment —
                   // so it stays org-wide even when a single env is selected.
                   note={def.key === "time_to_restore" && scopedToEnv ? "org-wide" : undefined}
+                  // Deployment frequency owns the big chart below; the other
+                  // three get an in-card sparkline of their own trend.
+                  sparkline={sparklineFor(def.key, data)}
                 />
               ))}
             </div>
