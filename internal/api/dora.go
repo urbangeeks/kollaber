@@ -52,6 +52,7 @@ type doraResponse struct {
 type doraTrendPoint struct {
 	Day     string `json:"day"`
 	Deploys int64  `json:"deploys"`
+	Failed  int64  `json:"failed"`
 }
 
 // Metrics handles GET /metrics/dora?days=30&environment_id=uuid.
@@ -105,6 +106,7 @@ func (h *DORAHandler) Metrics(c echo.Context) error {
 		resp.Trend = append(resp.Trend, doraTrendPoint{
 			Day:     p.Day.Time.UTC().Format("2006-01-02"),
 			Deploys: p.Deploys,
+			Failed:  p.Failed,
 		})
 	}
 
