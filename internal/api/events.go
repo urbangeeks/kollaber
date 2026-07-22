@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,10 +73,10 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	if req.Type == "" || req.Service == "" || req.EnvironmentID == uuid.Nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type, service, and environment_id are required"})
 	}
-	switch req.Type {
-	case "deploy", "alert", "note", "teardown", "rollback", "scale":
-	default:
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "type must be deploy, alert, note, teardown, rollback, or scale"})
+	if !store.IsValidEventType(req.Type) {
+		return c.JSON(http.StatusBadRequest, echo.Map{
+			"error": "type must be one of: " + strings.Join(store.ValidEventTypes, ", "),
+		})
 	}
 	if req.Status == "" {
 		req.Status = "success"
