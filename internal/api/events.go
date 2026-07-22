@@ -108,31 +108,36 @@ func (h *EventsHandler) Create(c echo.Context) error {
 
 	broadcastEvent(h.hub, orgID.String(), req.EnvironmentID.String(), toEventResponse(event))
 
-	go func() {
-		env, err := h.q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: req.EnvironmentID, Valid: true})
-		if err != nil {
-			return
-		}
-
-		// Email: per-user opt-in
-		recipients, err := h.q.GetOrgMembersToNotify(ctx, store.GetOrgMembersToNotifyParams{
-			OrgID:   pgtype.UUID{Bytes: orgID, Valid: true},
-			Column2: req.Type,
-		})
-		if err == nil && len(recipients) > 0 {
-			_ = resend.SendEventNotification(recipients, req.Type, req.Service, env.Name)
-		}
-
-		// Slack: org-level webhook
-		slackURL, _ := h.q.GetOrgSlackWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
-		_ = slack.SendEventNotification(slackURL, req.Type, req.Service, env.Name)
-
-		// Teams: org-level webhook
-		teamsURL, _ := h.q.GetOrgTeamsWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
-		_ = teams.SendEventNotification(teamsURL, req.Type, req.Service, env.Name)
-	}()
+	go notifyEvent(ctx, h.q, orgID, req.EnvironmentID, req.Type, req.Service)
 
 	return c.JSON(http.StatusCreated, toEventResponse(event))
+}
+
+// notifyEvent fans an event out to email, Slack, and Teams. Every delivery is
+// best-effort: a misconfigured webhook must not affect the ingest response, so
+// callers run this in a goroutine and errors are dropped.
+func notifyEvent(ctx context.Context, q *store.Queries, orgID, envID uuid.UUID, eventType, service string) {
+	env, err := q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: envID, Valid: true})
+	if err != nil {
+		return
+	}
+
+	// Email: per-user opt-in
+	recipients, err := q.GetOrgMembersToNotify(ctx, store.GetOrgMembersToNotifyParams{
+		OrgID:   pgtype.UUID{Bytes: orgID, Valid: true},
+		Column2: eventType,
+	})
+	if err == nil && len(recipients) > 0 {
+		_ = resend.SendEventNotification(recipients, eventType, service, env.Name)
+	}
+
+	// Slack: org-level webhook
+	slackURL, _ := q.GetOrgSlackWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
+	_ = slack.SendEventNotification(slackURL, eventType, service, env.Name)
+
+	// Teams: org-level webhook
+	teamsURL, _ := q.GetOrgTeamsWebhook(ctx, pgtype.UUID{Bytes: orgID, Valid: true})
+	_ = teams.SendEventNotification(teamsURL, eventType, service, env.Name)
 }
 
 func (h *EventsHandler) List(c echo.Context) error {
