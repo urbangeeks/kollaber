@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // "npm run build" copies out/ into dist/ for the Go binary to embed, so
+    // dist/ is generated output too — without this, lint reports thousands of
+    // problems against a duplicate of an already-ignored directory.
+    "dist/**",
   ]),
 ]);
 
