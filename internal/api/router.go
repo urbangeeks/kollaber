@@ -97,6 +97,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.DELETE("/environments/:id", envs.Delete)
 	protected.POST("/events", events.Create)
 	protected.GET("/events", events.List)
+	protected.GET("/events/:id", events.Get)
 	protected.GET("/events/stream", streamH.Stream)
 	protected.POST("/events/:id/comments", comments.Create)
 	protected.GET("/events/:id/comments", comments.List)

@@ -13,6 +13,7 @@ Capture deploys, alerts, and manual notes in a shared timeline your whole team c
 - **Comments** — annotate any event with root cause, rollback decisions, follow-ups
 - **CLI** — send deploy events and notes from your terminal or CI pipeline
 - **AI timeline assistant** — ask natural-language questions about your events, in the dashboard or from the CLI (Team plan and up)
+- **MCP server** — expose the timeline to Claude Code, Cursor, and other coding agents with `kollaber mcp`
 - **Webhooks** — integrate GitHub Actions or any HTTP tool without installing anything
 - **Alert ingestion** — point Prometheus Alertmanager at Kollaber and firing alerts land next to the deploys that caused them
 - **Role-based access** — Owner / Admin / Member / Viewer tiers per organization
@@ -103,6 +104,53 @@ kollaber ask --env production
 
 The CLI stores its token at `~/.kollaber/config.json`.  
 Defaults to `https://kollaber.io` (the hosted service); set `KOLLABER_API` (or `--api` on login) to point at a self-hosted instance.
+
+## MCP server
+
+`kollaber mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io)
+server over stdio, so coding agents can query your timeline while you debug —
+without leaving the editor.
+
+```bash
+kollaber login          # the MCP server reuses this token
+claude mcp add kollaber -- kollaber mcp
+```
+
+Any MCP client works:
+
+```json
+{ "mcpServers": { "kollaber": { "command": "kollaber", "args": ["mcp"] } } }
+```
+
+Then ask things like *"what deployed to production in the last hour?"* or
+*"what changed right before this alert fired?"*
+
+**Tools.**
+
+| Tool | |
+|---|---|
+| `list_environments` | Environments with ids and cluster names |
+| `get_timeline` | Events, filterable by environment, type, service, status, time range |
+| `get_event` | One event with full metadata and its comment thread |
+| `find_related_events` | Events surrounding an event, split into before / after |
+| `list_incidents` | Incidents, optionally filtered by status |
+| `get_dora_metrics` | Deploy frequency, lead time, change failure rate, time to restore |
+| `add_note` | Write a note to an environment's timeline |
+| `add_comment` | Comment on an existing event |
+
+The six read tools are annotated `readOnlyHint`, so clients can run them without
+prompting; `add_note` and `add_comment` write to a shared team timeline and are
+not.
+
+`find_related_events` is the one worth knowing about — anchor it on an alert and
+it returns the deploys that preceded it, which is the question you actually have
+at 3am. Events sharing the anchor's timestamp to the second land in a separate
+`concurrent` bucket rather than being reported as causes, since the API
+serializes timestamps at second precision and cannot order them.
+
+> Unlike `kollaber ask`, which runs inference against the server's Anthropic key
+> and needs the Team plan, the MCP server runs on your own client's model — so
+> it works on every plan, self-hosted included.
 
 ## Webhooks
 

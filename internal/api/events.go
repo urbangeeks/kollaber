@@ -140,6 +140,31 @@ func notifyEvent(ctx context.Context, q *store.Queries, orgID, envID uuid.UUID, 
 	_ = teams.SendEventNotification(teamsURL, eventType, service, env.Name)
 }
 
+// Get returns a single event by id. The AI agent has always reached this
+// through the store directly, so the REST API never grew the route — leaving
+// clients to page through /events to resolve one id.
+func (h *EventsHandler) Get(c echo.Context) error {
+	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid event id"})
+	}
+
+	event, err := h.q.GetEventByIDForOrg(context.Background(),
+		pgtype.UUID{Bytes: eventID, Valid: true},
+		pgtype.UUID{Bytes: orgID, Valid: true},
+	)
+	if err != nil {
+		// GetEventByIDForOrg joins on org, so a miss is either a genuinely
+		// unknown id or another org's event. Both are "not found" here — saying
+		// which would leak the existence of other orgs' events.
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "event not found"})
+	}
+
+	return c.JSON(http.StatusOK, toEventResponse(event))
+}
+
 func (h *EventsHandler) List(c echo.Context) error {
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
 	limit := parseInt32(c.QueryParam("limit"), 50, 200)

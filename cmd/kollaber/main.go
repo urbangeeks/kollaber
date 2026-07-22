@@ -784,7 +784,7 @@ func init() {
 	doraCmd.Flags().Int("days", 30, "Window size in days")
 	doraCmd.Flags().String("env", "", "Scope to an environment name or ID (omit for all)")
 
-	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd, incidentCmd, doraCmd)
+	rootCmd.AddCommand(loginCmd, envsCmd, timelineCmd, noteCmd, deployCmd, askCmd, incidentCmd, doraCmd, mcpCmd)
 }
 
 func main() {
