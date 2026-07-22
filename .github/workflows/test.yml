@@ -54,10 +54,15 @@ jobs:
       # TEST_DATABASE_URL is what makes the store integration tests run rather
       # than skip. testStore fails outright if it is missing under CI, so this
       # cannot silently regress to a no-op.
+      #
+      # -count=1 disables the test cache. Go keys that cache on inputs it can
+      # see, and the Postgres container is not one of them — so an unchanged
+      # commit would report a cached "ok" without ever touching this run's
+      # fresh database.
       - name: Test
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/kollaber_test?sslmode=disable
-        run: go test -race ./...
+        run: go test -race -count=1 ./...
 
   ui:
     name: UI
