@@ -270,7 +270,7 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
                 To get one:
               </p>
               <ol className="mt-2 list-decimal list-inside space-y-1 pl-2 text-sm">
-                <li>Open your Slack workspace's App Directory and install <strong className="text-white">Incoming Webhooks</strong></li>
+                <li>Open your Slack workspace&apos;s App Directory and install <strong className="text-white">Incoming Webhooks</strong></li>
                 <li>Choose a channel and click <strong className="text-white">Add Incoming Webhooks integration</strong></li>
                 <li>Copy the generated webhook URL and paste it into Kollaber</li>
               </ol>
@@ -572,7 +572,7 @@ kube-watcher \\
             </SubSection>
 
             <SubSection title="In-cluster PostgreSQL">
-              <p>If you don't have an external database, deploy one with Bitnami's chart:</p>
+              <p>If you don&apos;t have an external database, deploy one with Bitnami&apos;s chart:</p>
               <Code>{`helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \\
   --namespace kollaber \\
   --set auth.username=kollaber \\

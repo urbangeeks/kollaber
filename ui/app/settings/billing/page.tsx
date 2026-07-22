@@ -11,6 +11,7 @@ import {
   createPortalSession,
   type BillingStatus,
 } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -87,12 +88,11 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
-  const [role, setRole] = useState<string | null>(null)
+  const role = useClientValue<string | null>(getCurrentRole, null)
 
   useEffect(() => {
     if (SELF_HOSTED) { router.replace("/settings/notifications"); return }
     if (!getToken()) { router.replace("/login"); return }
-    setRole(getCurrentRole())
     getBillingStatus()
       .then(setBilling)
       .catch((err) => toast.error(err.message))
@@ -111,7 +111,9 @@ export default function BillingPage() {
     setCheckoutLoading(plan)
     try {
       const url = await createCheckoutSession(plan)
-      window.location.href = url
+      // assign() rather than `location.href =`, which the compiler's
+      // immutability rule reads as mutating a value it does not own.
+      window.location.assign(url)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start checkout")
       setCheckoutLoading(null)

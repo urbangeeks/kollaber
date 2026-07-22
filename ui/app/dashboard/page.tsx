@@ -19,6 +19,7 @@ import {
   type EnvStat,
   type StreamMessage,
 } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { useEventStream } from "@/hooks/use-event-stream"
 import { createEnvSchema } from "@/lib/schemas"
 import { OrgSwitcher } from "@/components/org-switcher"
@@ -121,10 +122,11 @@ export default function DashboardPage() {
   const [cliToken, setCliToken] = useState("")
   const [cliTokenLoading, setCliTokenLoading] = useState(false)
   const [cliTokenCopied, setCliTokenCopied] = useState(false)
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState<
-    "owner" | "admin" | "member" | "viewer" | null
-  >(null)
+  const email = useClientValue(getCurrentEmail, "")
+  const role = useClientValue<"owner" | "admin" | "member" | "viewer" | null>(
+    getCurrentRole,
+    null,
+  )
   const [deleteTarget, setDeleteTarget] = useState<Environment | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
@@ -136,11 +138,6 @@ export default function DashboardPage() {
     clusterName?: string
   }>({})
   const [editLoading, setEditLoading] = useState(false)
-
-  useEffect(() => {
-    setEmail(getCurrentEmail())
-    setRole(getCurrentRole())
-  }, [])
 
   useEffect(() => {
     if (!getToken()) {

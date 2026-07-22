@@ -16,6 +16,7 @@ import {
   type IncidentSeverity,
   type Event,
 } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { createIncidentSchema } from "@/lib/schemas"
 import { TimelineEvent } from "@/components/timeline-event"
 import { DotBackground } from "@/components/dot-background"
@@ -51,17 +52,15 @@ function fmtDate(ts: string) {
   return new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-// useCanEdit reads the role only after mount. The token lives in localStorage,
-// which is unavailable during SSR, so reading it during render would make the
-// server and client disagree and trigger a hydration mismatch. Returning false
-// until mounted keeps the first client render identical to the server's.
+// useCanEdit reads the role from localStorage, which is unavailable while
+// prerendering — reading it during render would make the server and client
+// disagree and trigger a hydration mismatch. useClientValue serves false until
+// hydration, keeping the first client render identical to the server's.
 function useCanEdit() {
-  const [canEdit, setCanEdit] = useState(false)
-  useEffect(() => {
+  return useClientValue(() => {
     const role = getCurrentRole()
-    setCanEdit(role === "owner" || role === "admin" || role === "member")
-  }, [])
-  return canEdit
+    return role === "owner" || role === "admin" || role === "member"
+  }, false)
 }
 
 // ---- List view ----
@@ -69,9 +68,13 @@ function useCanEdit() {
 function IncidentList() {
   const router = useRouter()
   const canEdit = useCanEdit()
-  const [incidents, setIncidents] = useState<Incident[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<IncidentStatus | "">("")
+  // Keyed by the filter the list was fetched for, so loading is derived rather
+  // than set synchronously in the effect, and a slow response for an older
+  // filter cannot overwrite a newer one.
+  const [loaded, setLoaded] = useState<{ key: string | null; data: Incident[] }>({ key: null, data: [] })
+  const incidents = loaded.key === filter ? loaded.data : []
+  const loading = loaded.key !== filter
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [title, setTitle] = useState("")
@@ -80,11 +83,15 @@ function IncidentList() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    setLoading(true)
+    let cancelled = false
     getIncidents(filter || undefined)
-      .then(setIncidents)
-      .catch((err) => toast.error(err.message))
-      .finally(() => setLoading(false))
+      .then((list) => { if (!cancelled) setLoaded({ key: filter, data: list }) })
+      .catch((err) => {
+        if (cancelled) return
+        toast.error(err.message)
+        setLoaded({ key: filter, data: [] })
+      })
+    return () => { cancelled = true }
   }, [filter])
 
   async function handleCreate(e: React.FormEvent) {
@@ -227,7 +234,11 @@ function IncidentDetail({ id }: { id: string }) {
   const editable = useCanEdit()
   const [incident, setIncident] = useState<Incident | null>(null)
   const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
+  // incident is edited in place by setStatus, so it cannot double as the
+  // load marker — loadedId tracks which id the fetch settled for, which makes
+  // loading derivable instead of set synchronously inside the effect.
+  const [loadedId, setLoadedId] = useState<string | null>(null)
+  const loading = loadedId !== id
   const [error, setError] = useState("")
   const [updating, setUpdating] = useState(false)
   const [postmortem, setPostmortem] = useState<string | null>(null)
@@ -236,11 +247,20 @@ function IncidentDetail({ id }: { id: string }) {
   const [postmortemError, setPostmortemError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
+    let cancelled = false
     getIncident(id)
-      .then(({ incident, events }) => { setIncident(incident); setEvents(events) })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
+      .then(({ incident, events }) => {
+        if (cancelled) return
+        setIncident(incident)
+        setEvents(events)
+        setLoadedId(id)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError(err.message)
+        setLoadedId(id)
+      })
+    return () => { cancelled = true }
   }, [id])
 
   async function setStatus(status: IncidentStatus) {
