@@ -1,15 +1,18 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useEffectEvent } from "react"
 
 export function usePoll(fn: () => void, intervalMs: number, enabled = true) {
-  const fnRef = useRef(fn)
-  fnRef.current = fn
+  // useEffectEvent always sees the latest fn without being a dependency, so the
+  // interval is not torn down and recreated every time the caller passes a new
+  // closure. This replaces a useRef assigned during render, which is unsafe
+  // once React renders concurrently.
+  const tick = useEffectEvent(() => fn())
 
   useEffect(() => {
     if (!enabled) return
-    fnRef.current()
-    const id = setInterval(() => fnRef.current(), intervalMs)
+    tick()
+    const id = setInterval(() => tick(), intervalMs)
     return () => clearInterval(id)
   }, [intervalMs, enabled])
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getToken, getSlackSettings, updateSlackSettings, testSlackSettings, getCurrentRole } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,17 +17,18 @@ export default function SlackSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [canEdit, setCanEdit] = useState(false)
+  const canEdit = useClientValue(() => {
+    const role = getCurrentRole()
+    return role === "owner" || role === "admin"
+  }, false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    const role = getCurrentRole()
-    setCanEdit(role === "owner" || role === "admin")
     getSlackSettings()
       .then(setWebhookUrl)
       .catch(() => toast.error("Failed to load Slack settings"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   async function save() {
     setSaving(true)
@@ -85,7 +87,7 @@ export default function SlackSettingsPage() {
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground space-y-1">
                   <p className="font-medium text-foreground">How to get a webhook URL</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
-                    <li>Go to your Slack workspace's <strong>App Directory</strong></li>
+                    <li>Go to your Slack workspace&apos;s <strong>App Directory</strong></li>
                     <li>Search for and install <strong>Incoming Webhooks</strong></li>
                     <li>Choose a channel and copy the generated webhook URL</li>
                   </ol>

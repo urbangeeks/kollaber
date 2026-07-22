@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useEffectEvent } from "react"
 import { getToken } from "@/lib/api"
 
 const API_BASE =
@@ -16,8 +16,11 @@ export function useEventStream(
   onEvent: (data: unknown) => void,
   enabled = true,
 ) {
-  const onEventRef = useRef(onEvent)
-  onEventRef.current = onEvent
+  // Always calls the latest onEvent without being a dependency, so a new
+  // callback identity does not tear down and reconnect the SSE stream. This
+  // replaces a useRef assigned during render, which is unsafe under concurrent
+  // rendering.
+  const emit = useEffectEvent((data: unknown) => onEvent(data))
 
   useEffect(() => {
     if (!enabled) return
@@ -61,7 +64,7 @@ export function useEventStream(
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               try {
-                onEventRef.current(JSON.parse(line.slice(6)))
+                emit(JSON.parse(line.slice(6)))
               } catch {
                 // malformed JSON — ignore
               }

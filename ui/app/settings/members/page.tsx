@@ -15,9 +15,9 @@ import {
   type Member,
   type PendingInvite,
 } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -49,7 +49,7 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [loading, setLoading] = useState(true)
-  const [myRole, setMyRole] = useState<string | null>(null)
+  const myRole = useClientValue<string | null>(getCurrentRole, null)
 
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [removeLoading, setRemoveLoading] = useState(false)
@@ -65,7 +65,6 @@ export default function MembersPage() {
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    setMyRole(getCurrentRole())
     Promise.all([getMembers(), getPendingInvites()])
       .then(([m, i]) => { setMembers(m); setInvites(i) })
       .catch((err) => toast.error(err.message))

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getToken, getNotificationPrefs, updateNotificationPrefs, getCurrentEmail } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,13 +24,12 @@ export default function NotificationsSettingsPage() {
   const router = useRouter()
   const [notifyOn, setNotifyOn] = useState<string[]>([])
   const [notificationEmail, setNotificationEmail] = useState("")
-  const [accountEmail, setAccountEmail] = useState("")
+  const accountEmail = useClientValue(() => getCurrentEmail() ?? "", "")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    setAccountEmail(getCurrentEmail() ?? "")
     getNotificationPrefs()
       .then(({ notifyOn, notificationEmail }) => {
         setNotifyOn(notifyOn)

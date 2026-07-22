@@ -78,8 +78,12 @@ function EnvPageInner() {
   const [moreEvents, setMoreEvents] = useState<Event[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  // topEvents and moreEvents are also mutated by SSE and pagination, so they
+  // cannot double as the load marker. loadedKey records which filter
+  // combination the fetch settled for, making loading derivable rather than
+  // set synchronously inside the effect below.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
 
   const PAGE_SIZE = 50
   const allEvents = [...topEvents, ...moreEvents]
@@ -135,21 +139,32 @@ function EnvPageInner() {
   if (filterAfter)   activeFilters.after   = filterAfter
   if (filterBefore)  activeFilters.before  = filterBefore
 
-  // Immediately re-fetch and show skeleton whenever filters change.
+  // Identifies the filter combination the list below belongs to.
+  const filterKey = [id, filterType, filterStatus, filterService, filterAfter, filterBefore].join("|")
+  const loading = loadedKey !== filterKey
+
+  // Re-fetch whenever filters change. loadedKey no longer matching filterKey is
+  // what shows the skeleton, so no state has to be reset up front; the stale
+  // list stays behind the skeleton until the new page arrives.
   useEffect(() => {
     if (!isAuthed || !id) return
-    setMoreEvents([])
-    setHasMore(false)
-    setLoading(true)
-    setError("")
+    let cancelled = false
     getEvents(id, PAGE_SIZE, 0, activeFilters)
       .then((evts) => {
+        if (cancelled) return
         setTopEvents(evts)
+        setMoreEvents([])
         setHasMore(evts.length === PAGE_SIZE)
+        setError("")
+        setLoadedKey(filterKey)
         getServices(id).then(setKnownServices).catch(() => {})
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
+      .catch((err) => {
+        if (cancelled) return
+        setError(err.message)
+        setLoadedKey(filterKey)
+      })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, filterType, filterStatus, filterService, filterAfter, filterBefore])
 
@@ -320,6 +335,10 @@ function EnvPageInner() {
           {/* Date range */}
           <div className="flex flex-wrap items-center gap-1">
             {PRESETS.map((p) => {
+              // daysAgo() is recomputed every render at millisecond precision,
+              // so an exact match never holds once a preset has been clicked —
+              // hence the tolerance. This was already computed but the class
+              // below compared exactly, leaving 7d and 30d never highlighted.
               const active = filterAfter === p.after() || (filterAfter && !filterBefore &&
                 Math.abs(new Date(filterAfter).getTime() - new Date(p.after()).getTime()) < 60000)
               return (
@@ -327,7 +346,7 @@ function EnvPageInner() {
                   key={p.label}
                   onClick={() => { setFilterAfter(p.after()); setFilterBefore("") }}
                   className={`h-7 px-3 rounded-md text-xs font-medium transition-colors
-                    ${filterAfter === p.after()
+                    ${active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted border border-border"
                     }`}
