@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getInvite, acceptInvite, joinInvite, sendOTP, setToken, getToken } from "@/lib/api"
 import { otpEmailSchema, otpCodeSchema } from "@/lib/schemas"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +17,9 @@ function InvitePageInner() {
   const inviteToken = searchParams.get("token") ?? ""
   const router = useRouter()
   const [invite, setInvite] = useState<InviteInfo | null>(null)
-  const [loadError, setLoadError] = useState("")
+  const [fetchError, setFetchError] = useState("")
+  // A missing token is knowable during render, so it does not need an effect.
+  const loadError = inviteToken ? fetchError : "No invite token provided"
   const [step, setStep] = useState<"email" | "code">("email")
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
@@ -24,13 +27,16 @@ function InvitePageInner() {
   const [codeError, setCodeError] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const isLoggedIn = Boolean(getToken())
+  // getToken reads localStorage, which is empty while prerendering — reading it
+  // straight during render would render a logged-out page on the server and a
+  // logged-in one on the client.
+  const isLoggedIn = useClientValue(() => Boolean(getToken()), false)
 
   useEffect(() => {
-    if (!inviteToken) { setLoadError("No invite token provided"); return }
+    if (!inviteToken) return
     getInvite(inviteToken)
       .then(setInvite)
-      .catch((err) => setLoadError(err instanceof Error ? err.message : "Invalid invite"))
+      .catch((err) => setFetchError(err instanceof Error ? err.message : "Invalid invite"))
   }, [inviteToken])
 
   async function handleJoin() {

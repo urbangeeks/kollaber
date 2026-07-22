@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getToken, getBillingStatus, type BillingStatus } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Copy, Check } from "lucide-react"
@@ -110,11 +111,14 @@ export default function KubernetesSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
 
-  const [apiBase, setApiBase] = useState("https://kollaber.io")
+  // Falls back to the hosted URL while prerendering, where window is absent.
+  const apiBase = useClientValue(
+    () => window.location.origin.replace(/:3000$/, ":8080"),
+    "https://kollaber.io",
+  )
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    setApiBase(window.location.origin.replace(/:3000$/, ":8080"))
     getBillingStatus()
       .then(setBilling)
       .catch((err) => {

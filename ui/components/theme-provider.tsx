@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useClientValue } from "@/hooks/use-client-value"
 
 type Theme = "light" | "dark" | "system"
 type ResolvedTheme = "light" | "dark"
@@ -19,36 +20,40 @@ export function useTheme() {
   return React.useContext(ThemeContext)
 }
 
-function getResolved(theme: Theme): ResolvedTheme {
-  if (theme !== "system") return theme
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+// The OS colour-scheme preference is external mutable state, so it is read
+// through useSyncExternalStore rather than mirrored into React state by an
+// effect. subscribe is module-scope to keep a stable identity across renders.
+function subscribeToSystemTheme(onChange: () => void) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)")
+  mq.addEventListener("change", onChange)
+  return () => mq.removeEventListener("change", onChange)
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("system")
-  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>("light")
+  // The stored preference lives in localStorage, unreadable while prerendering,
+  // so it is read through the same external-store mechanism. A local override
+  // takes precedence once the user picks a theme in this session.
+  const storedTheme = useClientValue<Theme>(
+    () => (localStorage.getItem("theme") as Theme | null) ?? "system",
+    "system",
+  )
+  const [override, setOverride] = React.useState<Theme | null>(null)
+  const theme = override ?? storedTheme
 
-  // Read stored preference on mount
-  React.useEffect(() => {
-    const stored = (localStorage.getItem("theme") as Theme | null) ?? "system"
-    setThemeState(stored)
-    const resolved = getResolved(stored)
-    setResolvedTheme(resolved)
-    document.documentElement.classList.toggle("dark", resolved === "dark")
-  }, [])
+  const systemTheme = React.useSyncExternalStore(
+    subscribeToSystemTheme,
+    () => (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") as ResolvedTheme,
+    () => "light" as ResolvedTheme,
+  )
+  const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme
 
-  // Watch system preference changes
+  // Reflecting the resolved theme onto <html> is a side effect on something
+  // React does not own, which is what an effect is for. It runs after paint on
+  // mount and on every subsequent change, replacing two effects that each had
+  // to remember to toggle the class themselves.
   React.useEffect(() => {
-    if (theme !== "system") return
-    const mq = window.matchMedia("(prefers-color-scheme: dark)")
-    const handler = () => {
-      const resolved = getResolved("system")
-      setResolvedTheme(resolved)
-      document.documentElement.classList.toggle("dark", resolved === "dark")
-    }
-    mq.addEventListener("change", handler)
-    return () => mq.removeEventListener("change", handler)
-  }, [theme])
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
+  }, [resolvedTheme])
 
   // Toggle hotkey: press "d" to switch
   React.useEffect(() => {
@@ -64,11 +69,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [resolvedTheme])
 
   function setTheme(newTheme: Theme) {
-    setThemeState(newTheme)
     localStorage.setItem("theme", newTheme)
-    const resolved = getResolved(newTheme)
-    setResolvedTheme(resolved)
-    document.documentElement.classList.toggle("dark", resolved === "dark")
+    // localStorage is not reactive, so the override is what re-renders; the
+    // effect above then syncs the <html> class.
+    setOverride(newTheme)
   }
 
   return (

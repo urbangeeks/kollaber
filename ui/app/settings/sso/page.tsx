@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getToken, getCurrentRole, getSSOConfig, saveSSOConfig, type SSOConfig } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,12 +19,13 @@ export default function SSOSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [isAdminOrOwner, setIsAdminOrOwner] = useState(false)
+  const isAdminOrOwner = useClientValue(() => {
+    const role = getCurrentRole()
+    return role === "owner" || role === "admin"
+  }, false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    const role = getCurrentRole()
-    setIsAdminOrOwner(role === "owner" || role === "admin")
     getSSOConfig()
       .then(setCfg)
       .catch((err) => {

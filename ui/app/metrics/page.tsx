@@ -287,8 +287,14 @@ export default function MetricsPage() {
   const [envs, setEnvs] = useState<Environment[]>([])
   const [envId, setEnvId] = useState<string>("") // "" = all environments
   const [days, setDays] = useState<number>(30)
-  const [data, setData] = useState<Dora | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Keyed by the inputs the data was fetched for, so "is it loading?" is
+  // derived rather than set synchronously inside the effect. This also drops a
+  // slow earlier response that would otherwise land after a newer one and
+  // overwrite it.
+  const [loaded, setLoaded] = useState<{ key: string; data: Dora | null }>({ key: "", data: null })
+  const dataKey = `${days}|${envId}`
+  const data = loaded.key === dataKey ? loaded.data : null
+  const loading = loaded.key !== dataKey
 
   useEffect(() => {
     if (!getToken()) {
@@ -302,12 +308,16 @@ export default function MetricsPage() {
 
   useEffect(() => {
     if (!getToken()) return
-    setLoading(true)
+    let cancelled = false
     getDora(days, envId || undefined)
-      .then(setData)
-      .catch((err) => toast.error(err.message))
-      .finally(() => setLoading(false))
-  }, [days, envId])
+      .then((d) => { if (!cancelled) setLoaded({ key: dataKey, data: d }) })
+      .catch((err) => {
+        if (cancelled) return
+        toast.error(err.message)
+        setLoaded({ key: dataKey, data: null })
+      })
+    return () => { cancelled = true }
+  }, [days, envId, dataKey])
 
   const scopedToEnv = envId !== ""
 

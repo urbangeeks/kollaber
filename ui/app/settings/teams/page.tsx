@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getToken, getTeamsSettings, updateTeamsSettings, testTeamsSettings, getCurrentRole } from "@/lib/api"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,17 +17,18 @@ export default function TeamsSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [canEdit, setCanEdit] = useState(false)
+  const canEdit = useClientValue(() => {
+    const role = getCurrentRole()
+    return role === "owner" || role === "admin"
+  }, false)
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return }
-    const role = getCurrentRole()
-    setCanEdit(role === "owner" || role === "admin")
     getTeamsSettings()
       .then(setWebhookUrl)
       .catch(() => toast.error("Failed to load Teams settings"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   async function save() {
     setSaving(true)

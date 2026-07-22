@@ -87,14 +87,9 @@ jobs:
         working-directory: ui
         run: bun run typecheck
 
-      # Non-blocking: main currently has 27 lint problems, mostly
-      # react-hooks/set-state-in-effect across 17 files. Fixing them means real
-      # behavior changes, so this reports without gating until that is done —
-      # then drop continue-on-error and it becomes a real gate.
       - name: Lint
         working-directory: ui
         run: bun run lint
-        continue-on-error: true
 
       - name: Build
         working-directory: ui
