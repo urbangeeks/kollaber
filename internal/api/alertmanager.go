@@ -118,7 +118,13 @@ func (h *AlertmanagerHandler) Ingest(c echo.Context) error {
 	}
 	orgID := uuid.UUID(env.OrgID.Bytes)
 
+	// Alertmanager groups related alerts into a single delivery, so notifying
+	// per alert would fire a burst of near-identical Slack messages for what a
+	// human reads as one incident. Collect the distinct services instead and
+	// notify once each, after the batch lands.
 	var ingested, skipped int
+	notifyServices := map[string]bool{}
+
 	for _, alert := range payload.Alerts {
 		status := "failure"
 		if alert.Status == "resolved" {
@@ -183,7 +189,11 @@ func (h *AlertmanagerHandler) Ingest(c echo.Context) error {
 		ingested++
 
 		broadcastEvent(h.hub, orgID.String(), envUUID.String(), toEventResponse(event))
-		go notifyEvent(ctx, h.q, orgID, envUUID, "alert", event.Service)
+		notifyServices[event.Service] = true
+	}
+
+	for service := range notifyServices {
+		go notifyEvent(ctx, h.q, orgID, envUUID, "alert", service)
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ingested": ingested, "skipped": skipped})
