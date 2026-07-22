@@ -14,6 +14,7 @@ Capture deploys, alerts, and manual notes in a shared timeline your whole team c
 - **CLI** — send deploy events and notes from your terminal or CI pipeline
 - **AI timeline assistant** — ask natural-language questions about your events, in the dashboard or from the CLI (Team plan and up)
 - **Webhooks** — integrate GitHub Actions or any HTTP tool without installing anything
+- **Alert ingestion** — point Prometheus Alertmanager at Kollaber and firing alerts land next to the deploys that caused them
 - **Role-based access** — Owner / Admin / Member / Viewer tiers per organization
 
 ## Quick start (local)
@@ -103,7 +104,9 @@ kollaber ask --env production
 The CLI stores its token at `~/.kollaber/config.json`.  
 Defaults to `https://kollaber.io` (the hosted service); set `KOLLABER_API` (or `--api` on login) to point at a self-hosted instance.
 
-## Webhook
+## Webhooks
+
+### Generic / GitHub Actions
 
 No CLI install needed — POST directly from CI:
 
@@ -124,6 +127,63 @@ No CLI install needed — POST directly from CI:
         }
       }'
 ```
+
+### Prometheus Alertmanager
+
+Point an Alertmanager receiver at `/webhooks/alertmanager` and firing alerts land
+on the timeline next to your deploys. Each entry in the delivery's `alerts[]`
+becomes one `alert` event — firing as `failure`, resolved as `success`.
+
+The target environment comes from the `environment_id` query parameter, since a
+receiver's only per-target field is its URL:
+
+```yaml
+# alertmanager.yml
+receivers:
+  - name: kollaber
+    webhook_configs:
+      - url: https://kollaber.io/webhooks/alertmanager?environment_id=<your-env-id>
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: <your WEBHOOK_SECRET>
+```
+
+`send_resolved: true` is what closes the loop — without it the timeline shows
+alerts firing but never recovering.
+
+**Authentication.** When `WEBHOOK_SECRET` is set the endpoint accepts the secret
+as a bearer token (above), as an `X-Kollaber-Secret` header, or as an
+`X-Hub-Signature-256` HMAC. Alertmanager can only send the first of those; the
+other two are there for non-Alertmanager clients posting the same payload shape.
+When `WEBHOOK_SECRET` is unset the endpoint is open, so set it in any
+internet-facing deployment.
+
+**Field mapping.**
+
+| Event field | Source |
+|---|---|
+| `service` | first non-empty of the `service`, `job`, `app`, `alertname` labels |
+| `status` | `failure` when firing, `success` when resolved |
+| `timestamp` | `startsAt`, or `endsAt` once resolved |
+| `metadata` | `alertname`, `severity`, `summary`, `description`, `fingerprint`, `generator_url`, and all raw labels |
+
+Events are timestamped when the alert actually started rather than when the
+webhook arrived — grouping and `repeat_interval` can delay delivery by minutes,
+which would otherwise misorder alerts against the deploys that caused them.
+
+**Duplicate suppression.** Alertmanager re-sends firing alerts on every
+`repeat_interval`. Kollaber skips a delivery whose `fingerprint` already sits at
+the same status, so the timeline gets one entry when an alert fires and one when
+it resolves — not one every four hours. The response reports both counts:
+
+```json
+{ "ingested": 1, "skipped": 0 }
+```
+
+This also makes retries safe: a delivery that failed mid-batch can be re-sent
+without duplicating the alerts that already landed.
 
 ## Development
 
