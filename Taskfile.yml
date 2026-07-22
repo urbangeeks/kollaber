@@ -19,7 +19,7 @@ tasks:
     desc: Run frontend dev server
     dir: ui
     cmds:
-      - npm run dev
+      - bun run dev
 
   start:
     desc: Start backend and frontend dev servers in parallel
@@ -29,7 +29,7 @@ tasks:
     desc: Build frontend static export into ui/dist
     dir: ui
     cmds:
-      - npm run build
+      - bun run build
 
   build:
     desc: Compile single-binary server (embeds frontend)

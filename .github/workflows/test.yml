@@ -1,0 +1,101 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kollaber_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Without a health check the job races the container and fails on
+        # connection refused rather than on anything real.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # ui/dist holds a committed placeholder so the //go:embed in ui/embed.go
+      # resolves without building the frontend first.
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # TEST_DATABASE_URL is what makes the store integration tests run rather
+      # than skip. testStore fails outright if it is missing under CI, so this
+      # cannot silently regress to a no-op.
+      #
+      # -count=1 disables the test cache. Go keys that cache on inputs it can
+      # see, and the Postgres container is not one of them — so an unchanged
+      # commit would report a cached "ok" without ever touching this run's
+      # fresh database.
+      - name: Test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/kollaber_test?sslmode=disable
+        run: go test -race -count=1 ./...
+
+  ui:
+    name: UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # bun, matching docker/api/Dockerfile — CI must resolve the same
+      # dependency tree that ships, or it validates something else.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      # --frozen-lockfile makes drift between package.json and bun.lock a
+      # failure here rather than a silent re-resolve at image build time.
+      - name: Install
+        working-directory: ui
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: ui
+        run: bun run typecheck
+
+      # Non-blocking: main currently has 27 lint problems, mostly
+      # react-hooks/set-state-in-effect across 17 files. Fixing them means real
+      # behavior changes, so this reports without gating until that is done —
+      # then drop continue-on-error and it becomes a real gate.
+      - name: Lint
+        working-directory: ui
+        run: bun run lint
+        continue-on-error: true
+
+      - name: Build
+        working-directory: ui
+        run: bun run build

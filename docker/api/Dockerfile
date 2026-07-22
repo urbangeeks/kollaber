@@ -1,8 +1,11 @@
 # Stage 1: build the Next.js static export
 FROM docker.io/oven/bun:alpine AS ui-builder
 WORKDIR /ui
-COPY ui/package.json ui/bun.lock* ./
-RUN bun install
+COPY ui/package.json ui/bun.lock ./
+# --frozen-lockfile so the image is reproducible: a bare `bun install` silently
+# rewrites a stale lockfile at build time, which means the published image
+# matches no committed state and lockfile drift never surfaces.
+RUN bun install --frozen-lockfile
 COPY ui/ .
 # Empty API URL = relative paths — served from same origin as the Go binary
 ARG NEXT_PUBLIC_SELF_HOSTED=false

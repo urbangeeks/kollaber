@@ -14,10 +14,18 @@ import (
 // testStore connects to TEST_DATABASE_URL and applies migrations, skipping the
 // test entirely when the env var is unset so `go test ./...` stays runnable
 // without a database.
+//
+// That skip is a convenience for local runs and a hazard in CI, where a missing
+// variable would turn every database test into a silent pass — which is exactly
+// the failure mode that let a broken CHECK constraint reach production. Under
+// CI the absence is a hard error instead.
 func testStore(t *testing.T) (*Queries, *pgxpool.Pool) {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("TEST_DATABASE_URL is unset in CI; database tests must run, not skip")
+		}
 		t.Skip("TEST_DATABASE_URL not set; skipping DB integration test")
 	}
 	ctx := context.Background()
