@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import {
   ArrowRight,
+  ArrowLeft,
   Activity,
   Bell,
   Zap,
@@ -16,6 +17,12 @@ import {
   Check,
   Menu,
   X,
+  Rocket,
+  AlertTriangle,
+  MessageSquare,
+  Sparkles,
+  FileText,
+  Link2,
 } from "lucide-react"
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { BlurFade } from "@/components/ui/blur-fade"
@@ -121,6 +128,44 @@ const PLANS = [
     cta: "Contact us",
     highlight: false,
     features: ["Everything in Pro", "Volume seat pricing", "Dedicated Slack channel", "SLA guarantees", "Custom data retention", "On-prem option"],
+  },
+]
+
+// Sample rows for the hero timeline preview. Recreated in markup (not a
+// screenshot) so it stays sharp on any display and animates with the page.
+const TIMELINE_PREVIEW = [
+  {
+    id: "e1",
+    type: "Deploy",
+    service: "api-service",
+    meta: "ghcr.io/acme/api:v2.4.1",
+    status: "success" as const,
+    time: "10:32 AM",
+    icon: Rocket,
+    ring: "bg-green-500/10 ring-1 ring-green-500/30",
+    iconColor: "text-green-400",
+  },
+  {
+    id: "e2",
+    type: "Alert",
+    service: "checkout",
+    meta: "5xx error rate > 2% for 5m",
+    status: "firing" as const,
+    time: "10:35 AM",
+    icon: AlertTriangle,
+    ring: "bg-red-500/10 ring-1 ring-red-500/30",
+    iconColor: "text-red-400",
+  },
+  {
+    id: "e3",
+    type: "Note",
+    service: "manual",
+    sub: "@you — Investigating gateway timeouts, rolling back api-service",
+    status: null,
+    time: "10:36 AM",
+    icon: MessageSquare,
+    ring: "bg-blue-500/10 ring-1 ring-blue-500/30",
+    iconColor: "text-blue-400",
   },
 ]
 
@@ -265,31 +310,80 @@ export default function Home() {
             </Button>
           </BlurFade>
 
-          {/* Terminal window */}
-          <BlurFade delay={0.6} className="mt-20 w-full max-w-3xl overflow-hidden rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
-            <div className="relative">
+          {/* Product preview — recreated live timeline (kept in markup so it
+              stays crisp and animates instead of being a flat screenshot). */}
+          <BlurFade delay={0.6} className="mt-20 w-full max-w-3xl">
+            <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0d0d0d] text-left shadow-2xl">
               <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={8} />
-              <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
-                <div className="flex gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                  <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                  <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+
+              {/* App header */}
+              <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <ArrowLeft className="h-4 w-4 text-white/40" />
+                  Timeline
                 </div>
-                <div className="mx-auto font-mono text-[11px] text-white/30">bash — kollaber</div>
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-xs text-white/60">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                    </span>
+                    Live
+                  </span>
+                  <span className="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-black">+ New event</span>
+                </div>
               </div>
-              <div className="overflow-x-auto p-3 sm:p-6 text-left font-mono text-xs sm:text-sm leading-relaxed">
-                <div>
-                  <span className="text-white/40">$</span>{" "}
-                  <span className="text-green-400">kollaber deploy --env production --service api</span>
-                </div>
-                <div className="text-white/40">Analyzing infrastructure state...</div>
-                <div className="text-blue-400">→ Detected release v2.4.1 (hash: 8f2a1b)</div>
-                <div className="text-white">✓ Snapshot captured</div>
-                <div className="text-purple-400">✓ Timeline updated for team #platform-ops</div>
-                <div className="mt-2 text-white/40">
-                  View at:{" "}
-                  <span className="text-white/60">https://kollaber.sh/t/8f2a1b</span>
-                </div>
+
+              {/* Filter chips */}
+              <div className="flex flex-wrap gap-1.5 border-b border-white/10 px-4 py-2.5">
+                {["Deploy", "Alert", "Note", "Teardown", "Rollback"].map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/50"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              {/* Event rows */}
+              <div className="divide-y divide-white/5">
+                {TIMELINE_PREVIEW.map((ev) => (
+                  <div key={ev.id} className="flex gap-3 px-4 py-4">
+                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${ev.ring}`}>
+                      <ev.icon className={`h-3.5 w-3.5 ${ev.iconColor}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+                          {ev.type}
+                        </span>
+                        <span className="truncate text-sm font-semibold">{ev.service}</span>
+                        {ev.meta && (
+                          <span className="hidden truncate text-xs text-white/40 sm:inline">{ev.meta}</span>
+                        )}
+                        {ev.status === "success" && (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-green-400">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> success
+                          </span>
+                        )}
+                        {ev.status === "firing" && (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-red-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> firing
+                          </span>
+                        )}
+                        <span className="ml-auto shrink-0 text-xs text-white/30">{ev.time}</span>
+                      </div>
+                      {ev.sub && <div className="mt-1 text-xs text-white/50">{ev.sub}</div>}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-white/30">
+                        <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Comments</span>
+                        <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Summarize</span>
+                        <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> Postmortem</span>
+                        <span className="flex items-center gap-1"><Link2 className="h-3 w-3" /> Attach to incident</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </BlurFade>
@@ -342,6 +436,55 @@ export default function Home() {
                 <p className="text-sm leading-relaxed text-white/50">{feature.desc}</p>
               </BlurFade>
             ))}
+          </div>
+        </section>
+
+        {/* 5b. AI SHOWCASE — real product screenshots */}
+        <section className="py-24">
+          <BlurFade inView className="mb-16 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/10 px-3 py-1 text-xs font-medium text-[#a78bfa]">
+              <Sparkles className="h-3.5 w-3.5" />
+              Built-in AI
+            </div>
+            <h2 className="text-3xl font-bold md:text-4xl">
+              AI that actually{" "}
+              <span className="text-[#a78bfa]">reads your timeline</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl leading-relaxed text-white/50">
+              Ask questions in plain English, summarize any event, and generate incident
+              postmortems — grounded in your real deploys, alerts, and notes, so it never
+              makes things up.
+            </p>
+          </BlurFade>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <BlurFade inView className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
+              <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={9} />
+              <div className="border-b border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-medium text-white/50">
+                Timeline assistant
+              </div>
+              <Image
+                src="/product-assistant.png"
+                alt="Kollaber's timeline assistant answering questions about deploys and alerts, with suggested prompts"
+                width={1280}
+                height={1395}
+                className="h-auto w-full"
+              />
+            </BlurFade>
+
+            <BlurFade delay={0.15} inView className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
+              <BorderBeam colorFrom="#60a5fa" colorTo="#a78bfa" duration={9} />
+              <div className="border-b border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-medium text-white/50">
+                One-click postmortems
+              </div>
+              <Image
+                src="/product-postmortem.png"
+                alt="An AI-generated incident postmortem covering what happened, timeline, impact, root cause, and action items"
+                width={1386}
+                height={1365}
+                className="h-auto w-full"
+              />
+            </BlurFade>
           </div>
         </section>
 

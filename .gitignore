@@ -47,6 +47,8 @@ Thumbs.db
 !ui/public/mascot.png
 !ui/public/mascot-head.png
 !ui/public/og.png
+!ui/public/product-assistant.png
+!ui/public/product-postmortem.png
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 docker/postgres-data/
