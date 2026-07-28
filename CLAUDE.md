@@ -1,197 +1,169 @@
-Kollaber – Claude Code Spec
-1. Product Overview
+# Kollaber – Claude Code Spec
 
-Name: Kollaber
-Tagline: Collaboration layer for infrastructure teams
+## 1. Product Overview
 
-Core Function:
-Capture, annotate, and query infrastructure events (deployments, alerts, manual notes) in a shared timeline.
+**Name:** Kollaber
+**Tagline:** Collaboration layer for infrastructure teams
 
-2. MVP Scope (STRICT)
+**Core function:**
+Capture, annotate, and query infrastructure events (deploys, alerts, manual notes) in a shared
+timeline.
 
-Claude should ONLY build:
+**Category:** change intelligence + operational memory. Kollaber is *not* an observability tool —
+it collects no metrics, logs, or traces, and evaluates no alert rules. It sits downstream of the
+observability stack and answers a different question: *what changed, and what did we decide about
+it?* See `ROADMAP.md` for the features this positioning does and does not admit.
 
-Included:
-Auth (simple)
-Environments
-Event ingestion (manual + webhook)
-Timeline UI
-Comments on events
-CLI tool
-Excluded (for now):
-RBAC complexity
-Billing
-Realtime websockets (polling is fine)
-Slack integration
-AI features
-3. System Architecture
-High Level
-[ CLI ] ----\
-             \
-[ Webhooks ] ---> [ Go API ] ---> [ PostgreSQL ]
-             /
-[ Frontend ]/
-4. Backend (Go)
-Framework
-Use gin or fiber
-Structure:
+## 2. Scope
+
+Kollaber is past MVP. The list below is what exists today — treat it as the baseline, not a
+build list.
+
+**Shipped:**
+
+- Auth: JWT, email OTP, GitHub OAuth, SAML/OIDC SSO
+- Multi-tenancy: orgs, members, invites, RBAC (Owner / Admin / Member / Viewer)
+- Environments and services
+- Event ingestion: manual, CLI, generic webhook, GitHub Actions, Prometheus Alertmanager,
+  Kubernetes watcher
+- Timeline UI with comments
+- Incidents: group events, track status, AI postmortems
+- DORA metrics
+- AI: timeline assistant (`/ai/chat`), event summaries, postmortem generation
+- MCP server (`kollaber mcp`) exposing the timeline to coding agents
+- Realtime: server-sent events (`/events/stream`) — not polling, not websockets
+- Notifications: Slack, Microsoft Teams, email (Resend)
+- Billing: Stripe, plan entitlements (free / team / pro / enterprise)
+- Audit logs
+- CLI (`kollaber`)
+
+**Deliberately excluded** (see `ROADMAP.md` § "What we say no to"):
+
+- Metric, log, or trace collection
+- Uptime checks or alert evaluation rules
+- Generic project management / kanban
+
+## 3. System Architecture
+
+```text
+[ CLI ] ----------\
+[ Webhooks ] ------\
+[ Kube watcher ] ---> [ Go API (Echo) ] ---> [ PostgreSQL ]
+[ MCP server ] ----/         |
+[ Frontend ] -----/          +--> [ Slack / Teams / Resend ]
+                             +--> [ Anthropic API ]
+                             +--> [ Stripe ]
+```
+
+## 4. Backend (Go)
+
+- **Framework:** Echo v4 (`github.com/labstack/echo/v4`)
+- **DB access:** pgx v5 + sqlc. Generated code lives in `internal/store/*.sql.go`; hand-written
+  queries live alongside it in plain `.go` files (e.g. `events_extra.go`, `dora.go`).
+- **Migrations:** numbered SQL in `migrations/`, embedded via `migrations/embed.go`, applied by
+  `internal/db/migrate.go`.
+
+```text
 cmd/
+  app/            # API server
+  kollaber/       # CLI (+ MCP server)
+  kube-watcher/   # Kubernetes event watcher
 internal/
-  api/
-  db/
-  models/
-  services/
-  middleware/
-pkg/
-5. Database Schema (PostgreSQL)
-users
-id (uuid, pk)
-email (text, unique)
-created_at
-environments
-id (uuid, pk)
-name (text) -- prod, staging
-cluster_name (text)
-created_at
-events
-id (uuid, pk)
-type (text) -- deploy, alert, note
-service (text)
-environment_id (fk)
-timestamp (timestamptz)
-metadata (jsonb)
-created_at
-comments
-id (uuid, pk)
-event_id (fk)
-user_id (fk)
-body (text)
-created_at
-6. API Design
-Auth
-POST /auth/login
-POST /auth/register
-Environments
-GET /environments
-POST /environments
-Events
-Create Event (manual or webhook)
-POST /events
+  ai/             # Anthropic-backed agent, summaries, postmortems
+  api/            # HTTP handlers + router
+  billing/        # Stripe, plans, entitlements
+  db/             # connection, migrations
+  middleware/     # auth, org context, rate limiting
+  resend/         # transactional email
+  slack/          # Slack + Teams notifications
+  store/          # sqlc output + hand-written queries
+  teams/
+db/queries/       # sqlc source queries
+migrations/
+ui/               # Next.js frontend
+charts/           # Helm chart for self-hosted
+```
 
-Body:
+**When adding a query:** prefer adding to `db/queries/*.sql` and regenerating with sqlc
+(`sqlc.yaml`). Drop to a hand-written method in `internal/store/` only when the query needs
+dynamic SQL that sqlc can't express (see `events_filter.go` for the existing pattern).
 
+## 5. Database Schema (PostgreSQL)
+
+Core tables from `migrations/001_init.sql`: `users`, `orgs`, `org_members`, `environments`,
+`events`, `invites`, `comments`. Later migrations add incidents, billing, SSO, audit logs,
+notification prefs, AI cache/usage, and DORA support.
+
+`events` carries `type`, `service`, `environment_id`, `timestamp`, `metadata` (jsonb), `status`,
+`ai_summary`, `ai_postmortem`. Event types are validated in `internal/store/event_types.go` —
+add new types there *and* in the corresponding migration's CHECK constraint.
+
+**Tenancy rule:** `events` has no `org_id`. Every event query MUST join
+`environments env ON env.id = e.environment_id` and filter `env.org_id = $n`. Skipping this is a
+cross-tenant data leak. Follow the existing queries in `db/queries/events.sql`.
+
+## 6. API Design
+
+Routes are registered in `internal/api/router.go` — read it rather than trusting a list here.
+Broad shape:
+
+| Group | Routes |
+| --- | --- |
+| Auth | `/auth/login`, `/auth/register`, `/auth/otp/*`, `/auth/github/*`, `/auth/sso/*`, `/token` |
+| Orgs | `/orgs`, `/switch`, `/members`, `/invites` |
+| Environments | `/environments`, `/environments/stats`, `/services` |
+| Events | `/events`, `/events/:id`, `/events/stream`, `/events/:id/comments`, `/events/:id/summary`, `/events/:id/postmortem` |
+| Incidents | `/incidents`, `/incidents/:id`, `/incidents/:id/events`, `/incidents/:id/postmortem` |
+| Metrics | `/metrics/dora` |
+| AI | `/ai/chat` |
+| Webhooks | `/webhooks/events`, `/webhooks/alertmanager`, `/webhooks/stripe` |
+| Settings | `/settings/{notifications,slack,teams,sso}`, `/audit-logs`, `/billing` |
+
+Create event body:
+
+```json
 {
   "type": "deploy",
   "service": "api-service",
   "environment_id": "uuid",
-  "metadata": {
-    "version": "v1.2.3",
-    "author": "jerome"
-  }
+  "metadata": { "version": "v1.2.3", "author": "jerome" }
 }
-Get Timeline
-GET /events?environment_id=xxx&limit=50
-Comments
-POST /events/:id/comments
-GET /events/:id/comments
-7. CLI Tool (kollaber)
-Language: Go (same repo or separate)
-Commands
-Login
-kollaber login
-List environments
+```
+
+## 7. CLI (`kollaber`)
+
+```bash
+kollaber login --api https://kollaber.io --email you@example.com
 kollaber envs
-View timeline
 kollaber timeline --env prod
-Add note
 kollaber note --env prod "Investigating latency spike"
-Send deploy event
-kollaber deploy \
-  --env prod \
-  --service api \
-  --version v1.2.3
-8. Frontend (Next.js)
-Pages
-/login
-Simple email login
-/dashboard
-List environments
-/env/[id]
-Timeline view
-Timeline Component
+kollaber deploy --env prod --service api --version v1.2.3
+kollaber mcp          # MCP server over stdio
+```
 
-Each event shows:
+## 8. Frontend (Next.js)
 
-Type (icon)
-Service name
-Timestamp
-Metadata (version, etc.)
+App Router, under `ui/app/`. Routes: `/login`, `/register`, `/onboarding`, `/dashboard`,
+`/env/[id]`, `/incidents`, `/metrics`, `/docs`, `/download`, `/pricing`, `/admin`, and
+`/settings/{members,teams,billing,notifications,slack,sso,kubernetes,audit-logs}`.
 
-Under each event:
+Timeline updates over SSE (`/events/stream`), not polling.
 
-Comment thread
-Example UI
-[ Deploy ] api-service v1.2.3
-10:32 AM
+**Lint is a CI gate.** Run it before declaring frontend work done.
 
-💬 "Added new auth flow"
+## 9. Deployment
 
------------------------
+- **SaaS:** kollaber.io
+- **Self-hosted:** Helm chart in `charts/`; `NEXT_PUBLIC_SELF_HOSTED=true` switches landing-page
+  behavior
+- **Local:** `task db:up && task start` (Podman, not Docker)
 
-[ Alert ] 5xx spike
-10:35 AM
+## 10. Conventions
 
-💬 "Investigating"
-💬 "Rolling back"
-9. Event Ingestion
-Webhook Endpoint
-POST /webhooks/events
-
-Accept:
-
-GitHub Actions
-Generic JSON
-
-Claude should:
-
-Normalize into events table
-10. Polling Strategy (MVP)
-
-Frontend:
-
-Poll /events every 5–10 seconds
-11. Auth (Simple)
-JWT-based
-No OAuth yet
-12. Deployment
-MVP Infra:
-Backend: Fly.io or Railway
-DB: Managed Postgres
-Frontend: Vercel
-13. Seed Data (IMPORTANT)
-
-Claude should generate:
-
-1 user
-1 environment (prod)
-Sample events:
-Deploy
-Alert
-Note
-14. Success Criteria
-
-MVP is “done” when:
-
-You can:
-Run kollaber deploy
-See it in UI
-Comment on it
-Timeline updates via polling
-Data persists
-15. Future Hooks (Don’t Build Yet)
-
-Just leave placeholders:
-
-Slack integration
-Kubernetes watcher
-AI summaries
+- Containers: **Podman**. Never invoke `docker`.
+- Commits: conventional-commit prefixes (`feat(scope):`, `fix(scope):`). No AI attribution
+  trailers.
+- Go style: follow the `golang-*` skills available in this session — naming, error handling
+  (wrap with `%w`), table-driven tests.
+- Tests live next to the code (`*_test.go`). New store queries and webhook normalizers should
+  come with tests; see `alertmanager_test.go` and `dora_test.go` for the house pattern.
