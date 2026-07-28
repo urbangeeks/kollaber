@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { type Event, type Comment, type Incident, type IncidentSeverity, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole } from "@/lib/api"
+import { type Event, type Comment, type Incident, type IncidentSeverity, type SuspectsResponse, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole, getSuspects } from "@/lib/api"
 import { commentSchema, createIncidentSchema } from "@/lib/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2, Undo2, Scaling } from "lucide-react"
+import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2, Undo2, Scaling, Crosshair } from "lucide-react"
 
 const SEVERITIES: IncidentSeverity[] = ["sev1", "sev2", "sev3", "sev4"]
 
@@ -34,8 +34,22 @@ const STATUS_CONFIG = {
   in_progress: { label: "in progress", icon: Loader2,      className: "text-amber-500 dark:text-amber-400" },
 } as const
 
+// Score bands mirror the API's confidence thresholds. Colour climbs with the
+// score so a likely culprit reads as urgent without the label having to be
+// read — but nothing here says "cause": the ranking is a heuristic and the
+// reasons line is what earns the user's trust.
+const CONFIDENCE_CONFIG = {
+  high:   { className: "border-red-200 text-red-600 dark:border-red-900 dark:text-red-400" },
+  medium: { className: "border-amber-200 text-amber-600 dark:border-amber-900 dark:text-amber-400" },
+  low:    { className: "border-border text-muted-foreground" },
+} as const
+
 function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+}
+
+function formatWindow(minutes: number) {
+  return minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`
 }
 
 export function TimelineEvent({
@@ -57,6 +71,9 @@ export function TimelineEvent({
   const [postmortemOpen, setPostmortemOpen] = useState(false)
   const [postmortemLoading, setPostmortemLoading] = useState(false)
   const [postmortemError, setPostmortemError] = useState<string | null>(null)
+  const [suspects, setSuspects] = useState<SuspectsResponse | null>(null)
+  const [suspectsLoading, setSuspectsLoading] = useState(false)
+  const [suspectsError, setSuspectsError] = useState<string | null>(null)
   const [attachOpen, setAttachOpen] = useState(false)
   const [openIncidents, setOpenIncidents] = useState<Incident[] | null>(null)
   const [attaching, setAttaching] = useState(false)
@@ -80,6 +97,11 @@ export function TimelineEvent({
 
   const role = getCurrentRole()
   const canAttach = role === "owner" || role === "admin" || role === "member"
+
+  // "What changed just before this?" is only a question worth asking about
+  // something that went wrong. Offering it on a healthy deploy would be noise,
+  // though the endpoint itself accepts any event so the AI agent can still ask.
+  const showSuspects = event.type === "alert" || event.status === "failure"
 
   const { icon: Icon, label, variant } = TYPE_CONFIG[event.type]
   const statusCfg = STATUS_CONFIG[event.status ?? "success"]
@@ -124,6 +146,22 @@ export function TimelineEvent({
       }
     } finally {
       setPostmortemLoading(false)
+    }
+  }
+
+  async function handleSuspects() {
+    if (suspects || suspectsError) {
+      setSuspects(null)
+      setSuspectsError(null)
+      return
+    }
+    setSuspectsLoading(true)
+    try {
+      setSuspects(await getSuspects(event.id))
+    } catch (err) {
+      setSuspectsError(err instanceof Error ? err.message : "Failed to load suspect changes")
+    } finally {
+      setSuspectsLoading(false)
     }
   }
 
@@ -252,6 +290,20 @@ export function TimelineEvent({
                 </span>
               )}
             </button>
+            {showSuspects && (
+              <button
+                onClick={handleSuspects}
+                disabled={suspectsLoading}
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors disabled:opacity-50"
+              >
+                {suspectsLoading
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Crosshair className="h-3 w-3" />}
+                {suspectsLoading
+                  ? "Correlating…"
+                  : suspects || suspectsError ? "Hide changes" : "Suspect changes"}
+              </button>
+            )}
             <button
               onClick={handleSummarize}
               disabled={summaryLoading}
@@ -284,6 +336,48 @@ export function TimelineEvent({
           </div>
         </div>
       </div>
+
+      {(suspects || suspectsError) && (
+        <div className="ml-10 sm:ml-11">
+          {suspectsError ? (
+            <p className="text-destructive text-xs">{suspectsError}</p>
+          ) : suspects!.suspects.length === 0 ? (
+            <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-xs">
+              <Crosshair className="mr-1 inline h-3 w-3" />
+              Nothing changed in this environment in the {formatWindow(suspects!.window_minutes)} before
+              this event.
+            </p>
+          ) : (
+            <div className="bg-muted/40 space-y-2 rounded-md border px-3 py-2.5">
+              <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                {suspects!.candidates} change{suspects!.candidates === 1 ? "" : "s"} in the{" "}
+                {formatWindow(suspects!.window_minutes)} before — most likely first
+              </p>
+              {suspects!.suspects.map((s) => (
+                <div key={s.event.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span
+                    className={`rounded border px-1.5 py-px text-[10px] font-semibold tabular-nums ${CONFIDENCE_CONFIG[s.confidence].className}`}
+                    title={`${s.confidence} confidence`}
+                  >
+                    {s.score}
+                  </span>
+                  <span className="truncate text-sm font-medium">{s.event.service}</span>
+                  <span className="text-muted-foreground text-xs">{s.event.type}</span>
+                  {s.event.metadata?.version != null && (
+                    <span className="text-muted-foreground text-xs">
+                      {String(s.event.metadata.version)}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+                    {s.lag_display}
+                  </span>
+                  <p className="text-muted-foreground w-full text-xs">{s.reasons.join(" · ")}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {(summary || summaryError) && (
         <div className="ml-10 sm:ml-11">

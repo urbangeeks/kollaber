@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema } from "./schemas"
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -22,6 +22,8 @@ export type Environment = z.infer<typeof environmentSchema>
 export type Event = z.infer<typeof eventSchema>
 export type Comment = z.infer<typeof commentResponseSchema>
 export type Incident = z.infer<typeof incidentSchema>
+export type Suspect = z.infer<typeof suspectSchema>
+export type SuspectsResponse = z.infer<typeof suspectsResponseSchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -370,6 +372,13 @@ export async function getEventPostmortem(eventId: string, refresh = false): Prom
   const q = refresh ? "?refresh=true" : ""
   const data = await request(`/events/${eventId}/postmortem${q}`, null, { method: "POST" })
   return (data as { postmortem: string }).postmortem
+}
+
+// getSuspects returns the changes that preceded an event and could explain it,
+// best-guess first. Unlike summaries and postmortems this is a plain database
+// query with no AI involved, so it is available on every plan and never 402s.
+export async function getSuspects(eventId: string, windowMinutes = 120): Promise<SuspectsResponse> {
+  return request(`/events/${eventId}/suspects?window_minutes=${windowMinutes}`, suspectsResponseSchema)
 }
 
 export type ChatMessage = { role: "user" | "assistant"; content: string }

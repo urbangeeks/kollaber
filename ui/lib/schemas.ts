@@ -67,6 +67,27 @@ export const eventSchema = z.object({
   created_at: z.string(),
 })
 
+// A change that preceded an event and might explain it. The score is a
+// heuristic ranking, not a causal claim — reasons carries the terms that fired
+// so the UI can show its working rather than asking for blind trust.
+export const suspectSchema = z.object({
+  event: eventSchema,
+  score: z.number(),
+  confidence: z.enum(["high", "medium", "low"]),
+  reasons: z.array(z.string()),
+  lag_seconds: z.number(),
+  lag_display: z.string(),
+})
+
+export const suspectsResponseSchema = z.object({
+  event_id: z.string(),
+  window_minutes: z.number(),
+  candidates: z.number(),
+  // The API always sends an array, but tolerate null so an empty result can
+  // never surface as a parse error in front of someone mid-incident.
+  suspects: z.array(suspectSchema).nullish().transform((s) => s ?? []),
+})
+
 export const commentResponseSchema = z.object({
   id: z.string(),
   event_id: z.string(),
