@@ -170,7 +170,7 @@ function EnvPageInner() {
 
   // Real-time updates via SSE — prepend new events and route new comments to
   // their open threads as they arrive.
-  useEventStream(
+  const { connected } = useEventStream(
     id,
     (data) => {
       const msg = data as StreamMessage
@@ -262,9 +262,16 @@ function EnvPageInner() {
           </Button>
           <h1 className="text-xl font-semibold">Timeline</h1>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              Live
+            <span
+              className="text-muted-foreground flex items-center gap-1.5 text-xs"
+              title={connected ? "Receiving live updates" : "Reconnecting to the event stream"}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  connected ? "animate-pulse bg-green-500" : "bg-amber-500"
+                }`}
+              />
+              {connected ? "Live" : "Reconnecting…"}
             </span>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />

@@ -1,21 +1,22 @@
 "use client"
 
-import { useEffect, useEffectEvent } from "react"
-import { getToken } from "@/lib/api"
-
-const API_BASE =
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? ""
-    : "http://localhost:8080"
+import { useEffect, useEffectEvent, useState } from "react"
+import { API_BASE, getToken } from "@/lib/api"
 
 // useEventStream subscribes to the SSE event stream. Pass a specific envID to
 // scope to one environment, or "" to receive every environment in the org
 // (used by org-wide views like the dashboard).
+//
+// Returns whether the stream is currently connected, so callers can tell the
+// user when updates have stopped arriving. Without it a dropped stream is
+// invisible: the timeline simply stops moving and looks like a quiet period.
 export function useEventStream(
   envID: string,
   onEvent: (data: unknown) => void,
   enabled = true,
-) {
+): { connected: boolean } {
+  const [connected, setConnected] = useState(false)
+
   // Always calls the latest onEvent without being a dependency, so a new
   // callback identity does not tear down and reconnect the SSE stream. This
   // replaces a useRef assigned during render, which is unsafe under concurrent
@@ -39,14 +40,24 @@ export function useEventStream(
           headers: { Authorization: `Bearer ${token}` },
         })
       } catch {
-        if (active) retryTimer = setTimeout(connect, 5000)
+        if (active) {
+          setConnected(false)
+          retryTimer = setTimeout(connect, 5000)
+        }
         return
       }
 
       if (!response.ok || !response.body) {
-        if (active) retryTimer = setTimeout(connect, 5000)
+        if (active) {
+          setConnected(false)
+          retryTimer = setTimeout(connect, 5000)
+        }
         return
       }
+
+      // Headers are in and the body is open: the server has accepted the
+      // subscription, which is the earliest point we can honestly claim live.
+      if (active) setConnected(true)
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -77,14 +88,20 @@ export function useEventStream(
         reader.cancel()
       }
 
-      if (active) retryTimer = setTimeout(connect, 3000)
+      if (active) {
+        setConnected(false)
+        retryTimer = setTimeout(connect, 3000)
+      }
     }
 
     connect()
 
     return () => {
       active = false
+      setConnected(false)
       clearTimeout(retryTimer)
     }
   }, [envID, enabled])
+
+  return { connected }
 }

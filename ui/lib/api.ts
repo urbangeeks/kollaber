@@ -1,7 +1,14 @@
 import { z } from "zod"
 import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema } from "./schemas"
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? ""
+// Origin every API call is made against. Empty in production, where the single
+// binary serves the UI and API from the same host; set to the backend's URL in
+// local dev via NEXT_PUBLIC_API_URL.
+//
+// Exported because the SSE hook needs the same value. It previously kept its
+// own copy hardcoded to :8080, so running the API on any other port locally
+// left the stream permanently dead.
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 // ApiError carries the HTTP status and parsed error body so callers can branch
 // on cases like 402 (upgrade required) or 429 (rate limited) instead of only
@@ -63,7 +70,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
 async function request(path: string, schema: null, init?: RequestInit): Promise<unknown>
 async function request<T>(path: string, schema: z.ZodType<T> | null, init?: RequestInit): Promise<T | unknown> {
   const token = getToken()
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -400,7 +407,7 @@ export async function chatWithAgent(
   handlers: AgentStreamHandlers,
 ): Promise<void> {
   const token = getToken()
-  const res = await fetch(`${API}/ai/chat`, {
+  const res = await fetch(`${API_BASE}/ai/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
