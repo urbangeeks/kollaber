@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, Search } from "lucide-react"
 import { DotBackground } from "@/components/dot-background"
 
 function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
@@ -273,6 +273,14 @@ function EnvPageInner() {
               />
               {connected ? "Live" : "Reconnecting…"}
             </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Search this environment"
+              onClick={() => router.push(`/search?environment_id=${id}`)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
               New event

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema } from "./schemas"
 
 // Origin every API call is made against. Empty in production, where the single
 // binary serves the UI and API from the same host; set to the backend's URL in
@@ -31,6 +31,8 @@ export type Comment = z.infer<typeof commentResponseSchema>
 export type Incident = z.infer<typeof incidentSchema>
 export type Suspect = z.infer<typeof suspectSchema>
 export type SuspectsResponse = z.infer<typeof suspectsResponseSchema>
+export type SearchHit = z.infer<typeof searchHitSchema>
+export type SearchResponse = z.infer<typeof searchResponseSchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -386,6 +388,18 @@ export async function getEventPostmortem(eventId: string, refresh = false): Prom
 // query with no AI involved, so it is available on every plan and never 402s.
 export async function getSuspects(eventId: string, windowMinutes = 120): Promise<SuspectsResponse> {
   return request(`/events/${eventId}/suspects?window_minutes=${windowMinutes}`, suspectsResponseSchema)
+}
+
+// searchTimeline runs a full-text query over event text and comment bodies.
+// Pass environmentId to scope to one timeline, or omit it to search the org.
+export async function searchTimeline(
+  query: string,
+  environmentId?: string,
+  limit = 25,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
+  if (environmentId) params.set("environment_id", environmentId)
+  return request(`/search?${params}`, searchResponseSchema)
 }
 
 export type ChatMessage = { role: "user" | "assistant"; content: string }

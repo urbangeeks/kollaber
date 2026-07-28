@@ -50,6 +50,7 @@ import {
   Settings,
   LogOut,
   BarChart3,
+  Search,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -310,6 +311,10 @@ export default function DashboardPage() {
           <div className="ml-auto flex items-center gap-2">
             <OrgSwitcher />
             <ThemeToggle />
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/search")}>
+              <Search className="mr-1.5 h-4 w-4" />
+              Search
+            </Button>
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/metrics")}>
               <BarChart3 className="mr-1.5 h-4 w-4" />
               Metrics

@@ -88,6 +88,28 @@ export const suspectsResponseSchema = z.object({
   suspects: z.array(suspectSchema).nullish().transform((s) => s ?? []),
 })
 
+// One search match. The event is present for both kinds: a comment match
+// without its event is a quote with no context.
+export const searchHitSchema = z.object({
+  kind: z.enum(["event", "comment"]),
+  event: eventSchema,
+  comment: z
+    .object({
+      id: z.string(),
+      body: z.string(),
+      user_id: z.string(),
+      created_at: z.string(),
+    })
+    .optional(),
+  rank: z.number(),
+})
+
+export const searchResponseSchema = z.object({
+  query: z.string(),
+  count: z.number(),
+  results: z.array(searchHitSchema).nullish().transform((r) => r ?? []),
+})
+
 export const commentResponseSchema = z.object({
   id: z.string(),
   event_id: z.string(),

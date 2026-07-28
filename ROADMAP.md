@@ -41,12 +41,17 @@ tool people can't work without.
 No new ingestion — pure query work over data we already have. `store.GetEventsAroundTime` already
 exists as a building block.
 
-### 2. Full-text search across events and comments
+### 2. Full-text search across events and comments — **shipped**
 
-Postgres `tsvector` over event service/type/metadata and comment bodies.
+`GET /search?q=…` over event text and comment bodies, with a `/search` page scoped to one
+environment or the whole org. Generated `tsvector` columns and GIN indexes in migration 021.
 
-Operational memory that can't be searched isn't memory. The question users will have is "didn't we
-hit this before?" and today the answer requires scrolling.
+Event vectors index metadata *values* only, never keys — indexing keys would make a search for
+"version" match every deploy ever shipped.
+
+Known limitation: `websearch_to_tsquery` matches whole stemmed words, so "check" does not find
+"checkout" and "rollback" does not find "rolling back". Prefix matching would need a trigram index
+on top; worth adding if users hit it.
 
 ### 3. Postmortem generator from a timeline range
 
