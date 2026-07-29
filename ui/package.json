@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && rm -rf dist && mkdir -p dist && cp -r out/. dist/ && printf '# placeholder \u2014 replaced by npm run build\\n' > dist/placeholder.txt",
+    "build": "next build && rm -rf dist && mkdir -p dist && cp -r out/. dist/ && printf '# placeholder \u2014 replaced by the frontend build\\n' > dist/placeholder.txt",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
