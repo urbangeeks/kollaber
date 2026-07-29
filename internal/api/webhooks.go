@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -98,9 +99,22 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 	if payload.Metadata == nil {
 		payload.Metadata = map[string]any{}
 	}
-	metaBytes, _ := json.Marshal(payload.Metadata)
 
 	ctx := context.Background()
+
+	// Resolve the environment up front: the freeze lookup needs the org, and a
+	// delivery naming an environment that does not exist should not create an
+	// orphan event.
+	pgEnvID := pgtype.UUID{Bytes: envID, Valid: true}
+	env, err := h.q.GetEnvironmentByID(ctx, pgEnvID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "environment not found"})
+	}
+	orgID := uuid.UUID(env.OrgID.Bytes)
+
+	annotateFreeze(ctx, h.q, env.OrgID, pgEnvID, payload.Type, time.Now(), payload.Metadata)
+	metaBytes, _ := json.Marshal(payload.Metadata)
+
 	event, err := h.q.CreateEvent(ctx, store.CreateEventParams{
 		Type:          payload.Type,
 		Service:       payload.Service,
@@ -112,14 +126,7 @@ func (h *WebhookHandler) Ingest(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not ingest event"})
 	}
 
-	go func() {
-		env, err := h.q.GetEnvironmentByID(ctx, pgtype.UUID{Bytes: envID, Valid: true})
-		if err != nil {
-			return
-		}
-		orgID := uuid.UUID(env.OrgID.Bytes)
-		broadcastEvent(h.hub, orgID.String(), envID.String(), toEventResponse(event))
-	}()
+	broadcastEvent(h.hub, orgID.String(), envID.String(), toEventResponse(event))
 
 	return c.JSON(http.StatusCreated, event)
 }

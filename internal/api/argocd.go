@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/store"
@@ -130,6 +131,7 @@ func (h *ArgoCDHandler) Ingest(c echo.Context) error {
 	if payload.Message != "" {
 		metadata["message"] = payload.Message
 	}
+	annotateFreeze(ctx, h.q, target.pgOrg(), target.envID, eventType, time.Now(), metadata)
 	metaBytes, _ := json.Marshal(metadata)
 
 	event, err := h.q.CreateEvent(ctx, store.CreateEventParams{

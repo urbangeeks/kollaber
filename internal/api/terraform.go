@@ -155,8 +155,6 @@ func (h *TerraformHandler) Ingest(c echo.Context) error {
 		} else if payload.RunCreatedBy != "" {
 			metadata["author"] = payload.RunCreatedBy
 		}
-		metaBytes, _ := json.Marshal(metadata)
-
 		// Timestamp the event when the run reached this status, not when the
 		// webhook arrived. A long apply and a retried delivery both push the
 		// two apart, and the timeline's whole value is the ordering.
@@ -167,6 +165,11 @@ func (h *TerraformHandler) Ingest(c echo.Context) error {
 		if ts.IsZero() {
 			ts = time.Now()
 		}
+
+		// Asked against the run's own time, so a delivery that arrives after the
+		// freeze lifted is still judged on when the apply actually happened.
+		annotateFreeze(ctx, h.q, target.pgOrg(), target.envID, "deploy", ts, metadata)
+		metaBytes, _ := json.Marshal(metadata)
 
 		event, err := h.q.CreateEventAt(ctx, store.CreateEventAtParams{
 			Type:          "deploy",

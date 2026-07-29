@@ -196,6 +196,31 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               </p>
             </SubSection>
 
+            <SubSection title="Change freezes">
+              <p>
+                Declare a period when the team would rather nothing changed — Black Friday, quarter end, the week a
+                migration lands — under <strong className="text-white">Settings → Change freezes</strong>. Scope it to
+                one environment or leave it org-wide.
+              </p>
+              <p className="mt-3">
+                Kollaber does not block anything. A deploy that lands inside a freeze is recorded as having done so,
+                the timeline shows it, and <InlineCode>kollaber deploy</InlineCode> exits{" "}
+                <InlineCode>2</InlineCode> so CI can decide whether that fails the build. Pass{" "}
+                <InlineCode>--allow-frozen</InlineCode> for a release that is meant to go out anyway. Blocking would
+                put Kollaber on the critical path of every deploy, which is a promise a tool that sits beside your
+                stack should not make.
+              </p>
+              <Code>{`kollaber deploy --env prod --service api --version v1.2.3
+# WARNING: change freeze in effect — this environment is frozen: Black Friday
+# exit status 2`}</Code>
+              <p className="text-sm">
+                Only changes are flagged — deploys, rollbacks, scales and teardowns. An alert firing or a note being
+                written during a freeze is not a violation of anything. Admins declare and remove windows; removing
+                one does not unmark deploys that already landed inside it, because those recorded what was true when
+                they happened.
+              </p>
+            </SubSection>
+
             <SubSection title="Service inventory">
               <p>
                 The <strong className="text-white">Inventory</strong> page answers &ldquo;what was in prod when this
@@ -457,7 +482,14 @@ kollaber login --api https://kollaber.io --token <your-token>`}</Code>
                 <div className="flex gap-3"><Badge>--env</Badge><span>Environment name or UUID (required)</span></div>
                 <div className="flex gap-3"><Badge>--service</Badge><span>Service name (required)</span></div>
                 <div className="flex gap-3"><Badge>--version</Badge><span>Version string, e.g. <InlineCode>v1.2.3</InlineCode> (required)</span></div>
+                <div className="flex gap-3"><Badge>--committed-at</Badge><span>Commit time (RFC3339) — powers the DORA lead-time metric</span></div>
+                <div className="flex gap-3"><Badge>--allow-frozen</Badge><span>Exit zero even if the deploy lands inside a change freeze</span></div>
               </div>
+              <p className="mt-3 text-sm">
+                Exit codes: <InlineCode>0</InlineCode> recorded, <InlineCode>2</InlineCode> recorded but landed
+                inside a change freeze, <InlineCode>1</InlineCode> anything else. The event is always created —
+                the distinct code is so a pipeline can tell a freeze apart from a network failure.
+              </p>
             </SubSection>
 
             <SubSection title="kollaber note">
@@ -944,6 +976,9 @@ webhooks:
                 <ApiRow method="PATCH" path="/comments/:id"       desc="Mark or unmark a comment as a decision (member)" />
                 <ApiRow method="GET"  path="/decisions"           desc="The org's decision log (authenticated)" />
                 <ApiRow method="GET"  path="/inventory"           desc="Service versions at a point in time (authenticated)" />
+                <ApiRow method="GET"    path="/freezes"          desc="List declared change freezes (authenticated)" />
+                <ApiRow method="POST"   path="/freezes"          desc="Declare a change freeze (admin)" />
+                <ApiRow method="DELETE" path="/freezes/:id"      desc="Remove a change freeze (admin)" />
               </div>
               <p className="mt-3 text-sm">
                 Query parameters for <InlineCode>GET /decisions</InlineCode>:{" "}

@@ -218,12 +218,36 @@ timeline but has no dedicated endpoint yet.
 
 ## Tier 4 — guardrails
 
-### 10. Change freeze windows
+### 10. Change freeze windows — **shipped**
 
-Declare freeze periods per environment (Black Friday, quarter end). Flag deploys that land inside
-one; CLI warns or exits non-zero.
+`/freezes` declares a period when the org would rather nothing changed, scoped to one environment or
+left org-wide (`environment_id` null), which is what a company-wide Black Friday freeze actually is.
+Admins only: anyone who can declare a freeze can make every deploy in the company report a
+violation.
 
-Makes Kollaber *participate* in the change process rather than only observing it.
+Kollaber does not block. A change that lands inside a window is stamped `frozen` and
+`freeze_reason` in its metadata, the timeline shows a badge, and `kollaber deploy` exits **2** —
+distinct from 1 so a pipeline can tell a freeze apart from a network failure — with
+`--allow-frozen` for a release meant to go out anyway. Blocking would put Kollaber on the critical
+path of every deploy, which is a promise a tool that sits beside the stack should not make.
+
+The mark is written at ingest rather than derived at read time, so it survives the window being
+edited or deleted. What matters six months later is that this deploy went out during a declared
+freeze, not what the freeze calendar says today. Deleting a window therefore leaves past marks
+standing.
+
+Only changes are flagged — deploy, rollback, scale, teardown. A freeze is a statement about
+changing things, so an alert firing or a note being written during one violates nothing. Every
+ingest path is covered: the API, the generic webhook, Terraform, Atlantis and Argo CD. Terraform is
+asked against the run's own timestamp, so a delivery arriving after the freeze lifted is still
+judged on when the apply happened.
+
+Overlapping windows resolve to the one ending latest — the one still in force after the others
+lapse, and the honest one to name.
+
+While building this, `POST /events` was found to accept any `environment_id` with no org check,
+letting an authenticated user write into another tenant's timeline. The freeze lookup needs the
+environment resolved anyway, so ownership is now verified in the same step.
 
 ---
 

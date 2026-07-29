@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -317,6 +318,11 @@ var noteCmd = &cobra.Command{
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Send a deploy event",
+	// The freeze exit is a signal, not a misuse of the command: the deploy was
+	// recorded and already reported, so cobra must not add a usage block or
+	// print the error a second time.
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		envName, _ := cmd.Flags().GetString("env")
 		service, _ := cmd.Flags().GetString("service")
@@ -353,15 +359,48 @@ var deployCmd = &cobra.Command{
 			return err
 		}
 		var ev struct {
-			ID string `json:"id"`
+			ID     string `json:"id"`
+			Freeze *struct {
+				Reason  string `json:"reason"`
+				EndsAt  string `json:"ends_at"`
+				OrgWide bool   `json:"org_wide"`
+			} `json:"freeze"`
 		}
 		if err := decodeOK(res, &ev); err != nil {
 			return err
 		}
 		fmt.Printf("Deploy event created: %s\n", ev.ID)
+
+		// The deploy already happened — Kollaber records changes, it does not
+		// gate them — so the event is always created and always reported. The
+		// non-zero exit is for CI to act on, and --allow-frozen is how a release
+		// that is meant to go out during a freeze says so deliberately.
+		if ev.Freeze != nil {
+			scope := "this environment is"
+			if ev.Freeze.OrgWide {
+				scope = "all environments are"
+			}
+			fmt.Fprintf(os.Stderr, "\nWARNING: change freeze in effect — %s frozen: %s\n", scope, ev.Freeze.Reason)
+			if until, err := time.Parse(time.RFC3339, ev.Freeze.EndsAt); err == nil {
+				fmt.Fprintf(os.Stderr, "         until %s\n", until.Local().Format("Mon 2 Jan 15:04"))
+			}
+			if allowFrozen, _ := cmd.Flags().GetBool("allow-frozen"); !allowFrozen {
+				fmt.Fprintf(os.Stderr, "         pass --allow-frozen to exit zero anyway\n")
+				return errFrozen
+			}
+		}
 		return nil
 	},
 }
+
+// errFrozen exits non-zero without cobra printing a usage block: the deploy was
+// recorded successfully, so this is a signal to CI rather than a misuse of the
+// command.
+var errFrozen = &silentError{"deploy landed inside a change freeze"}
+
+type silentError struct{ msg string }
+
+func (e *silentError) Error() string { return e.msg }
 
 // --- chat sessions ---
 
@@ -767,6 +806,7 @@ func init() {
 	deployCmd.Flags().String("service", "", "Service name")
 	deployCmd.Flags().String("version", "", "Version string (e.g. v1.2.3)")
 	deployCmd.Flags().String("committed-at", "", "Commit time (RFC3339) — powers the DORA lead-time metric")
+	deployCmd.Flags().Bool("allow-frozen", false, "Exit zero even if the deploy lands inside a change freeze")
 
 	askCmd.Flags().String("env", "", "Scope the question to an environment name or ID")
 	askCmd.Flags().Bool("quiet", false, "Suppress tool-lookup progress on stderr")
@@ -789,6 +829,13 @@ func init() {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
+		// Exit 2 distinguishes "landed in a freeze" from any other failure, so
+		// a pipeline can fail the build on a freeze while still telling it
+		// apart from a network error or a bad flag.
+		var frozen *silentError
+		if errors.As(err, &frozen) {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
 }

@@ -51,3 +51,8 @@ func resolveWebhookTarget(ctx context.Context, q *store.Queries, c echo.Context)
 		orgID:   uuid.UUID(env.OrgID.Bytes),
 	}, true
 }
+
+// pgOrg is the org id in the form store queries take it.
+func (t webhookTarget) pgOrg() pgtype.UUID {
+	return pgtype.UUID{Bytes: t.orgID, Valid: true}
+}

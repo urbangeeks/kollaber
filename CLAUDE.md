@@ -34,6 +34,7 @@ build list.
 - Realtime: server-sent events (`/events/stream`) — not polling, not websockets
 - Notifications: Slack, Microsoft Teams, email (Resend), weekly digest email
 - Billing: Stripe, plan entitlements (free / team / pro / enterprise)
+- Change freeze windows (advisory: flagged on the event, CLI exits 2)
 - Audit logs
 - CLI (`kollaber`)
 
@@ -116,6 +117,7 @@ Broad shape:
 | Events | `/events`, `/events/:id`, `/events/stream`, `/events/:id/comments`, `/events/:id/summary`, `/events/:id/postmortem` |
 | Decisions | `/comments/:id` (PATCH: mark), `/decisions` |
 | Inventory | `/inventory?environment_id=…&at=…` |
+| Freezes | `/freezes`, `/freezes/:id` |
 | Incidents | `/incidents`, `/incidents/:id`, `/incidents/:id/events`, `/incidents/:id/postmortem` |
 | Metrics | `/metrics/dora` |
 | Search | `/search?q=…&environment_id=…` |
@@ -143,7 +145,7 @@ kollaber login --api https://kollaber.io --email you@example.com
 kollaber envs
 kollaber timeline --env prod
 kollaber note --env prod "Investigating latency spike"
-kollaber deploy --env prod --service api --version v1.2.3
+kollaber deploy --env prod --service api --version v1.2.3   # exits 2 during a change freeze
 kollaber mcp          # MCP server over stdio
 ```
 
@@ -151,7 +153,7 @@ kollaber mcp          # MCP server over stdio
 
 App Router, under `ui/app/`. Routes: `/login`, `/register`, `/onboarding`, `/dashboard`,
 `/env/[id]`, `/incidents`, `/decisions`, `/inventory`, `/metrics`, `/docs`, `/download`, `/pricing`, `/admin`, and
-`/settings/{members,teams,billing,notifications,slack,sso,kubernetes,audit-logs}`.
+`/settings/{members,teams,billing,notifications,slack,sso,kubernetes,freezes,audit-logs}`.
 
 Timeline updates over SSE (`/events/stream`), not polling.
 

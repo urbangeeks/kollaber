@@ -205,3 +205,15 @@ export const createIncidentSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>
 export type CommentInput = z.infer<typeof commentSchema>
+
+// A declared change freeze. environment_id is null for an org-wide window,
+// which is what a company-wide Black Friday freeze actually is.
+export const freezeWindowSchema = z.object({
+  id: z.string(),
+  environment_id: z.string().nullish(),
+  reason: z.string(),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  created_at: z.string(),
+  active: z.boolean(),
+})

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
 import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard, ScrollText, ShieldCheck, Container, Sun, Moon } from "lucide-react"
+import { ArrowLeft, Bell, Hash, Users, MessageSquare, CreditCard, ScrollText, ShieldCheck, Container, Snowflake, Sun, Moon } from "lucide-react"
 
 // Self-hosted instances have no SaaS billing relationship, so the Billing
 // section (plans, upgrades, Stripe) is omitted in self-hosted builds.
@@ -17,6 +17,7 @@ const NAV = [
   { href: "/settings/teams",         label: "Teams",         icon: MessageSquare },
   { href: "/settings/members",       label: "Members",       icon: Users },
   { href: "/settings/billing",       label: "Billing",       icon: CreditCard },
+  { href: "/settings/freezes",       label: "Change freezes", icon: Snowflake },
   { href: "/settings/kubernetes",    label: "Kubernetes",    icon: Container },
   { href: "/settings/sso",           label: "SSO",           icon: ShieldCheck },
   { href: "/settings/audit-logs",    label: "Audit Logs",    icon: ScrollText },

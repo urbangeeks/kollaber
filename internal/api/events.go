@@ -90,15 +90,30 @@ func (h *EventsHandler) Create(c echo.Context) error {
 	if req.Metadata == nil {
 		req.Metadata = map[string]any{}
 	}
-	metaBytes, _ := json.Marshal(req.Metadata)
 
 	ctx := context.Background()
 	orgID := c.Get(middleware.OrgIDKey).(uuid.UUID)
+	pgOrgID := pgtype.UUID{Bytes: orgID, Valid: true}
+	pgEnvID := pgtype.UUID{Bytes: req.EnvironmentID, Valid: true}
+
+	// Confirm the environment belongs to the caller's org. Events carry no
+	// org_id, so without this an authenticated user could write into another
+	// tenant's timeline by naming their environment id.
+	env, err := h.q.GetEnvironmentByID(ctx, pgEnvID)
+	if err != nil || env.OrgID != pgOrgID {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "environment not found"})
+	}
+
+	// A freeze does not block the write. It records that the change happened
+	// during one and tells the caller, which is what lets CI decide.
+	freeze := annotateFreeze(ctx, h.q, pgOrgID, pgEnvID, req.Type, time.Now(), req.Metadata)
+
+	metaBytes, _ := json.Marshal(req.Metadata)
 
 	event, err := h.q.CreateEvent(ctx, store.CreateEventParams{
 		Type:          req.Type,
 		Service:       req.Service,
-		EnvironmentID: pgtype.UUID{Bytes: req.EnvironmentID, Valid: true},
+		EnvironmentID: pgEnvID,
 		Metadata:      metaBytes,
 		Status:        req.Status,
 	})
@@ -110,7 +125,20 @@ func (h *EventsHandler) Create(c echo.Context) error {
 
 	go notifyEvent(ctx, h.q, orgID, req.EnvironmentID, req.Type, req.Service)
 
-	return c.JSON(http.StatusCreated, toEventResponse(event))
+	resp := createEventResponse{eventResponse: toEventResponse(event)}
+	if freeze != nil {
+		resp.Freeze = toFreezeNotice(*freeze)
+	}
+	return c.JSON(http.StatusCreated, resp)
+}
+
+// createEventResponse is the event plus, when it landed inside a declared
+// freeze, the window it landed in. Kept separate from eventResponse so the
+// field never appears on the timeline or the event stream, where it would be
+// stale the moment the window ended.
+type createEventResponse struct {
+	eventResponse
+	Freeze *freezeNotice `json:"freeze,omitempty"`
 }
 
 // notifyEvent fans an event out to email, Slack, and Teams. Every delivery is

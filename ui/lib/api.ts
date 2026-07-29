@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema, decisionSchema, decisionsResponseSchema, serviceVersionSchema, inventorySchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema, decisionSchema, decisionsResponseSchema, serviceVersionSchema, inventorySchema, freezeWindowSchema } from "./schemas"
 
 // Origin every API call is made against. Empty in production, where the single
 // binary serves the UI and API from the same host; set to the backend's URL in
@@ -38,6 +38,7 @@ export type Decision = z.infer<typeof decisionSchema>
 export type DecisionsResponse = z.infer<typeof decisionsResponseSchema>
 export type ServiceVersion = z.infer<typeof serviceVersionSchema>
 export type Inventory = z.infer<typeof inventorySchema>
+export type FreezeWindow = z.infer<typeof freezeWindowSchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -404,6 +405,33 @@ export function getInventory(environmentId: string, at?: string): Promise<Invent
   const params = new URLSearchParams({ environment_id: environmentId })
   if (at) params.set("at", at)
   return request(`/inventory?${params}`, inventorySchema)
+}
+
+export function listFreezes(): Promise<FreezeWindow[]> {
+  return request("/freezes", z.array(freezeWindowSchema)) as Promise<FreezeWindow[]>
+}
+
+// createFreeze declares a change freeze. Omit environmentId for an org-wide
+// window. Admins only.
+export function createFreeze(
+  reason: string,
+  startsAt: string,
+  endsAt: string,
+  environmentId?: string,
+): Promise<FreezeWindow> {
+  return request("/freezes", freezeWindowSchema, {
+    method: "POST",
+    body: JSON.stringify({
+      reason,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      environment_id: environmentId ?? null,
+    }),
+  }) as Promise<FreezeWindow>
+}
+
+export async function deleteFreeze(id: string): Promise<void> {
+  await request(`/freezes/${id}`, null, { method: "DELETE" })
 }
 
 export async function getEventSummary(eventId: string, refresh = false): Promise<string> {

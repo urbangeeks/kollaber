@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2, Undo2, Scaling, Crosshair } from "lucide-react"
+import { Rocket, Bell, StickyNote, Trash2, MessageCircle, CheckCircle2, XCircle, Loader2, Sparkles, FileText, RefreshCw, Link2, Undo2, Scaling, Crosshair, Snowflake } from "lucide-react"
 
 const SEVERITIES: IncidentSeverity[] = ["sev1", "sev2", "sev3", "sev4"]
 
@@ -293,6 +293,16 @@ export function TimelineEvent({
               <StatusIcon className="h-3.5 w-3.5" />
               {statusCfg.label}
             </span>
+            {/* Stamped at write time, so this stays true after the window ends
+                or is deleted — it records what was so when the change landed. */}
+            {event.metadata?.frozen === true && (
+              <Badge variant="outline" className="gap-1 border-sky-300 text-sky-600 dark:border-sky-800 dark:text-sky-400">
+                <Snowflake className="h-3 w-3" />
+                {typeof event.metadata.freeze_reason === "string"
+                  ? `froze: ${event.metadata.freeze_reason}`
+                  : "shipped during a freeze"}
+              </Badge>
+            )}
             <span className="text-muted-foreground ml-auto text-xs shrink-0">{formatTime(event.timestamp)}</span>
           </div>
           {Object.keys(event.metadata ?? {}).length > 0 && (

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/store"
@@ -122,6 +123,7 @@ func (h *AtlantisHandler) Ingest(c echo.Context) error {
 		metadata["head_branch"] = payload.Pull.HeadBranch
 		metadata["base_branch"] = payload.Pull.BaseBranch
 	}
+	annotateFreeze(ctx, h.q, target.pgOrg(), target.envID, "deploy", time.Now(), metadata)
 	metaBytes, _ := json.Marshal(metadata)
 
 	// Atlantis sends no timestamp, and it posts as the apply finishes, so the

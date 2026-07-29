@@ -67,6 +67,7 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	annotationsH := NewAnnotationsHandler(q)
 	decisionsH := NewDecisionsHandler(q)
 	inventoryH := NewInventoryHandler(q)
+	freezesH := NewFreezesHandler(q)
 
 	e.GET("/health", func(c echo.Context) error { return c.JSON(200, echo.Map{"ok": true}) })
 
@@ -116,6 +117,9 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	protected.PATCH("/comments/:id", comments.SetDecision)
 	protected.GET("/decisions", decisionsH.List)
 	protected.GET("/inventory", inventoryH.List)
+	protected.GET("/freezes", freezesH.List)
+	protected.POST("/freezes", freezesH.Create)
+	protected.DELETE("/freezes/:id", freezesH.Delete)
 	protected.POST("/events/:id/summary", aiH.SummarizeEvent)
 	protected.POST("/events/:id/postmortem", aiH.PostmortemEvent)
 	protected.POST("/ai/chat", agentH.Chat)
