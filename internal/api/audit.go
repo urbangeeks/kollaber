@@ -48,13 +48,13 @@ func (h *AuditHandler) List(c echo.Context) error {
 	}
 
 	type logItem struct {
-		ID         string         `json:"id"`
-		ActorEmail string         `json:"actor_email"`
-		Action     string         `json:"action"`
-		TargetType string         `json:"target_type"`
-		TargetID   string         `json:"target_id"`
+		ID         string          `json:"id"`
+		ActorEmail string          `json:"actor_email"`
+		Action     string          `json:"action"`
+		TargetType string          `json:"target_type"`
+		TargetID   string          `json:"target_id"`
 		Metadata   json.RawMessage `json:"metadata"`
-		CreatedAt  string         `json:"created_at"`
+		CreatedAt  string          `json:"created_at"`
 	}
 
 	out := make([]logItem, len(logs))

@@ -7,11 +7,11 @@ import (
 )
 
 type OrgBilling struct {
-	Plan                   string
-	StripeCustomerID       string
-	StripeSubscriptionID   string
-	SubscriptionStatus     string
-	TrialEndsAt            pgtype.Timestamptz
+	Plan                 string
+	StripeCustomerID     string
+	StripeSubscriptionID string
+	SubscriptionStatus   string
+	TrialEndsAt          pgtype.Timestamptz
 }
 
 func (q *Queries) GetOrgBilling(ctx context.Context, orgID pgtype.UUID) (OrgBilling, error) {

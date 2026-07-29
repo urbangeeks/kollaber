@@ -63,7 +63,9 @@ func sendViaResend(to, code, apiKey string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		var e struct{ Message string `json:"message"` }
+		var e struct {
+			Message string `json:"message"`
+		}
 		_ = json.NewDecoder(resp.Body).Decode(&e)
 		return fmt.Errorf("resend: %s", e.Message)
 	}

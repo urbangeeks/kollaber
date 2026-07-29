@@ -239,8 +239,8 @@ func (h *SSOHandler) Callback(c echo.Context) error {
 // --- helpers ---
 
 type oidcBundle struct {
-	oauth2    *oauth2.Config
-	verifier  *gooidc.IDTokenVerifier
+	oauth2   *oauth2.Config
+	verifier *gooidc.IDTokenVerifier
 }
 
 func buildOAuthConfig(ctx context.Context, cfg store.SSOConfig) (*oidcBundle, error) {

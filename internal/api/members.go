@@ -36,10 +36,10 @@ func (h *MembersHandler) List(c echo.Context) error {
 	}
 
 	type memberItem struct {
-		ID        string `json:"id"`
-		Email     string `json:"email"`
-		Role      string `json:"role"`
-		JoinedAt  string `json:"joined_at"`
+		ID       string `json:"id"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		JoinedAt string `json:"joined_at"`
 	}
 
 	out := make([]memberItem, len(members))

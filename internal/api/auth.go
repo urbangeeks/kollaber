@@ -10,8 +10,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/urbangeeks/kollaber/internal/middleware"
 	"github.com/urbangeeks/kollaber/internal/store"
@@ -139,10 +139,6 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"token": token})
-}
-
-func toPgtypeUUID(id uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
 func makeToken(userID, orgID, email, role string, isAdmin bool) (string, error) {

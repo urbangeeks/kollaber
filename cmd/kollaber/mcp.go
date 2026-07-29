@@ -403,7 +403,7 @@ func newMCPServer() *mcp.Server {
 	}, mcpListIncidents)
 
 	mcp.AddTool(s, &mcp.Tool{
-		Name: "get_dora_metrics",
+		Name:        "get_dora_metrics",
 		Description: "Fetch DORA metrics: deploy frequency, lead time, change failure rate, and time to restore.",
 		Annotations: readOnly,
 	}, mcpGetDORAMetrics)
