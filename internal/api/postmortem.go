@@ -331,15 +331,17 @@ func (d *postmortemDoc) render() string {
 	return sb.String()
 }
 
-// metadataSummary renders an event's metadata as compact key=value pairs, keys
-// sorted so the same event always renders identically.
-func metadataSummary(raw []byte) string {
+// metadataPairs renders an event's metadata as compact key=value strings, keys
+// sorted so the same event always renders identically. Newlines are flattened
+// because every surface this feeds — a table cell, a chart tooltip — is one
+// line. Shared with the Grafana annotations endpoint.
+func metadataPairs(raw []byte) []string {
 	if len(raw) == 0 {
-		return ""
+		return nil
 	}
 	var meta map[string]any
 	if err := json.Unmarshal(raw, &meta); err != nil || len(meta) == 0 {
-		return ""
+		return nil
 	}
 	keys := make([]string, 0, len(meta))
 	for k := range meta {
@@ -347,14 +349,24 @@ func metadataSummary(raw []byte) string {
 	}
 	sort.Strings(keys)
 
-	parts := make([]string, 0, len(keys))
+	pairs := make([]string, 0, len(keys))
 	for _, k := range keys {
-		// Pipes would break out of the markdown table cell.
-		v := strings.ReplaceAll(fmt.Sprintf("%v", meta[k]), "|", "\\|")
-		v = strings.ReplaceAll(v, "\n", " ")
-		parts = append(parts, k+"="+v)
+		v := strings.ReplaceAll(fmt.Sprintf("%v", meta[k]), "\n", " ")
+		pairs = append(pairs, k+"="+v)
 	}
-	return strings.Join(parts, ", ")
+	return pairs
+}
+
+// metadataSummary renders metadata for a markdown table cell. Pipes are escaped
+// here rather than in metadataPairs because they only break markdown — a
+// tooltip showing a stray backslash would be the cost of escaping them for
+// everyone.
+func metadataSummary(raw []byte) string {
+	pairs := metadataPairs(raw)
+	for i, p := range pairs {
+		pairs[i] = strings.ReplaceAll(p, "|", "\\|")
+	}
+	return strings.Join(pairs, ", ")
 }
 
 // narrativePrompt asks for prose only. The timeline and discussion are rendered

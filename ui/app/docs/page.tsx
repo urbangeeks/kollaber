@@ -261,7 +261,8 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
           <Section id="integrations" title="Integrations">
             <p>
               In addition to email, Kollaber can post to a Slack channel or Microsoft Teams channel when events are
-              recorded. These are org-level settings — one webhook URL covers all team members.
+              recorded. These are org-level settings — one webhook URL covers all team members. Kollaber can also
+              serve your events back to Grafana as dashboard annotations.
             </p>
 
             <SubSection title="Slack">
@@ -293,6 +294,46 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <p className="mt-3">
                 Teams messages are sent as colour-coded <InlineCode>MessageCard</InlineCode> payloads — blue for
                 deploys, red for alerts, purple for notes.
+              </p>
+            </SubSection>
+
+            <SubSection title="Grafana annotations">
+              <p>
+                Kollaber serves deploys, rollbacks, scales, teardowns and alerts in Grafana&apos;s JSON annotation
+                format, so your changes render as vertical lines on the dashboards you already have. Kollaber is the
+                datasource here — Grafana pulls from it on each dashboard refresh, so there is nothing to push and
+                nothing to keep in sync.
+              </p>
+              <p className="mt-3">
+                Add a JSON datasource in Grafana — <strong className="text-white">Infinity</strong> works with the{" "}
+                <InlineCode>GET</InlineCode> form, and{" "}
+                <strong className="text-white">simpod-json-datasource</strong> with the{" "}
+                <InlineCode>POST</InlineCode> form. Point it at your Kollaber URL and add a request header of{" "}
+                <InlineCode>Authorization: Bearer &lt;token&gt;</InlineCode>, using a CLI token from the top-right
+                menu → <strong className="text-white">Generate CLI token</strong>. The token carries the
+                organization, so a dashboard only ever sees that org&apos;s events.
+              </p>
+              <Code>{`# Everything in the last 24 hours
+curl -H "Authorization: Bearer $TOKEN" \\
+  https://kollaber.io/annotations
+
+# One environment, deploys and rollbacks only
+curl -H "Authorization: Bearer $TOKEN" \\
+  "https://kollaber.io/annotations?environment_id=<uuid>&type=deploy,rollback"`}</Code>
+              <p className="mt-3">
+                Both <InlineCode>from</InlineCode> and <InlineCode>to</InlineCode> accept RFC3339 or epoch
+                milliseconds and default to the last 24 hours. Filters are{" "}
+                <InlineCode>environment_id</InlineCode>, <InlineCode>service</InlineCode>, and{" "}
+                <InlineCode>type</InlineCode> (comma-separated). With the POST form, put those same filters in the
+                annotation query box as a query string, for example{" "}
+                <InlineCode>type=deploy&amp;service=api</InlineCode>.
+              </p>
+              <p className="mt-3">
+                Each annotation is tagged with its type, environment and service, plus its status when that status is
+                something other than success — so a Grafana panel can filter down to{" "}
+                <InlineCode>failure</InlineCode> alone. Notes are left out by default, since a dashboard marker should
+                record something that happened to the system rather than something someone said about it; ask for{" "}
+                <InlineCode>type=note</InlineCode> if you want them.
               </p>
             </SubSection>
 
@@ -756,6 +797,19 @@ kube-watcher \\
                 <ApiRow method="POST"  path="/incidents/:id/events"    desc="Attach events to an incident (authenticated)" />
                 <ApiRow method="POST"  path="/incidents/:id/postmortem" desc="Generate an AI postmortem (Pro plan)" />
               </div>
+            </SubSection>
+
+            <SubSection title="Annotations">
+              <div className="space-y-2">
+                <ApiRow method="GET"  path="/annotations" desc="Grafana annotations for a window (authenticated)" />
+                <ApiRow method="POST" path="/annotations" desc="Same, in the simple-json datasource format (authenticated)" />
+              </div>
+              <p className="mt-3 text-sm">
+                Query parameters: <InlineCode>from</InlineCode> and <InlineCode>to</InlineCode> (RFC3339 or epoch
+                milliseconds, default the last 24 hours), <InlineCode>environment_id</InlineCode>,{" "}
+                <InlineCode>service</InlineCode>, and <InlineCode>type</InlineCode> (comma-separated; defaults to
+                every type except <InlineCode>note</InlineCode>).
+              </p>
             </SubSection>
 
             <SubSection title="Settings">

@@ -80,13 +80,32 @@ the UI suggests narrowing the range.
 
 ## Tier 2 — distribution and stickiness
 
-### 4. Grafana annotations endpoint
+### 4. Grafana annotations endpoint — **shipped**
 
-Serve deploy/alert events in Grafana's JSON annotations format so Kollaber markers render as
-vertical lines on dashboards teams already have.
+`/annotations` serves change and alert events as Grafana annotations, so Kollaber markers render as
+vertical lines on dashboards teams already have. Both verbs return the same array: `POST` speaks the
+simple-json datasource contract, `GET` takes the window on the query string for Infinity and for
+curl.
 
-Every graph in the company becomes a Kollaber billboard, and "sits alongside your observability
-stack" becomes literally true rather than a positioning claim. Low effort, disproportionate reach.
+Auth reuses the existing 90-day CLI token rather than introducing a datasource key. Grafana sends a
+static `Authorization` header, the token already carries the org, and every new credential type is
+one more thing to revoke, audit, and get wrong.
+
+Grafana gives a dashboard author one free-text box per annotation track, so its contents are read as
+a query string. A `POST` filters through exactly the same code as a `GET` and the two cannot drift.
+A bare word in that box degrades to the defaults rather than erroring, because a Grafana user cannot
+see our error body.
+
+Notes are excluded by default and the set is derived by exclusion from `store.ValidEventTypes` — a
+new event type shows up on dashboards automatically instead of being silently missing until someone
+notices. Naming a type explicitly still returns it, notes included.
+
+Empty results marshal to `[]`, never `null`: Grafana reads a null body as a datasource failure and
+paints the panel as broken.
+
+Known limitation: 1000 markers per query, applied to the *newest* events in the window. A panel is
+read at its recent end, so truncating the other way would leave the right-hand side bare while the
+far left stayed dense.
 
 ### 5. ArgoCD / Terraform / Atlantis ingestion
 
