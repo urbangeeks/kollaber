@@ -188,10 +188,13 @@ function DecisionsInner() {
 
         {decisions !== null && decisions.length === 0 && (
           <p className="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-center text-sm">
-            No decisions yet. Open a comment thread on the timeline and choose
-            <strong className="text-foreground"> Mark as decision</strong> to record
-            what the team settled on — &ldquo;we&rsquo;re rolling back&rdquo;,
-            &ldquo;accepting this risk until Q3&rdquo;.
+            {/* Explicit {" "} on both sides: JSX strips the leading and
+                trailing whitespace of a text node that spans lines, so a space
+                written next to the tag disappears at build time. */}
+            No decisions yet. Open a comment thread on the timeline and choose{" "}
+            <strong className="text-foreground">Mark as decision</strong>{" "}
+            to record what the team settled on — &ldquo;we&rsquo;re rolling
+            back&rdquo;, &ldquo;accepting this risk until Q3&rdquo;.
           </p>
         )}
 
