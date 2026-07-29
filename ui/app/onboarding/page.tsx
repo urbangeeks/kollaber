@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createEnvironment, generateCLIToken, getToken } from "@/lib/api"
 import { createEnvSchema } from "@/lib/schemas"
+import { useClientValue } from "@/hooks/use-client-value"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,10 +49,18 @@ export default function OnboardingPage() {
   const [envName, setEnvName] = useState("")
   const [cliToken, setCliToken] = useState("")
 
-  if (!getToken()) {
-    router.replace("/login")
-    return null
-  }
+  // Redirecting during render called router.replace on the server, where
+  // `location` does not exist — the ReferenceError every build logged. It is
+  // also a side effect during render, which React does not allow. Reading the
+  // token during render additionally makes the server and client disagree,
+  // since localStorage is client-only, so authed is resolved after hydration.
+  const authed = useClientValue(() => Boolean(getToken()), true)
+
+  useEffect(() => {
+    if (!getToken()) router.replace("/login")
+  }, [router])
+
+  if (!authed) return null
 
   async function handleCreateEnv(e: React.FormEvent) {
     e.preventDefault()
