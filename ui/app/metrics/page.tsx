@@ -12,8 +12,7 @@ import {
   type DoraRating,
   type Environment,
 } from "@/lib/api"
-import { ThemeToggle } from "@/components/settings-nav"
-import { DotBackground } from "@/components/dot-background"
+import { AppShell } from "@/components/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,7 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ArrowLeft, Loader2, Rocket, Timer, TriangleAlert, Wrench } from "lucide-react"
+import { Loader2, Rocket, Timer, TriangleAlert, Wrench } from "lucide-react"
 
 // DORA performance tiers map to a consistent colour across badge and value.
 const RATING: Record<DoraRating, { label: string; className: string }> = {
@@ -322,22 +321,8 @@ export default function MetricsPage() {
   const scopedToEnv = envId !== ""
 
   return (
-    <div className="min-h-screen">
-      <DotBackground />
-      <header className="border-b px-4 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Dashboard
-          </Button>
-          <span className="font-semibold tracking-tight">Metrics</span>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
+    <AppShell title="Metrics">
+      <div>
         {/* Controls */}
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1 rounded-lg border p-1">
@@ -406,7 +391,7 @@ export default function MetricsPage() {
         {!data && !loading && (
           <p className="text-sm text-muted-foreground">No data.</p>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }

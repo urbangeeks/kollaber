@@ -19,7 +19,7 @@ import {
 import { useClientValue } from "@/hooks/use-client-value"
 import { createIncidentSchema } from "@/lib/schemas"
 import { TimelineEvent } from "@/components/timeline-event"
-import { DotBackground } from "@/components/dot-background"
+import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -116,13 +116,9 @@ function IncidentList() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:p-8">
-      <DotBackground />
-      <div className="mx-auto max-w-2xl space-y-6">
+    <>
+      <div className="max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <h1 className="text-xl font-semibold">Incidents</h1>
           {canEdit && (
             <Button size="sm" className="ml-auto" onClick={() => { setTitle(""); setSeverity("sev3"); setTitleError(""); setDialogOpen(true) }}>
@@ -223,7 +219,7 @@ function IncidentList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
 
@@ -296,35 +292,30 @@ function IncidentDetail({ id }: { id: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen px-4 py-6 sm:p-8">
-        <DotBackground />
-        <div className="mx-auto max-w-2xl space-y-4">
-          <div className="h-8 w-1/2 rounded bg-muted animate-pulse" />
-          <div className="h-24 rounded-lg bg-muted animate-pulse" />
-        </div>
+      <div className="max-w-2xl space-y-4">
+        <div className="h-8 w-1/2 rounded bg-muted animate-pulse" />
+        <div className="h-24 rounded-lg bg-muted animate-pulse" />
       </div>
     )
   }
 
   if (error || !incident) {
     return (
-      <div className="min-h-screen px-4 py-6 sm:p-8">
-        <DotBackground />
-        <div className="mx-auto max-w-2xl space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/incidents")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" /> Incidents
-          </Button>
-          <p className="text-destructive text-sm">{error || "Incident not found"}</p>
-        </div>
+      <div className="max-w-2xl space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/incidents")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Incidents
+        </Button>
+        <p className="text-destructive text-sm">{error || "Incident not found"}</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:p-8">
-      <DotBackground />
-      <div className="mx-auto max-w-2xl space-y-6">
+    <>
+      <div className="max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
+          {/* Back to the list, not the dashboard: the detail view sits one
+              level inside Incidents, and the sidebar handles everything else. */}
           <Button variant="ghost" size="icon" onClick={() => router.push("/incidents")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -423,7 +414,7 @@ function IncidentDetail({ id }: { id: string }) {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -440,5 +431,14 @@ function IncidentsInner() {
 }
 
 export default function IncidentsPage() {
-  return <Suspense><IncidentsInner /></Suspense>
+  // The shell sits outside Suspense so the nav is in the prerendered HTML.
+  // Inside it, useSearchParams forces this subtree client-only and the nav
+  // would pop in after hydration.
+  return (
+    <AppShell>
+      <Suspense>
+        <IncidentsInner />
+      </Suspense>
+    </AppShell>
+  )
 }

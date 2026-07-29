@@ -9,12 +9,11 @@ import {
   type SearchHit,
   type Environment,
 } from "@/lib/api"
-import { DotBackground } from "@/components/dot-background"
+import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-  ArrowLeft,
   Search as SearchIcon,
   Loader2,
   Rocket,
@@ -157,13 +156,8 @@ function SearchInner() {
   const envName = (id: string) => envs.find((e) => e.id === id)?.name ?? ""
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:p-8">
-      <DotBackground />
-      <div className="mx-auto max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <h1 className="text-xl font-semibold">Search</h1>
         </div>
 
@@ -238,15 +232,19 @@ function SearchInner() {
             Searching…
           </p>
         )}
-      </div>
     </div>
   )
 }
 
 export default function SearchPage() {
+  // The shell sits outside Suspense so the nav is in the prerendered HTML.
+  // Inside it, useSearchParams forces this subtree client-only and the nav
+  // would pop in after hydration.
   return (
-    <Suspense>
-      <SearchInner />
-    </Suspense>
+    <AppShell>
+      <Suspense>
+        <SearchInner />
+      </Suspense>
+    </AppShell>
   )
 }

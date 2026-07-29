@@ -7,9 +7,6 @@ import {
   getEnvironments,
   getEnvStats,
   getToken,
-  removeToken,
-  isAdmin,
-  getCurrentEmail,
   getCurrentRole,
   generateCLIToken,
   createEnvironment,
@@ -22,14 +19,12 @@ import {
 import { useClientValue } from "@/hooks/use-client-value"
 import { useEventStream } from "@/hooks/use-event-stream"
 import { createEnvSchema } from "@/lib/schemas"
-import { OrgSwitcher } from "@/components/org-switcher"
-import { ThemeToggle } from "@/components/settings-nav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DotBackground } from "@/components/dot-background"
+import { AppShell } from "@/components/app-shell"
 import {
   Dialog,
   DialogContent,
@@ -43,16 +38,9 @@ import {
   Check,
   Plus,
   Download,
-  User,
   Trash2,
   Pencil,
   TriangleAlert,
-  Settings,
-  LogOut,
-  BarChart3,
-  Search,
-  Bookmark,
-  Boxes,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -125,7 +113,6 @@ export default function DashboardPage() {
   const [cliToken, setCliToken] = useState("")
   const [cliTokenLoading, setCliTokenLoading] = useState(false)
   const [cliTokenCopied, setCliTokenCopied] = useState(false)
-  const email = useClientValue(getCurrentEmail, "")
   const role = useClientValue<"owner" | "admin" | "member" | "viewer" | null>(
     getCurrentRole,
     null,
@@ -177,11 +164,6 @@ export default function DashboardPage() {
     },
     authed,
   )
-
-  function handleLogout() {
-    removeToken()
-    router.push("/login")
-  }
 
   function openNewEnv() {
     setNewEnvName("")
@@ -284,103 +266,25 @@ export default function DashboardPage() {
 
   const isAdminOrOwner = role === "owner" || role === "admin"
 
-  const ROLE_BADGE: Record<string, { label: string; className: string }> = {
-    owner: {
-      label: "Owner",
-      className: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-    },
-    admin: {
-      label: "Admin",
-      className: "bg-violet-500/15 text-violet-600 border-violet-500/30",
-    },
-    member: {
-      label: "Member",
-      className: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-    },
-    viewer: {
-      label: "Viewer",
-      className: "bg-muted text-muted-foreground border-border",
-    },
-  }
-
   return (
-    <div className="min-h-screen">
-      <DotBackground />
-      {/* Top bar */}
-      <header className="border-b px-4 py-4 sm:px-8">
-        <div className="mx-auto max-w-5xl flex items-center gap-4">
-          <span className="font-semibold tracking-tight">Kollaber</span>
-          <div className="ml-auto flex items-center gap-2">
-            <OrgSwitcher />
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/search")}>
-              <Search className="mr-1.5 h-4 w-4" />
-              Search
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/decisions")}>
-              <Bookmark className="mr-1.5 h-4 w-4" />
-              Decisions
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/inventory")}>
-              <Boxes className="mr-1.5 h-4 w-4" />
-              Inventory
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/metrics")}>
-              <BarChart3 className="mr-1.5 h-4 w-4" />
-              Metrics
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/incidents")}>
-              <TriangleAlert className="mr-1.5 h-4 w-4" />
-              Incidents
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push("/settings/notifications")}>
-              <Settings className="h-4 w-4" />
-            </Button>
-            {isAdmin() && (
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/admin")}>
-                Admin
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={() => { setCliToken(""); setDownloadOpen(true) }}
-            >
-              <Download className="mr-1.5 h-4 w-4" />
-              CLI
-            </Button>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                {email ? email[0].toUpperCase() : <User className="h-3.5 w-3.5" />}
-              </div>
-              <span className="max-w-[140px] truncate text-xs text-muted-foreground hidden sm:block">
-                {email}
-              </span>
-              {role && ROLE_BADGE[role] && (
-                <span className={`hidden sm:inline rounded border px-1.5 py-0.5 text-[10px] leading-none font-medium ${ROLE_BADGE[role].className}`}>
-                  {ROLE_BADGE[role].label}
-                </span>
-              )}
-            </div>
-            {/* Sign out — text on sm+, icon-only on mobile */}
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground" onClick={handleLogout}>
-              Sign out
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden text-muted-foreground" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8 space-y-6">
+    <AppShell
+      title="Environments"
+      actions={
+        <Button
+          variant="ghost"
+          size="sm"
+          className="hidden sm:inline-flex"
+          onClick={() => { setCliToken(""); setDownloadOpen(true) }}
+        >
+          <Download className="mr-1.5 h-4 w-4" />
+          CLI
+        </Button>
+      }
+    >
+      <>
+      <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Environments</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Select an environment to view its timeline.</p>
-          </div>
+          <p className="text-sm text-muted-foreground">Select an environment to view its timeline.</p>
           {isAdminOrOwner && (
             <Button size="sm" onClick={openNewEnv}>
               <Plus className="mr-1.5 h-4 w-4" />
@@ -753,6 +657,7 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
+    </AppShell>
   )
 }

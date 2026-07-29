@@ -9,11 +9,10 @@ import {
   type Decision,
   type Environment,
 } from "@/lib/api"
-import { DotBackground } from "@/components/dot-background"
+import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  ArrowLeft,
   Bookmark,
   Loader2,
   Rocket,
@@ -155,13 +154,8 @@ function DecisionsInner() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:p-8">
-      <DotBackground />
-      <div className="mx-auto max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <h1 className="text-xl font-semibold">Decisions</h1>
           {decisions !== null && (
             <span className="text-muted-foreground ml-auto text-xs">
@@ -219,15 +213,19 @@ function DecisionsInner() {
             )}
           </div>
         )}
-      </div>
     </div>
   )
 }
 
 export default function DecisionsPage() {
+  // The shell sits outside Suspense so the nav is in the prerendered
+  // HTML. Inside it, useSearchParams forces this subtree client-only and
+  // the nav would pop in after hydration.
   return (
-    <Suspense fallback={null}>
-      <DecisionsInner />
-    </Suspense>
+    <AppShell>
+      <Suspense fallback={null}>
+        <DecisionsInner />
+      </Suspense>
+    </AppShell>
   )
 }
