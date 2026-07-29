@@ -137,11 +137,30 @@ Known limitation: Terraform's notification payload carries no destroy flag, so a
 run is recorded as a deploy rather than a teardown. Argo CD can send a teardown because its template
 names the type explicitly.
 
-### 6. Weekly digest email
+### 6. Weekly digest email — **shipped**
 
-Per-environment recap via Resend: deploy/alert/incident counts, notable comment threads, AI summary.
+A Monday recap of the week that ended: deploys and failures per environment, rollbacks, alerts,
+incidents opened and resolved, and the events that drew the most discussion. Opt-in through the
+existing `notification_prefs.notify_on` array, so there is one place to unsubscribe from Kollaber's
+mail rather than three.
 
-Retention hook — pulls back people who stopped opening the dashboard.
+Threads are ranked by comments written *during* the week rather than by the event's own age, so a
+months-old event the team argued about on Tuesday still surfaces — which is the conversation someone
+would otherwise miss.
+
+The scheduler runs in-process rather than as a cron job, so a digest arrives on a plain `docker run`
+install with nothing configured. Correctness under more than one replica comes from the claim in
+`digest_sends`, not from there being a single scheduler: every pod runs the same schedule and the
+`INSERT ... ON CONFLICT DO NOTHING` decides which one sends. A failed send releases its claim, so a
+transient error costs a retry rather than the whole week.
+
+A week with nothing in it sends nothing, and environments with no activity are dropped from the
+email — a wall of zeroes every Monday is how a digest teaches people to filter it.
+
+Deliberately no AI summary. The digest is a nudge to open the timeline, and the numbers plus the
+busiest threads already do that; a per-org model call every week would add cost and a failure mode
+to an email whose whole job is to be reliable and cheap. The postmortem generator is where the
+narrative belongs, and it runs when someone asks for it.
 
 ---
 

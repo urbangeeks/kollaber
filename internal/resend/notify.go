@@ -16,16 +16,22 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// SendEventNotification emails all opted-in org members about a new event.
-// Silently logs to stdout when RESEND_API_KEY is unset (local dev).
-func SendEventNotification(recipients []string, eventType, service, envName string) error {
+// SendHTML delivers one already-rendered email to every recipient, or prints
+// devLine to stdout when RESEND_API_KEY is unset (local dev and unconfigured
+// self-hosted installs).
+//
+// This is the single path to the mail provider. Each caller supplies its own
+// subject and markup; nothing about a particular kind of notification lives
+// here, so a new one cannot arrive with its own subtly different retry or
+// error handling.
+func SendHTML(recipients []string, subject, html, devLine string) error {
 	if len(recipients) == 0 {
 		return nil
 	}
 
 	apiKey := os.Getenv("RESEND_API_KEY")
 	if apiKey == "" {
-		fmt.Printf("\n[NOTIFY] %s event on %s/%s → %s\n\n", eventType, envName, service, strings.Join(recipients, ", "))
+		fmt.Printf("\n[NOTIFY] %s → %s\n\n", devLine, strings.Join(recipients, ", "))
 		return nil
 	}
 
@@ -34,14 +40,12 @@ func SendEventNotification(recipients []string, eventType, service, envName stri
 		from = "Kollaber <noreply@kollaber.io>"
 	}
 
-	payload := emailPayload{
+	body, err := json.Marshal(emailPayload{
 		From:    from,
 		To:      recipients,
-		Subject: fmt.Sprintf("[Kollaber] %s event: %s on %s", capitalize(eventType), service, envName),
-		HTML:    eventNotificationHTML(eventType, service, envName),
-	}
-
-	body, err := json.Marshal(payload)
+		Subject: subject,
+		HTML:    html,
+	})
 	if err != nil {
 		return err
 	}
@@ -60,62 +64,34 @@ func SendEventNotification(recipients []string, eventType, service, envName stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		var e struct{ Message string `json:"message"` }
+		var e struct {
+			Message string `json:"message"`
+		}
 		_ = json.NewDecoder(resp.Body).Decode(&e)
 		return fmt.Errorf("resend: %s", e.Message)
 	}
 	return nil
 }
 
+// SendEventNotification emails all opted-in org members about a new event.
+func SendEventNotification(recipients []string, eventType, service, envName string) error {
+	return SendHTML(
+		recipients,
+		fmt.Sprintf("[Kollaber] %s event: %s on %s", capitalize(eventType), service, envName),
+		eventNotificationHTML(eventType, service, envName),
+		fmt.Sprintf("%s event on %s/%s", eventType, envName, service),
+	)
+}
+
 // SendIncidentNotification emails opted-in org members about an incident update.
 // verb describes what happened, e.g. "opened", "mitigated", "resolved".
 func SendIncidentNotification(recipients []string, title, severity, verb string) error {
-	if len(recipients) == 0 {
-		return nil
-	}
-
-	apiKey := os.Getenv("RESEND_API_KEY")
-	if apiKey == "" {
-		fmt.Printf("\n[NOTIFY] Incident %s (%s): %s → %s\n\n", verb, strings.ToUpper(severity), title, strings.Join(recipients, ", "))
-		return nil
-	}
-
-	from := os.Getenv("RESEND_FROM")
-	if from == "" {
-		from = "Kollaber <noreply@kollaber.io>"
-	}
-
-	payload := emailPayload{
-		From:    from,
-		To:      recipients,
-		Subject: fmt.Sprintf("[Kollaber] Incident %s: %s (%s)", verb, title, strings.ToUpper(severity)),
-		HTML:    incidentNotificationHTML(title, severity, verb),
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		var e struct{ Message string `json:"message"` }
-		_ = json.NewDecoder(resp.Body).Decode(&e)
-		return fmt.Errorf("resend: %s", e.Message)
-	}
-	return nil
+	return SendHTML(
+		recipients,
+		fmt.Sprintf("[Kollaber] Incident %s: %s (%s)", verb, title, strings.ToUpper(severity)),
+		incidentNotificationHTML(title, severity, verb),
+		fmt.Sprintf("Incident %s (%s): %s", verb, strings.ToUpper(severity), title),
+	)
 }
 
 func incidentNotificationHTML(title, severity, verb string) string {

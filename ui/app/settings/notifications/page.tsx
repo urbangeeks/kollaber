@@ -18,6 +18,7 @@ const EVENT_TYPES = [
   { value: "note",     label: "Notes",       description: "When a note is added to the timeline" },
   { value: "teardown", label: "Teardowns",   description: "When a workload is removed from a cluster" },
   { value: "incident", label: "Incidents",   description: "When an incident is opened or its status changes" },
+  { value: "digest",   label: "Weekly digest", description: "A Monday recap of last week: deploys, alerts, incidents, and the busiest discussions" },
 ]
 
 export default function NotificationsSettingsPage() {

@@ -39,6 +39,16 @@ spec:
               value: {{ .Values.urls.frontend | quote }}
             - name: CORS_ORIGINS
               value: {{ .Values.urls.frontend | quote }}
+            {{- if .Values.digest }}
+            {{- if .Values.digest.disabled }}
+            - name: DIGEST_DISABLED
+              value: "true"
+            {{- end }}
+            {{- if .Values.digest.sendHour }}
+            - name: DIGEST_SEND_HOUR
+              value: {{ .Values.digest.sendHour | quote }}
+            {{- end }}
+            {{- end }}
             - name: GITHUB_REDIRECT_URL
               value: {{ .Values.githubRedirectUrl | default (printf "%s/auth/github/callback" .Values.urls.api) | quote }}
             - name: JWT_SECRET

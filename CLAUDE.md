@@ -32,7 +32,7 @@ build list.
 - AI: timeline assistant (`/ai/chat`), event summaries, postmortem generation
 - MCP server (`kollaber mcp`) exposing the timeline to coding agents
 - Realtime: server-sent events (`/events/stream`) — not polling, not websockets
-- Notifications: Slack, Microsoft Teams, email (Resend)
+- Notifications: Slack, Microsoft Teams, email (Resend), weekly digest email
 - Billing: Stripe, plan entitlements (free / team / pro / enterprise)
 - Audit logs
 - CLI (`kollaber`)
@@ -73,6 +73,7 @@ internal/
   api/            # HTTP handlers + router
   billing/        # Stripe, plans, entitlements
   db/             # connection, migrations
+  digest/         # weekly digest: build, render, in-process scheduler
   middleware/     # auth, org context, rate limiting
   resend/         # transactional email
   slack/          # Slack + Teams notifications

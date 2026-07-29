@@ -236,6 +236,7 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
                 <li><strong className="text-white">Deployments</strong> — emailed when a <InlineCode>deploy</InlineCode> event is recorded</li>
                 <li><strong className="text-white">Alerts</strong> — emailed when an <InlineCode>alert</InlineCode> event is recorded</li>
                 <li><strong className="text-white">Notes</strong> — emailed when a <InlineCode>note</InlineCode> is added to the timeline</li>
+                <li><strong className="text-white">Weekly digest</strong> — a Monday recap of the week that just ended</li>
               </ul>
               <p className="mt-3">
                 The <strong className="text-white">Notification email</strong> field lets you receive alerts at a
@@ -245,6 +246,30 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <p className="mt-2">
                 Preferences are saved per organization. Members who have not configured preferences receive no emails
                 by default.
+              </p>
+            </SubSection>
+
+            <SubSection title="Weekly digest">
+              <p>
+                Tick <strong className="text-white">Weekly digest</strong> under{" "}
+                <strong className="text-white">Settings → Notifications</strong> to get a Monday recap of the week
+                that just ended: deploys and failures per environment, rollbacks, alerts, incidents opened and
+                resolved, and the events that drew the most discussion.
+              </p>
+              <p className="mt-3">
+                Threads are ranked by comments written <em>during</em> that week rather than by the age of the event,
+                so a months-old event the team argued about on Tuesday still surfaces — which is exactly the
+                conversation you would otherwise miss.
+              </p>
+              <p className="mt-3 text-sm">
+                A week with no events, no incidents and no discussion sends nothing. Environments that saw no activity
+                are left out of the email rather than listed as rows of zeroes.
+              </p>
+              <p className="mt-3 text-sm">
+                Self-hosted: the schedule runs inside the API, so there is no cron to configure. Running more than one
+                replica is safe — each send is claimed in the database, so exactly one pod mails each org. Set{" "}
+                <InlineCode>DIGEST_SEND_HOUR</InlineCode> to move it off 14:00 UTC, or{" "}
+                <InlineCode>DIGEST_DISABLED=true</InlineCode> to turn it off entirely.
               </p>
             </SubSection>
 

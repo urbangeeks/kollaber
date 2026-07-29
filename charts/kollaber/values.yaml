@@ -30,6 +30,15 @@ urls:
   # Public URL of the frontend
   frontend: http://localhost:3000
 
+# Weekly digest email. Sent on Monday to members who opted in under
+# Settings → Notifications. Safe to run with more than one replica: the send is
+# claimed in the database, so exactly one pod mails each org.
+digest:
+  # Set true to send no digests at all
+  disabled: false
+  # UTC hour on Monday at which digests go out (0-23)
+  sendHour: 14
+
 # -- Secret values — provide via --set or an external secret manager
 secret:
   # JWT signing secret — required, generate with: openssl rand -hex 32

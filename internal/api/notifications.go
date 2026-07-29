@@ -19,7 +19,13 @@ func NewNotificationsHandler(q *store.Queries) *NotificationsHandler {
 	return &NotificationsHandler{q}
 }
 
-var validEventTypes = map[string]bool{"deploy": true, "alert": true, "note": true, "teardown": true, "incident": true}
+// Preference values. "incident" and "digest" are not event types — they name
+// the other two things a person can subscribe to, and share notify_on so there
+// is one place to unsubscribe from Kollaber's mail rather than three.
+var validEventTypes = map[string]bool{
+	"deploy": true, "alert": true, "note": true, "teardown": true,
+	"incident": true, "digest": true,
+}
 
 func (h *NotificationsHandler) Get(c echo.Context) error {
 	userID := c.Get(middleware.UserIDKey).(uuid.UUID)

@@ -8,6 +8,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/urbangeeks/kollaber/internal/api"
 	"github.com/urbangeeks/kollaber/internal/db"
+	"github.com/urbangeeks/kollaber/internal/digest"
+	"github.com/urbangeeks/kollaber/internal/resend"
 	"github.com/urbangeeks/kollaber/internal/store"
 )
 
@@ -32,6 +34,14 @@ func main() {
 	}
 
 	q := store.New(pool)
+
+	// The weekly digest schedules itself in-process so it works on an install
+	// with no cron. Running it on every replica is safe: the send is claimed in
+	// digest_sends, so exactly one of them mails each org.
+	digestScheduler := digest.NewScheduler(q, func(recipients []string, w digest.Weekly) error {
+		return resend.SendHTML(recipients, w.Subject(), w.HTML(), w.DevLine())
+	})
+	go digestScheduler.Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {
