@@ -44,6 +44,9 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	comments := NewCommentsHandler(q, hub)
 	webhooks := NewWebhookHandler(q, hub)
 	alertmanager := NewAlertmanagerHandler(q, hub)
+	terraform := NewTerraformHandler(q, hub)
+	atlantis := NewAtlantisHandler(q, hub)
+	argocd := NewArgoCDHandler(q, hub)
 	streamH := NewStreamHandler(hub)
 	admin := NewAdminHandler(q)
 	invites := NewInviteHandler(q)
@@ -91,6 +94,9 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 
 	e.POST("/webhooks/events", webhooks.Ingest)
 	e.POST("/webhooks/alertmanager", alertmanager.Ingest)
+	e.POST("/webhooks/terraform", terraform.Ingest)
+	e.POST("/webhooks/atlantis", atlantis.Ingest)
+	e.POST("/webhooks/argocd", argocd.Ingest)
 
 	protected := e.Group("", middleware.Auth())
 	protected.GET("/environments", envs.List)

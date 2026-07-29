@@ -107,13 +107,35 @@ Known limitation: 1000 markers per query, applied to the *newest* events in the 
 read at its recent end, so truncating the other way would leave the right-hand side bare while the
 far left stayed dense.
 
-### 5. ArgoCD / Terraform / Atlantis ingestion
+### 5. ArgoCD / Terraform / Atlantis ingestion — **shipped**
 
-We cover GitHub Actions and Alertmanager. ArgoCD is where GitOps shops actually experience "a change
-happened." Terraform/Atlantis covers infra changes — the ones that cause outages nobody can explain,
-because the app deploy log shows nothing.
+`/webhooks/argocd`, `/webhooks/terraform` and `/webhooks/atlantis`, each normalizing its source onto
+the existing event shape. No data model change; the target environment comes from
+`?environment_id=`, since a destination URL is the only per-target setting any of these tools has.
 
-Broadens the event surface without changing the data model.
+Argo CD is the odd one: its notification service builds the body from a Go template the operator
+writes, so the payload is a contract we publish rather than one we are handed. The docs carry the
+template. Only `app` is required, because a template renders an unset field as an empty string and
+an app that has never synced would otherwise 400 on its first notification.
+
+Terraform records terminal outcomes only — `applied` and `errored`. A plan is not a change:
+recording one would put a marker on the timeline for a run that touched nothing, count it as a
+deployment in DORA, and hand suspect detection a change that never happened. Other statuses are
+accepted and skipped, so enabling extra triggers is harmless, and the verification payload sent when
+a notification config is saved falls through the same path.
+
+Terraform signs with HMAC-SHA512 in `X-TFE-Notification-Signature`, bare hex with no algorithm
+prefix — a different hash and a different framing from the SHA-256 the other webhooks use, so it
+cannot share `verifyHMAC`. Atlantis and Argo CD sign nothing and send static headers, so both use
+the shared secret.
+
+Atlantis posts only after an apply, so every delivery is a real change with no plan-stage noise to
+filter. Its payload is a Go struct marshalled without json tags, which makes the wire format
+capitalised field names — the one shape a lowercase tag reads as empty.
+
+Known limitation: Terraform's notification payload carries no destroy flag, so a `terraform destroy`
+run is recorded as a deploy rather than a teardown. Argo CD can send a teardown because its template
+names the type explicitly.
 
 ### 6. Weekly digest email
 

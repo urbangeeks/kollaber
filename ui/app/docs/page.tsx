@@ -582,6 +582,89 @@ kube-watcher \\
   "metadata":       { /* any key-value pairs */ }
 }`}</Code>
             </SubSection>
+
+            <SubSection title="Argo CD">
+              <p>
+                Add a webhook service and a template to{" "}
+                <InlineCode>argocd-notifications-cm</InlineCode>. Argo CD builds the request body from a template you
+                write, so this one is the contract — send the fields below and Kollaber will map them.
+              </p>
+              <Code>{`service.webhook.kollaber: |
+  url: https://kollaber.io/webhooks/argocd?environment_id=<uuid>
+  headers:
+  - name: X-Kollaber-Secret
+    value: $kollaber-webhook-secret
+
+template.kollaber-sync: |
+  webhook:
+    kollaber:
+      method: POST
+      body: |
+        {
+          "app": "{{.app.metadata.name}}",
+          "revision": "{{.app.status.sync.revision}}",
+          "sync_status": "{{.app.status.sync.status}}",
+          "health_status": "{{.app.status.health.status}}",
+          "operation_phase": "{{.app.status.operationState.phase}}",
+          "project": "{{.app.spec.project}}",
+          "namespace": "{{.app.spec.destination.namespace}}"
+        }`}</Code>
+              <p className="text-sm">
+                Then subscribe an Application with an annotation, for example{" "}
+                <InlineCode>notifications.argoproj.io/subscribe.on-sync-succeeded.kollaber</InlineCode>.
+              </p>
+              <p className="mt-3 text-sm">
+                Only <InlineCode>app</InlineCode> is required. The event status comes from{" "}
+                <InlineCode>operation_phase</InlineCode> first and <InlineCode>health_status</InlineCode> second — a
+                sync that succeeded onto a degraded app is recorded as a successful change, with the health left in
+                the metadata. Add <InlineCode>&quot;type&quot;: &quot;teardown&quot;</InlineCode> to the body on an{" "}
+                <InlineCode>on-app-deleted</InlineCode> subscription; it defaults to <InlineCode>deploy</InlineCode>.
+              </p>
+            </SubSection>
+
+            <SubSection title="HCP Terraform">
+              <p>
+                In the workspace, go to <strong className="text-white">Settings → Notifications → Create a
+                notification</strong>, choose <strong className="text-white">Webhook</strong>, and use:
+              </p>
+              <Code>{`URL:      https://kollaber.io/webhooks/terraform?environment_id=<uuid>
+Token:    your WEBHOOK_SECRET
+Triggers: Completed, Errored`}</Code>
+              <p className="text-sm">
+                The token is used to sign the body with HMAC-SHA512, which Kollaber verifies against{" "}
+                <InlineCode>WEBHOOK_SECRET</InlineCode>. The workspace name becomes the service.
+              </p>
+              <p className="mt-3 text-sm">
+                Only runs that reached your infrastructure are recorded — <InlineCode>applied</InlineCode> as a
+                success and <InlineCode>errored</InlineCode> as a failure. Plan, cancel, and discard notifications are
+                accepted and skipped, so enabling extra triggers is harmless: a plan is not a change, and recording
+                one would add a timeline marker for a run that touched nothing and count it as a deployment in DORA.
+              </p>
+            </SubSection>
+
+            <SubSection title="Atlantis">
+              <p>
+                Add an apply webhook to your Atlantis server-side config, and send the secret as a header:
+              </p>
+              <Code>{`# repos.yaml
+webhooks:
+  - event: apply
+    kind: http
+    url: https://kollaber.io/webhooks/atlantis?environment_id=<uuid>
+
+# server flag (or ATLANTIS_WEBHOOK_HTTP_HEADERS)
+--webhook-http-headers='{"Authorization":"Bearer $WEBHOOK_SECRET"}'`}</Code>
+              <p className="text-sm">
+                Atlantis posts only after an apply has run, so every delivery is a real change. The service name is
+                the project from <InlineCode>atlantis.yaml</InlineCode>, falling back to the directory and then the
+                repository. The pull request number, branch, commit, and the user who ran{" "}
+                <InlineCode>atlantis apply</InlineCode> are kept in the event metadata.
+              </p>
+              <p className="mt-3 text-sm">
+                Use <InlineCode>workspace-regex</InlineCode> and <InlineCode>branch-regex</InlineCode> on the webhook
+                to point different workspaces at different Kollaber environments.
+              </p>
+            </SubSection>
           </Section>
 
           {/* ── Self-hosting ── */}
@@ -774,6 +857,10 @@ kube-watcher \\
                 <ApiRow method="GET"  path="/events"                desc="List events, filter by environment_id and limit (authenticated)" />
                 <ApiRow method="POST" path="/events"                desc="Create an event (authenticated)" />
                 <ApiRow method="POST" path="/webhooks/events"       desc="Ingest an event via webhook (unauthenticated)" />
+                <ApiRow method="POST" path="/webhooks/alertmanager" desc="Ingest Prometheus Alertmanager alerts (shared secret)" />
+                <ApiRow method="POST" path="/webhooks/argocd"       desc="Ingest an Argo CD notification (shared secret)" />
+                <ApiRow method="POST" path="/webhooks/terraform"    desc="Ingest an HCP Terraform run notification (HMAC-SHA512)" />
+                <ApiRow method="POST" path="/webhooks/atlantis"     desc="Ingest an Atlantis apply (shared secret)" />
               </div>
               <p className="mt-3 text-sm">
                 Query parameters for <InlineCode>GET /events</InlineCode>:{" "}

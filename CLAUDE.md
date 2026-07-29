@@ -25,7 +25,7 @@ build list.
 - Multi-tenancy: orgs, members, invites, RBAC (Owner / Admin / Member / Viewer)
 - Environments and services
 - Event ingestion: manual, CLI, generic webhook, GitHub Actions, Prometheus Alertmanager,
-  Kubernetes watcher
+  Kubernetes watcher, Argo CD, HCP Terraform, Atlantis
 - Timeline UI with comments
 - Incidents: group events, track status, AI postmortems
 - DORA metrics
@@ -119,7 +119,7 @@ Broad shape:
 | Postmortems | `/postmortems` (POST: environment + time window → markdown) |
 | Annotations | `/annotations` (GET and POST: Grafana dashboard markers) |
 | AI | `/ai/chat` |
-| Webhooks | `/webhooks/events`, `/webhooks/alertmanager`, `/webhooks/stripe` |
+| Webhooks | `/webhooks/events`, `/webhooks/alertmanager`, `/webhooks/argocd`, `/webhooks/terraform`, `/webhooks/atlantis`, `/webhooks/stripe` |
 | Settings | `/settings/{notifications,slack,teams,sso}`, `/audit-logs`, `/billing` |
 
 Create event body:

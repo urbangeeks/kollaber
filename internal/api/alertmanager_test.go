@@ -135,8 +135,8 @@ func TestCheckAlertmanagerSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("WEBHOOK_SECRET", tt.env)
 			c := newSecretRequest(t, tt.headers)
-			if got := checkAlertmanagerSecret(c, body); got != tt.want {
-				t.Errorf("checkAlertmanagerSecret() = %v, want %v", got, tt.want)
+			if got := checkWebhookSecret(c, body); got != tt.want {
+				t.Errorf("checkWebhookSecret() = %v, want %v", got, tt.want)
 			}
 		})
 	}

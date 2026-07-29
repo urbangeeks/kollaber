@@ -42,13 +42,17 @@ type alertmanagerItem struct {
 	Fingerprint  string            `json:"fingerprint"`
 }
 
-// checkAlertmanagerSecret authorizes a delivery against WEBHOOK_SECRET.
+// checkWebhookSecret authorizes a delivery against WEBHOOK_SECRET.
 //
 // Alertmanager cannot compute an HMAC over the body, so unlike /webhooks/events
 // this also accepts the secret as a bearer token — that is what a receiver's
 // http_config.authorization block can actually send. The HMAC path is still
 // honored for non-Alertmanager clients posting the same shape.
-func checkAlertmanagerSecret(c echo.Context, body []byte) bool {
+//
+// Atlantis and Argo CD land here too: both send arbitrary static headers
+// (--webhook-http-headers, the notification service's headers block) and
+// neither signs the body, so a shared secret is the whole of what they can do.
+func checkWebhookSecret(c echo.Context, body []byte) bool {
 	secret := os.Getenv("WEBHOOK_SECRET")
 	if secret == "" {
 		return true
@@ -88,7 +92,7 @@ func (h *AlertmanagerHandler) Ingest(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "could not read body"})
 	}
 
-	if !checkAlertmanagerSecret(c, body) {
+	if !checkWebhookSecret(c, body) {
 		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid webhook secret"})
 	}
 
