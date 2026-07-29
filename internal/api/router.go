@@ -34,6 +34,43 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 		return nil
 	}
 
+	// Serve embedded frontend — SPA fallback for Next.js App Router static export.
+	// Uses http.ServeFileFS (Go 1.22+) to serve files directly without the redirect
+	// behaviour of http.FileServer (which redirects /index.html→/ and dirs→dir/).
+	spaHandler := func(c echo.Context) error {
+		path := strings.TrimPrefix(c.Request().URL.Path, "/")
+
+		// 1. Exact file (JS, CSS, images, fonts, etc.) — serve directly.
+		if path != "" {
+			if f, err := staticFS.Open(path); err == nil {
+				stat, _ := f.Stat()
+				f.Close()
+				if stat != nil && !stat.IsDir() {
+					return serve(c, path)
+				}
+			}
+		}
+
+		// 2. Next.js exported page — try path.html (e.g. auth/callback.html).
+		if path != "" {
+			if _, err := staticFS.Open(path + ".html"); err == nil {
+				return serve(c, path+".html")
+			}
+		}
+
+		// 3. SPA fallback — serve root index.html for any unmatched route.
+		return serve(c, "index.html")
+	}
+
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if page, ok := frontendPageFor(staticFS, c.Request()); ok {
+				return serve(c, page)
+			}
+			return next(c)
+		}
+	})
+
 	hub := NewHub()
 
 	auth := NewAuthHandler(q, pool)
@@ -161,33 +198,6 @@ func NewRouter(q *store.Queries, pool *pgxpool.Pool) *echo.Echo {
 	adminGroup := e.Group("/admin", middleware.AdminOnly())
 	adminGroup.GET("/orgs", admin.ListOrgs)
 
-	// Serve embedded frontend — SPA fallback for Next.js App Router static export.
-	// Uses http.ServeFileFS (Go 1.22+) to serve files directly without the redirect
-	// behaviour of http.FileServer (which redirects /index.html→/ and dirs→dir/).
-	spaHandler := func(c echo.Context) error {
-		path := strings.TrimPrefix(c.Request().URL.Path, "/")
-
-		// 1. Exact file (JS, CSS, images, fonts, etc.) — serve directly.
-		if path != "" {
-			if f, err := staticFS.Open(path); err == nil {
-				stat, _ := f.Stat()
-				f.Close()
-				if stat != nil && !stat.IsDir() {
-					return serve(c, path)
-				}
-			}
-		}
-
-		// 2. Next.js exported page — try path.html (e.g. auth/callback.html).
-		if path != "" {
-			if _, err := staticFS.Open(path + ".html"); err == nil {
-				return serve(c, path+".html")
-			}
-		}
-
-		// 3. SPA fallback — serve root index.html for any unmatched route.
-		return serve(c, "index.html")
-	}
 	e.GET("/", spaHandler)
 	e.GET("/*", spaHandler)
 
