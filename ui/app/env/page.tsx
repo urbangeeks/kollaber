@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { ArrowLeft, Plus, Search, FileText } from "lucide-react"
 import { PostmortemDialog } from "@/components/postmortem-dialog"
+import { CliDownload } from "@/components/cli-download"
 import { DotBackground } from "@/components/dot-background"
 
 function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
@@ -291,6 +292,10 @@ function EnvPageInner() {
             >
               <FileText className="h-4 w-4" />
             </Button>
+            {/* The timeline has no app chrome of its own, so the CLI lives in
+                this row rather than a top bar — it is also the page where
+                "I should be scripting this" tends to occur. */}
+            <CliDownload />
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
               New event

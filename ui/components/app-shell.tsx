@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { getCurrentEmail, getCurrentRole, removeToken } from "@/lib/api"
 import { useClientValue } from "@/hooks/use-client-value"
 import { AppNav, AppNavMobile } from "@/components/app-nav"
+import { CliDownload } from "@/components/cli-download"
 import { OrgSwitcher } from "@/components/org-switcher"
 import { DotBackground } from "@/components/dot-background"
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,7 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-2">
             <OrgSwitcher />
             {actions}
+            <CliDownload />
             <div className="hidden h-4 w-px bg-border sm:block" />
             <div className="flex items-center gap-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
