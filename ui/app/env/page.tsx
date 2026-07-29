@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Search } from "lucide-react"
+import { ArrowLeft, Plus, Search, FileText } from "lucide-react"
+import { PostmortemDialog } from "@/components/postmortem-dialog"
 import { DotBackground } from "@/components/dot-background"
 
 function groupByDate(events: Event[]): { label: string; events: Event[] }[] {
@@ -89,6 +90,7 @@ function EnvPageInner() {
   const allEvents = [...topEvents, ...moreEvents]
 
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [postmortemOpen, setPostmortemOpen] = useState(false)
   const [type, setType] = useState<CreatableEventType>("note")
   const [service, setService] = useState("")
   const [version, setVersion] = useState("")
@@ -280,6 +282,14 @@ function EnvPageInner() {
               onClick={() => router.push(`/search?environment_id=${id}`)}
             >
               <Search className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Generate a postmortem"
+              onClick={() => setPostmortemOpen(true)}
+            >
+              <FileText className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={openDialog}>
               <Plus className="mr-1.5 h-4 w-4" />
@@ -540,6 +550,12 @@ function EnvPageInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PostmortemDialog
+        environmentId={id}
+        open={postmortemOpen}
+        onOpenChange={setPostmortemOpen}
+      />
 
       <AgentChat envId={id} />
     </div>

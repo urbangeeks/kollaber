@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema } from "./schemas"
 
 // Origin every API call is made against. Empty in production, where the single
 // binary serves the UI and API from the same host; set to the backend's URL in
@@ -33,6 +33,7 @@ export type Suspect = z.infer<typeof suspectSchema>
 export type SuspectsResponse = z.infer<typeof suspectsResponseSchema>
 export type SearchHit = z.infer<typeof searchHitSchema>
 export type SearchResponse = z.infer<typeof searchResponseSchema>
+export type Postmortem = z.infer<typeof postmortemSchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -400,6 +401,21 @@ export async function searchTimeline(
   const params = new URLSearchParams({ q: query, limit: String(limit) })
   if (environmentId) params.set("environment_id", environmentId)
   return request(`/search?${params}`, searchResponseSchema)
+}
+
+// generatePostmortem builds a markdown document for one environment over one
+// window. The factual half is returned on every plan; narrative_status says
+// whether the AI summary section made it in.
+export async function generatePostmortem(
+  environmentId: string,
+  from: string,
+  to: string,
+  narrative = true,
+): Promise<Postmortem> {
+  return request("/postmortems", postmortemSchema, {
+    method: "POST",
+    body: JSON.stringify({ environment_id: environmentId, from, to, narrative }),
+  })
 }
 
 export type ChatMessage = { role: "user" | "assistant"; content: string }

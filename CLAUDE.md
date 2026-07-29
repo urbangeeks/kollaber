@@ -116,6 +116,7 @@ Broad shape:
 | Incidents | `/incidents`, `/incidents/:id`, `/incidents/:id/events`, `/incidents/:id/postmortem` |
 | Metrics | `/metrics/dora` |
 | Search | `/search?q=…&environment_id=…` |
+| Postmortems | `/postmortems` (POST: environment + time window → markdown) |
 | AI | `/ai/chat` |
 | Webhooks | `/webhooks/events`, `/webhooks/alertmanager`, `/webhooks/stripe` |
 | Settings | `/settings/{notifications,slack,teams,sso}`, `/audit-logs`, `/billing` |

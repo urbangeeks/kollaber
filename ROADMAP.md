@@ -53,14 +53,28 @@ Known limitation: `websearch_to_tsquery` matches whole stemmed words, so "check"
 "checkout" and "rollback" does not find "rolling back". Prefix matching would need a trigram index
 on top; worth adding if users hit it.
 
-### 3. Postmortem generator from a timeline range
+### 3. Postmortem generator from a timeline range — **shipped**
 
-Select a time range or incident → markdown doc with event sequence, comment threads, participants,
-and an AI narrative summary.
+`POST /postmortems` takes an environment and a time window and returns a markdown document: the
+event sequence, every comment thread grouped under the event it belongs to, the participants, and
+an AI narrative summary. Reachable from the timeline header.
 
-`internal/ai/summarize.go` and the `events.ai_postmortem` column already exist. This turns the AI
-from a nice-to-have query box into the thing that saves two hours after every incident. Also the
-most demo-able feature we could build.
+The factual half is assembled from data the org already owns and is returned on every plan, with or
+without an Anthropic key; only the narrative section is gated on the Pro entitlement. A
+`narrative_status` field says which of those held, so a missing summary reads as an explained gap
+rather than a failed request.
+
+The narrative prompt deliberately asks for prose only. The timeline and discussion are rendered
+deterministically from the rows, so having the model restate them would add nothing but a chance of
+restating them wrongly.
+
+Comments are selected by their *event's* timestamp, not their own — analysis written a week after an
+outage is exactly the considered thinking a postmortem wants, and filtering on comment time would
+drop it.
+
+Known limitation: one document caps at 500 events and 1000 comments, and the narrative works from
+the most recent 120 events. The response sets `truncated` when the window overflows the event cap;
+the UI suggests narrowing the range.
 
 ---
 

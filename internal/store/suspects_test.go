@@ -37,10 +37,10 @@ func TestListChangesBefore(t *testing.T) {
 	// In-window changes, plus the noise that must not come back.
 	insertEventAt(t, pool, env, "deploy", "api", now.Add(-10*time.Minute))
 	insertEventAt(t, pool, env, "scale", "worker", now.Add(-30*time.Minute))
-	insertEventAt(t, pool, env, "note", "api", now.Add(-15*time.Minute))    // not a change
-	insertEventAt(t, pool, env, "alert", "api", now.Add(-20*time.Minute))   // not a change
-	insertEventAt(t, pool, env, "deploy", "api", now.Add(-5*time.Hour))     // outside window
-	insertEventAt(t, pool, env, "deploy", "api", now.Add(10*time.Minute))   // after the alert
+	insertEventAt(t, pool, env, "note", "api", now.Add(-15*time.Minute))  // not a change
+	insertEventAt(t, pool, env, "alert", "api", now.Add(-20*time.Minute)) // not a change
+	insertEventAt(t, pool, env, "deploy", "api", now.Add(-5*time.Hour))   // outside window
+	insertEventAt(t, pool, env, "deploy", "api", now.Add(10*time.Minute)) // after the alert
 
 	got, err := q.ListChangesBefore(ctx, ListChangesBeforeParams{
 		OrgID:         org,

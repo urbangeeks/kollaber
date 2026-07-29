@@ -110,6 +110,27 @@ export const searchResponseSchema = z.object({
   results: z.array(searchHitSchema).nullish().transform((r) => r ?? []),
 })
 
+// A generated postmortem document. The markdown is always present; only the
+// narrative section depends on plan and model availability, which
+// narrative_status explains.
+export const postmortemSchema = z.object({
+  markdown: z.string(),
+  environment_name: z.string(),
+  from: z.string(),
+  to: z.string(),
+  event_count: z.number(),
+  comment_count: z.number(),
+  participants: z.array(z.string()).nullish().transform((p) => p ?? []),
+  narrative_status: z.enum([
+    "included",
+    "not_requested",
+    "upgrade_required",
+    "unavailable",
+    "failed",
+  ]),
+  truncated: z.boolean(),
+})
+
 export const commentResponseSchema = z.object({
   id: z.string(),
   event_id: z.string(),
