@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { type Event, type Comment, type Incident, type IncidentSeverity, type SuspectsResponse, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole, getSuspects } from "@/lib/api"
+import { type Event, type Comment, type Incident, type IncidentSeverity, type SuspectsResponse, getComments, createComment, getEventSummary, getEventPostmortem, getIncidents, createIncident, attachEvents, getCurrentRole, getSuspects, setCommentDecision } from "@/lib/api"
 import { commentSchema, createIncidentSchema } from "@/lib/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -64,6 +64,10 @@ export function TimelineEvent({
   const [bodyError, setBodyError] = useState("")
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [decidingID, setDecidingID] = useState<string | null>(null)
+  // Overrides for comments that arrived over SSE, which live in a prop rather
+  // than in state and so cannot be rewritten in place.
+  const [localDecisions, setLocalDecisions] = useState<Record<string, boolean>>({})
   const [summary, setSummary] = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -85,9 +89,16 @@ export function TimelineEvent({
   const mergedComments = useMemo(() => {
     const byID = new Map<string, Comment>()
     for (const c of comments ?? []) byID.set(c.id, c)
+    // Live comments win on id, but they are serialised from the create path and
+    // carry no decision state, so a just-marked comment would flip back without
+    // the override below.
     for (const c of liveComments ?? []) byID.set(c.id, c)
-    return [...byID.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  }, [comments, liveComments])
+    return [...byID.values()]
+      .map((c) =>
+        c.id in localDecisions ? { ...c, is_decision: localDecisions[c.id] } : c,
+      )
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }, [comments, liveComments, localDecisions])
 
   // Live comments not yet in the loaded set — surfaced as a hint on the closed
   // thread so you know there's new discussion without opening it.
@@ -247,6 +258,24 @@ export function TimelineEvent({
     }
   }
 
+  // Marking is curation, so the update is applied to whichever list the comment
+  // came from — a comment that arrived live over SSE is not in `comments`, and
+  // rewriting only that list would make the toggle appear to do nothing.
+  async function toggleDecision(comment: Comment) {
+    setDecidingID(comment.id)
+    try {
+      const updated = await setCommentDecision(comment.id, !comment.is_decision)
+      setComments((prev) =>
+        (prev ?? []).map((c) => (c.id === updated.id ? updated : c)),
+      )
+      setLocalDecisions((prev) => ({ ...prev, [updated.id]: updated.is_decision }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update the comment")
+    } finally {
+      setDecidingID(null)
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-start gap-3">
@@ -401,9 +430,33 @@ export function TimelineEvent({
       {open && (
         <div className="ml-10 sm:ml-11 space-y-2">
           {mergedComments.map((c) => (
-            <p key={c.id} className="bg-muted rounded px-3 py-2 text-sm">
-              💬 {c.body}
-            </p>
+            <div
+              key={c.id}
+              className={
+                c.is_decision
+                  ? "border-primary/40 bg-primary/5 rounded border px-3 py-2 text-sm"
+                  : "bg-muted rounded px-3 py-2 text-sm"
+              }
+            >
+              <div className="flex items-start gap-2">
+                <span aria-hidden>{c.is_decision ? "🔖" : "💬"}</span>
+                <p className="min-w-0 flex-1 break-words">{c.body}</p>
+                {canAttach && (
+                  <button
+                    type="button"
+                    onClick={() => toggleDecision(c)}
+                    disabled={decidingID === c.id}
+                    title={c.is_decision ? "Remove from the decision log" : "Mark as a decision"}
+                    className="text-muted-foreground hover:text-foreground shrink-0 text-xs underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {c.is_decision ? "Unmark" : "Mark as decision"}
+                  </button>
+                )}
+              </div>
+              {c.is_decision && (
+                <p className="text-primary/80 mt-1 text-xs">Decision</p>
+              )}
+            </div>
           ))}
           <form onSubmit={handleSubmit} className="space-y-1">
             <div className="flex gap-2">

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema, decisionSchema, decisionsResponseSchema } from "./schemas"
 
 // Origin every API call is made against. Empty in production, where the single
 // binary serves the UI and API from the same host; set to the backend's URL in
@@ -34,6 +34,8 @@ export type SuspectsResponse = z.infer<typeof suspectsResponseSchema>
 export type SearchHit = z.infer<typeof searchHitSchema>
 export type SearchResponse = z.infer<typeof searchResponseSchema>
 export type Postmortem = z.infer<typeof postmortemSchema>
+export type Decision = z.infer<typeof decisionSchema>
+export type DecisionsResponse = z.infer<typeof decisionsResponseSchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -370,6 +372,27 @@ export function createComment(eventId: string, body: string): Promise<Comment> {
     method: "POST",
     body: JSON.stringify({ body }),
   }) as Promise<Comment>
+}
+
+// setCommentDecision promotes a comment to a decision, or demotes it again.
+// The body is never touched — marking is curation, not an edit.
+export function setCommentDecision(commentId: string, isDecision: boolean): Promise<Comment> {
+  return request(`/comments/${commentId}`, commentResponseSchema, {
+    method: "PATCH",
+    body: JSON.stringify({ is_decision: isDecision }),
+  }) as Promise<Comment>
+}
+
+// listDecisions returns the org's decision log, newest first, optionally
+// narrowed to one environment.
+export function listDecisions(
+  environmentId?: string,
+  limit = 50,
+  offset = 0,
+): Promise<DecisionsResponse> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (environmentId) params.set("environment_id", environmentId)
+  return request(`/decisions?${params}`, decisionsResponseSchema)
 }
 
 export async function getEventSummary(eventId: string, refresh = false): Promise<string> {

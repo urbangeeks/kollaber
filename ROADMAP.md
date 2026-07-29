@@ -173,12 +173,26 @@ Promote a comment to a tracked follow-up with owner and due date. Open-items vie
 Postmortem action items are famously where good intentions go to die. Chasing them is a real,
 unglamorous job no tool does well.
 
-### 8. Decision log
+### 8. Decision log — **shipped**
 
-Mark a comment as a *decision* ("we're rolling back", "accepting this risk until Q3"). Filtered
-decisions view.
+`PATCH /comments/:id` promotes a comment to a decision; `GET /decisions` returns the org's log,
+newest first, optionally scoped to one environment. A `/decisions` page lists them and the timeline
+grows a **Mark as decision** action on each comment.
 
-The highest-value subset of our comment data, currently indistinguishable from chatter.
+Each decision carries the event it was written on. "We're rolling back" is a sentence with no
+subject without the deploy it was said about, and the whole point is being readable six months
+later.
+
+Ordered by when the comment was written rather than when it was marked, so someone tidying up old
+threads on a Friday does not reshuffle the history. Marking is curation and never touches the body;
+`decided_by` records who promoted it, which need not be the author. Unmarking clears the
+attribution so a re-marked comment cannot carry a stale one. Viewers cannot mark.
+
+While building this, `GET /events/:id/comments` was found to filter on `event_id` alone — no org
+scope at all, so any authenticated user could read any org's discussion by guessing a uuid, and
+`POST` wrote into another tenant's thread the same way. Both now resolve the event through
+`environments` first. `internal/store/decisions.go` carries the replacement query and the tests
+assert isolation in both directions.
 
 ### 9. Service version inventory
 

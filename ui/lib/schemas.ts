@@ -137,6 +137,34 @@ export const commentResponseSchema = z.object({
   user_id: z.string(),
   body: z.string(),
   created_at: z.string(),
+  // Decision fields. Nullish rather than required because a comment arriving
+  // over SSE is serialised from the create path, which does not carry them.
+  is_decision: z.boolean().nullish().transform((v) => v ?? false),
+  decided_by: z.string().nullish(),
+  decided_at: z.string().nullish(),
+})
+
+// A comment promoted to a decision, with the event it was written on. The
+// event context is what makes it readable months later: "we're rolling back"
+// means nothing without the deploy it was said about.
+export const decisionSchema = z.object({
+  id: z.string(),
+  event_id: z.string(),
+  body: z.string(),
+  author: z.string(),
+  created_at: z.string(),
+  decided_by: z.string().nullish(),
+  decided_at: z.string().nullish(),
+  event_type: z.string(),
+  event_service: z.string(),
+  event_timestamp: z.string(),
+  environment_id: z.string(),
+  environment_name: z.string(),
+})
+
+export const decisionsResponseSchema = z.object({
+  decisions: z.array(decisionSchema).nullish().transform((d) => d ?? []),
+  total: z.number(),
 })
 
 export const incidentSchema = z.object({

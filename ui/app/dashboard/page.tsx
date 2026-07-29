@@ -51,6 +51,7 @@ import {
   LogOut,
   BarChart3,
   Search,
+  Bookmark,
 } from "lucide-react"
 
 const REPO = "https://github.com/urbangeeks/kollaber"
@@ -314,6 +315,10 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/search")}>
               <Search className="mr-1.5 h-4 w-4" />
               Search
+            </Button>
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/decisions")}>
+              <Bookmark className="mr-1.5 h-4 w-4" />
+              Decisions
             </Button>
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => router.push("/metrics")}>
               <BarChart3 className="mr-1.5 h-4 w-4" />

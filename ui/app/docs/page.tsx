@@ -196,6 +196,25 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               </p>
             </SubSection>
 
+            <SubSection title="Decision log">
+              <p>
+                Open a comment thread and choose <strong className="text-white">Mark as decision</strong> to promote
+                it. &ldquo;We&rsquo;re rolling back&rdquo; and &ldquo;accepting this risk until Q3&rdquo; are the
+                highest-value lines in a timeline and are otherwise indistinguishable from &ldquo;looking into
+                it&rdquo;.
+              </p>
+              <p className="mt-3">
+                The <strong className="text-white">Decisions</strong> page lists them newest first, each with the
+                event it was written on — a decision without its subject is not readable six months later. Filter by
+                environment; the filter lives in the URL, so a filtered log is a link you can send someone.
+              </p>
+              <p className="mt-3 text-sm">
+                Marking is curation, not an edit: the text stays exactly as written, and Kollaber records who
+                promoted it, which is not necessarily who wrote it. Viewers cannot mark or unmark. Unmarking clears
+                the attribution so a re-marked comment never carries a stale one.
+              </p>
+            </SubSection>
+
             <SubSection title="AI timeline assistant">
               <p>
                 On the Team plan and above, open the assistant from the spark icon in the bottom-right of the timeline.
@@ -897,7 +916,14 @@ webhooks:
               <div className="space-y-2">
                 <ApiRow method="GET"  path="/events/:id/comments" desc="List comments on an event (authenticated)" />
                 <ApiRow method="POST" path="/events/:id/comments" desc="Add a comment to an event (authenticated)" />
+                <ApiRow method="PATCH" path="/comments/:id"       desc="Mark or unmark a comment as a decision (member)" />
+                <ApiRow method="GET"  path="/decisions"           desc="The org's decision log (authenticated)" />
               </div>
+              <p className="mt-3 text-sm">
+                Query parameters for <InlineCode>GET /decisions</InlineCode>:{" "}
+                <InlineCode>environment_id</InlineCode>, <InlineCode>limit</InlineCode> (default 50, max 200), and{" "}
+                <InlineCode>offset</InlineCode>.
+              </p>
             </SubSection>
 
             <SubSection title="Incidents">
