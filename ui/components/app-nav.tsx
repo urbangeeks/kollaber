@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useTheme } from "@/components/theme-provider"
 import { useClientValue } from "@/hooks/use-client-value"
 import { isAdmin } from "@/lib/api"
 import {
@@ -13,8 +12,6 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Sun,
-  Moon,
   TriangleAlert,
 } from "lucide-react"
 
@@ -44,7 +41,6 @@ const linkClass = (active: boolean) =>
 export function AppNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { resolvedTheme, setTheme } = useTheme()
   const admin = useIsAdmin()
 
   return (
@@ -72,17 +68,6 @@ export function AppNav() {
             Admin
           </Link>
         )}
-        <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className={linkClass(false)}
-        >
-          {resolvedTheme === "dark" ? (
-            <Sun className="h-4 w-4 shrink-0" />
-          ) : (
-            <Moon className="h-4 w-4 shrink-0" />
-          )}
-          {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
-        </button>
       </div>
     </div>
   )
