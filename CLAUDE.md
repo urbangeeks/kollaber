@@ -90,6 +90,14 @@ charts/           # Helm chart for self-hosted
 (`sqlc.yaml`). Drop to a hand-written method in `internal/store/` only when the query needs
 dynamic SQL that sqlc can't express (see `events_filter.go` for the existing pattern).
 
+`sqlc.yaml` reads the whole `migrations/` directory, so generation stays correct as migrations
+land, and `sqlc generate` is idempotent — running it on a clean tree produces no diff.
+
+Two tables are exceptions: **`events` and `comments` are hand-written** (`events_core.go`,
+`comments_core.go`). Both carry a stored `tsvector`, and sqlc reuses a table's struct only when a
+query selects *every* column — so generating them would put the search vector on the wire for
+every row of the timeline. Add queries for those two by hand; everything else goes through sqlc.
+
 ## 5. Database Schema (PostgreSQL)
 
 Core tables from `migrations/001_init.sql`: `users`, `orgs`, `org_members`, `environments`,

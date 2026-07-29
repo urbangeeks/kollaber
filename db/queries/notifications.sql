@@ -5,7 +5,9 @@ WHERE user_id = $1 AND org_id = $2;
 
 -- name: UpsertNotificationPrefs :exec
 INSERT INTO notification_prefs (user_id, org_id, notify_on, notification_email, updated_at)
-VALUES ($1, $2, $3, NULLIF($4, ''), NOW())
+-- sqlc.arg names the parameter: a bare $4 inside NULLIF gives it nothing to
+-- infer from and it generates Column4.
+VALUES ($1, $2, $3, NULLIF(sqlc.arg(notification_email)::text, ''), NOW())
 ON CONFLICT (user_id, org_id) DO UPDATE
 SET notify_on = EXCLUDED.notify_on,
     notification_email = EXCLUDED.notification_email,

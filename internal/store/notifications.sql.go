@@ -29,13 +29,13 @@ type GetNotificationPrefsRow struct {
 
 func (q *Queries) GetNotificationPrefs(ctx context.Context, arg GetNotificationPrefsParams) (GetNotificationPrefsRow, error) {
 	row := q.db.QueryRow(ctx, getNotificationPrefs, arg.UserID, arg.OrgID)
-	var r GetNotificationPrefsRow
-	err := row.Scan(&r.NotifyOn, &r.NotificationEmail)
-	return r, err
+	var i GetNotificationPrefsRow
+	err := row.Scan(&i.NotifyOn, &i.NotificationEmail)
+	return i, err
 }
 
 const getOrgMembersToNotify = `-- name: GetOrgMembersToNotify :many
-SELECT u.email FROM users u
+SELECT COALESCE(np.notification_email, u.email) AS email FROM users u
 JOIN org_members om ON om.user_id = u.id
 LEFT JOIN notification_prefs np ON np.user_id = u.id AND np.org_id = om.org_id
 WHERE om.org_id = $1 AND np.notify_on @> ARRAY[$2::text]
@@ -68,7 +68,7 @@ func (q *Queries) GetOrgMembersToNotify(ctx context.Context, arg GetOrgMembersTo
 
 const upsertNotificationPrefs = `-- name: UpsertNotificationPrefs :exec
 INSERT INTO notification_prefs (user_id, org_id, notify_on, notification_email, updated_at)
-VALUES ($1, $2, $3, NULLIF($4, ''), NOW())
+VALUES ($1, $2, $3, NULLIF($4::text, ''), NOW())
 ON CONFLICT (user_id, org_id) DO UPDATE
 SET notify_on = EXCLUDED.notify_on,
     notification_email = EXCLUDED.notification_email,
@@ -82,7 +82,14 @@ type UpsertNotificationPrefsParams struct {
 	NotificationEmail string      `json:"notification_email"`
 }
 
+// sqlc.arg names the parameter: a bare $4 inside NULLIF gives it nothing to
+// infer from and it generates Column4.
 func (q *Queries) UpsertNotificationPrefs(ctx context.Context, arg UpsertNotificationPrefsParams) error {
-	_, err := q.db.Exec(ctx, upsertNotificationPrefs, arg.UserID, arg.OrgID, arg.NotifyOn, arg.NotificationEmail)
+	_, err := q.db.Exec(ctx, upsertNotificationPrefs,
+		arg.UserID,
+		arg.OrgID,
+		arg.NotifyOn,
+		arg.NotificationEmail,
+	)
 	return err
 }

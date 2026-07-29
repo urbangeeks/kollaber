@@ -1,21 +1,8 @@
--- name: CreateEvent :one
-INSERT INTO events (type, service, environment_id, metadata, status)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
-
--- name: ListEventsByEnvironment :many
-SELECT e.* FROM events e
-JOIN environments env ON env.id = e.environment_id
-WHERE e.environment_id = $1 AND env.org_id = $2
-ORDER BY e.timestamp DESC
-LIMIT $3 OFFSET $4;
-
--- name: ListEventsByOrg :many
-SELECT e.* FROM events e
-JOIN environments env ON env.id = e.environment_id
-WHERE env.org_id = $1
-ORDER BY e.timestamp DESC
-LIMIT $2 OFFSET $3;
+-- The queries returning a full event row are hand-written in
+-- internal/store/events_core.go: the table carries a stored tsvector, and sqlc
+-- reuses a table's struct only when a query selects every column, so generating
+-- them would put the search vector on the wire for every row of the timeline.
+-- This one returns a single text column and has no such problem.
 
 -- name: ListServicesByEnvironment :many
 SELECT DISTINCT e.service FROM events e

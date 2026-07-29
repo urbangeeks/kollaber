@@ -11,135 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (type, service, environment_id, metadata, status)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, type, service, environment_id, timestamp, metadata, created_at, status
-`
-
-type CreateEventParams struct {
-	Type          string      `json:"type"`
-	Service       string      `json:"service"`
-	EnvironmentID pgtype.UUID `json:"environment_id"`
-	Metadata      []byte      `json:"metadata"`
-	Status        string      `json:"status"`
-}
-
-func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error) {
-	row := q.db.QueryRow(ctx, createEvent,
-		arg.Type,
-		arg.Service,
-		arg.EnvironmentID,
-		arg.Metadata,
-		arg.Status,
-	)
-	var i Event
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Service,
-		&i.EnvironmentID,
-		&i.Timestamp,
-		&i.Metadata,
-		&i.CreatedAt,
-		&i.Status,
-	)
-	return i, err
-}
-
-const listEventsByEnvironment = `-- name: ListEventsByEnvironment :many
-SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at, e.status FROM events e
-JOIN environments env ON env.id = e.environment_id
-WHERE e.environment_id = $1 AND env.org_id = $2
-ORDER BY e.timestamp DESC
-LIMIT $3 OFFSET $4
-`
-
-type ListEventsByEnvironmentParams struct {
-	EnvironmentID pgtype.UUID `json:"environment_id"`
-	OrgID         pgtype.UUID `json:"org_id"`
-	Limit         int32       `json:"limit"`
-	Offset        int32       `json:"offset"`
-}
-
-func (q *Queries) ListEventsByEnvironment(ctx context.Context, arg ListEventsByEnvironmentParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEventsByEnvironment,
-		arg.EnvironmentID,
-		arg.OrgID,
-		arg.Limit,
-		arg.Offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Event
-	for rows.Next() {
-		var i Event
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.Service,
-			&i.EnvironmentID,
-			&i.Timestamp,
-			&i.Metadata,
-			&i.CreatedAt,
-			&i.Status,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listEventsByOrg = `-- name: ListEventsByOrg :many
-SELECT e.id, e.type, e.service, e.environment_id, e.timestamp, e.metadata, e.created_at, e.status FROM events e
-JOIN environments env ON env.id = e.environment_id
-WHERE env.org_id = $1
-ORDER BY e.timestamp DESC
-LIMIT $2 OFFSET $3
-`
-
-type ListEventsByOrgParams struct {
-	OrgID  pgtype.UUID `json:"org_id"`
-	Limit  int32       `json:"limit"`
-	Offset int32       `json:"offset"`
-}
-
-func (q *Queries) ListEventsByOrg(ctx context.Context, arg ListEventsByOrgParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEventsByOrg, arg.OrgID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Event
-	for rows.Next() {
-		var i Event
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.Service,
-			&i.EnvironmentID,
-			&i.Timestamp,
-			&i.Metadata,
-			&i.CreatedAt,
-			&i.Status,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listServicesByEnvironment = `-- name: ListServicesByEnvironment :many
+
 SELECT DISTINCT e.service FROM events e
 JOIN environments env ON env.id = e.environment_id
 WHERE e.environment_id = $1 AND env.org_id = $2
@@ -151,6 +24,11 @@ type ListServicesByEnvironmentParams struct {
 	OrgID         pgtype.UUID `json:"org_id"`
 }
 
+// The queries returning a full event row are hand-written in
+// internal/store/events_core.go: the table carries a stored tsvector, and sqlc
+// reuses a table's struct only when a query selects every column, so generating
+// them would put the search vector on the wire for every row of the timeline.
+// This one returns a single text column and has no such problem.
 func (q *Queries) ListServicesByEnvironment(ctx context.Context, arg ListServicesByEnvironmentParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, listServicesByEnvironment, arg.EnvironmentID, arg.OrgID)
 	if err != nil {

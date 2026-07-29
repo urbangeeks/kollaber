@@ -1,12 +1,11 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema:
-      - "migrations/001_init.sql"
-      - "migrations/003_event_status.sql"
-      - "migrations/004_roles.sql"
-      - "migrations/005_otp.sql"
-      - "migrations/006_notification_prefs.sql"
+    # The whole migrations directory, not a hand-listed subset. The list this
+    # replaces stopped at 006, so `sqlc generate` failed outright on any column
+    # added later — which is how generation came to be broken while CLAUDE.md
+    # still told contributors to use it.
+    schema: "migrations"
     queries: "db/queries"
     gen:
       go:
@@ -14,4 +13,14 @@ sql:
         out: "internal/store"
         emit_json_tags: true
         emit_pointers_for_null_types: true
+        # Only emit structs the queries actually use. Most tables here are
+        # served by hand-written queries carrying their own types (incidents,
+        # audit logs, freeze windows); without this sqlc emits a second struct
+        # for each and the package stops compiling.
+        omit_unused_structs: true
         sql_package: "pgx/v5"
+        rename:
+          # sqlc would title-case these to AiSummary / AiPostmortem; the
+          # initialism spelling is what the rest of the codebase uses.
+          ai_summary: "AISummary"
+          ai_postmortem: "AIPostmortem"

@@ -14,7 +14,7 @@ import (
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO orgs (name, slug)
 VALUES ($1, $2)
-RETURNING id, name, slug, created_at
+RETURNING id, name, slug, created_at, slack_webhook_url, teams_webhook_url, plan, stripe_customer_id, stripe_subscription_id, subscription_status, trial_ends_at
 `
 
 type CreateOrgParams struct {
@@ -30,6 +30,13 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Org, erro
 		&i.Name,
 		&i.Slug,
 		&i.CreatedAt,
+		&i.SlackWebhookUrl,
+		&i.TeamsWebhookUrl,
+		&i.Plan,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.TrialEndsAt,
 	)
 	return i, err
 }
@@ -51,7 +58,7 @@ func (q *Queries) CreateOrgMember(ctx context.Context, arg CreateOrgMemberParams
 }
 
 const getOrgByUserID = `-- name: GetOrgByUserID :one
-SELECT o.id, o.name, o.slug, o.created_at FROM orgs o
+SELECT o.id, o.name, o.slug, o.created_at, o.slack_webhook_url, o.teams_webhook_url, o.plan, o.stripe_customer_id, o.stripe_subscription_id, o.subscription_status, o.trial_ends_at FROM orgs o
 JOIN org_members om ON om.org_id = o.id
 WHERE om.user_id = $1
 LIMIT 1
@@ -65,6 +72,13 @@ func (q *Queries) GetOrgByUserID(ctx context.Context, userID pgtype.UUID) (Org, 
 		&i.Name,
 		&i.Slug,
 		&i.CreatedAt,
+		&i.SlackWebhookUrl,
+		&i.TeamsWebhookUrl,
+		&i.Plan,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.TrialEndsAt,
 	)
 	return i, err
 }
@@ -91,18 +105,25 @@ func (q *Queries) GetOrgMember(ctx context.Context, arg GetOrgMemberParams) (Org
 }
 
 const listOrgsByUserID = `-- name: ListOrgsByUserID :many
-SELECT o.id, o.name, o.slug, o.created_at, om.role FROM orgs o
+SELECT o.id, o.name, o.slug, o.created_at, o.slack_webhook_url, o.teams_webhook_url, o.plan, o.stripe_customer_id, o.stripe_subscription_id, o.subscription_status, o.trial_ends_at, om.role FROM orgs o
 JOIN org_members om ON om.org_id = o.id
 WHERE om.user_id = $1
 ORDER BY o.created_at ASC
 `
 
 type ListOrgsByUserIDRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Name      string             `json:"name"`
-	Slug      string             `json:"slug"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Role      string             `json:"role"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Slug                 string             `json:"slug"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	SlackWebhookUrl      *string            `json:"slack_webhook_url"`
+	TeamsWebhookUrl      *string            `json:"teams_webhook_url"`
+	Plan                 string             `json:"plan"`
+	StripeCustomerID     *string            `json:"stripe_customer_id"`
+	StripeSubscriptionID *string            `json:"stripe_subscription_id"`
+	SubscriptionStatus   string             `json:"subscription_status"`
+	TrialEndsAt          pgtype.Timestamptz `json:"trial_ends_at"`
+	Role                 string             `json:"role"`
 }
 
 func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]ListOrgsByUserIDRow, error) {
@@ -119,6 +140,13 @@ func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]L
 			&i.Name,
 			&i.Slug,
 			&i.CreatedAt,
+			&i.SlackWebhookUrl,
+			&i.TeamsWebhookUrl,
+			&i.Plan,
+			&i.StripeCustomerID,
+			&i.StripeSubscriptionID,
+			&i.SubscriptionStatus,
+			&i.TrialEndsAt,
 			&i.Role,
 		); err != nil {
 			return nil, err
@@ -132,7 +160,7 @@ func (q *Queries) ListOrgsByUserID(ctx context.Context, userID pgtype.UUID) ([]L
 }
 
 const updateOrg = `-- name: UpdateOrg :one
-UPDATE orgs SET name = $2, slug = $3 WHERE id = $1 RETURNING id, name, slug, created_at
+UPDATE orgs SET name = $2, slug = $3 WHERE id = $1 RETURNING id, name, slug, created_at, slack_webhook_url, teams_webhook_url, plan, stripe_customer_id, stripe_subscription_id, subscription_status, trial_ends_at
 `
 
 type UpdateOrgParams struct {
@@ -149,6 +177,13 @@ func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) (Org, erro
 		&i.Name,
 		&i.Slug,
 		&i.CreatedAt,
+		&i.SlackWebhookUrl,
+		&i.TeamsWebhookUrl,
+		&i.Plan,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.TrialEndsAt,
 	)
 	return i, err
 }

@@ -8,33 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Comment struct {
-	ID        pgtype.UUID        `json:"id"`
-	EventID   pgtype.UUID        `json:"event_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	Body      string             `json:"body"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
 type Environment struct {
 	ID          pgtype.UUID        `json:"id"`
 	OrgID       pgtype.UUID        `json:"org_id"`
 	Name        string             `json:"name"`
 	ClusterName string             `json:"cluster_name"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-}
-
-type Event struct {
-	ID            pgtype.UUID        `json:"id"`
-	Type          string             `json:"type"`
-	Service       string             `json:"service"`
-	EnvironmentID pgtype.UUID        `json:"environment_id"`
-	Timestamp     pgtype.Timestamptz `json:"timestamp"`
-	Metadata      []byte             `json:"metadata"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	Status        string             `json:"status"`
-	AISummary     *string            `json:"ai_summary,omitempty"`
-	AIPostmortem  *string            `json:"ai_postmortem,omitempty"`
 }
 
 type Invite struct {
@@ -48,18 +27,18 @@ type Invite struct {
 	Role       string             `json:"role"`
 }
 
-type NotificationPref struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	OrgID     pgtype.UUID        `json:"org_id"`
-	NotifyOn  []string           `json:"notify_on"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
 type Org struct {
-	ID        pgtype.UUID        `json:"id"`
-	Name      string             `json:"name"`
-	Slug      string             `json:"slug"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Slug                 string             `json:"slug"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	SlackWebhookUrl      *string            `json:"slack_webhook_url"`
+	TeamsWebhookUrl      *string            `json:"teams_webhook_url"`
+	Plan                 string             `json:"plan"`
+	StripeCustomerID     *string            `json:"stripe_customer_id"`
+	StripeSubscriptionID *string            `json:"stripe_subscription_id"`
+	SubscriptionStatus   string             `json:"subscription_status"`
+	TrialEndsAt          pgtype.Timestamptz `json:"trial_ends_at"`
 }
 
 type OrgMember struct {
