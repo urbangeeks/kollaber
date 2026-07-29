@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema, decisionSchema, decisionsResponseSchema } from "./schemas"
+import { environmentSchema, eventSchema, commentResponseSchema, incidentSchema, suspectSchema, suspectsResponseSchema, searchHitSchema, searchResponseSchema, postmortemSchema, decisionSchema, decisionsResponseSchema, serviceVersionSchema, inventorySchema } from "./schemas"
 
 // Origin every API call is made against. Empty in production, where the single
 // binary serves the UI and API from the same host; set to the backend's URL in
@@ -36,6 +36,8 @@ export type SearchResponse = z.infer<typeof searchResponseSchema>
 export type Postmortem = z.infer<typeof postmortemSchema>
 export type Decision = z.infer<typeof decisionSchema>
 export type DecisionsResponse = z.infer<typeof decisionsResponseSchema>
+export type ServiceVersion = z.infer<typeof serviceVersionSchema>
+export type Inventory = z.infer<typeof inventorySchema>
 
 // StreamMessage is the envelope pushed over the SSE event stream. The server
 // tags each message with a "kind" so one connection can carry new events and
@@ -393,6 +395,15 @@ export function listDecisions(
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
   if (environmentId) params.set("environment_id", environmentId)
   return request(`/decisions?${params}`, decisionsResponseSchema)
+}
+
+// getInventory returns what each service in an environment was running at a
+// point in time, defaulting to now. Derived from deploy events — nothing new
+// is collected to answer it.
+export function getInventory(environmentId: string, at?: string): Promise<Inventory> {
+  const params = new URLSearchParams({ environment_id: environmentId })
+  if (at) params.set("at", at)
+  return request(`/inventory?${params}`, inventorySchema)
 }
 
 export async function getEventSummary(eventId: string, refresh = false): Promise<string> {

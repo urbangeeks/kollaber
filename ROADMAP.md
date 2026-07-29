@@ -194,12 +194,25 @@ scope at all, so any authenticated user could read any org's discussion by guess
 `environments` first. `internal/store/decisions.go` carries the replacement query and the tests
 assert isolation in both directions.
 
-### 9. Service version inventory
+### 9. Service version inventory — **shipped**
 
-Derive from deploy events: what version of each service was running at any given timestamp.
+`GET /inventory?environment_id=…&at=…` returns what every service in an environment was running at a
+moment, defaulting to now, derived entirely from deploy events. An `/inventory` page keeps both the
+environment and the instant in the URL, so the answer is a link you can paste into an incident
+thread.
 
-Answers "what was in prod when this broke?" — today that requires archaeology in CI logs. Free,
-given data we already collect.
+Only successful deploys and rollbacks count. A failed deploy did not change what is running, and
+treating it as current is how an inventory claims a build is in production that never got there; an
+in-progress one has not landed either. A rollback counts and is flagged, because what is running is
+then not the newest thing anyone shipped.
+
+The version is read from a key chain — `version`, `image_tag`, `revision`, `head_commit`, `to` —
+because every ingestion path names it differently, the same problem DORA already solves for commit
+timestamps. When the deploy that landed carried none of them the service reports *unknown* rather
+than the previous version, which would name a build that is not running.
+
+Known limitation: point-in-time only. "When did this service last change?" is answerable from the
+timeline but has no dedicated endpoint yet.
 
 ---
 

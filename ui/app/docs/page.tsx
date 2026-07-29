@@ -179,8 +179,8 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
                 name, timestamp, and any attached metadata (version, author, etc.).
               </p>
               <p>
-                The timeline polls for new events every 10 seconds — no refresh needed. A coloured badge indicates
-                the event type:
+                New events and comments are pushed over a live connection as they are recorded — no polling, no
+                refresh needed. A coloured badge indicates the event type:
               </p>
               <ul className="mt-2 space-y-1 pl-4 text-sm">
                 <li><span className="text-green-400 font-mono">DEPLOY</span> — a service release recorded via the CLI, CI, or webhook</li>
@@ -193,6 +193,31 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
               <p>
                 Click any event to expand it. Use the comment box to leave context — root cause, rollback decision,
                 follow-up ticket, anything. Comments are timestamped and attributed to the author.
+              </p>
+            </SubSection>
+
+            <SubSection title="Service inventory">
+              <p>
+                The <strong className="text-white">Inventory</strong> page answers &ldquo;what was in prod when this
+                broke?&rdquo; — the version of every service in an environment at a moment you choose, derived from
+                deploy history. Nothing extra is collected to produce it.
+              </p>
+              <p className="mt-3 text-sm">
+                Only successful deploys and rollbacks count: a failed deploy did not change what is running, and an
+                in-progress one has not landed. A rollback is flagged, because what is running is then not the newest
+                thing anyone shipped.
+              </p>
+              <p className="mt-3 text-sm">
+                The version is read from <InlineCode>version</InlineCode>, then <InlineCode>image_tag</InlineCode>,{" "}
+                <InlineCode>revision</InlineCode>, <InlineCode>head_commit</InlineCode>, and{" "}
+                <InlineCode>to</InlineCode> — the keys the CLI, Kubernetes watcher, Argo CD and Atlantis each use. If
+                the deploy that landed carried none of them the service reads{" "}
+                <em>version not recorded</em> rather than showing the previous one, which would name a build that is
+                not running.
+              </p>
+              <p className="mt-3 text-sm">
+                The environment and the instant both live in the URL, so an inventory is a link you can paste into an
+                incident thread.
               </p>
             </SubSection>
 
@@ -918,6 +943,7 @@ webhooks:
                 <ApiRow method="POST" path="/events/:id/comments" desc="Add a comment to an event (authenticated)" />
                 <ApiRow method="PATCH" path="/comments/:id"       desc="Mark or unmark a comment as a decision (member)" />
                 <ApiRow method="GET"  path="/decisions"           desc="The org's decision log (authenticated)" />
+                <ApiRow method="GET"  path="/inventory"           desc="Service versions at a point in time (authenticated)" />
               </div>
               <p className="mt-3 text-sm">
                 Query parameters for <InlineCode>GET /decisions</InlineCode>:{" "}

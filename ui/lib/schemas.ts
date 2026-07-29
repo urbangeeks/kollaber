@@ -167,6 +167,24 @@ export const decisionsResponseSchema = z.object({
   total: z.number(),
 })
 
+// What one service was running at a point in time. version is nullable rather
+// than defaulted: a deploy that carried no version metadata leaves it genuinely
+// unknown, and showing the previous one would name a build that is not running.
+export const serviceVersionSchema = z.object({
+  service: z.string(),
+  version: z.string().nullish(),
+  event_id: z.string(),
+  event_type: z.string(),
+  deployed_at: z.string(),
+})
+
+export const inventorySchema = z.object({
+  environment_id: z.string(),
+  environment_name: z.string(),
+  at: z.string(),
+  services: z.array(serviceVersionSchema).nullish().transform((s) => s ?? []),
+})
+
 export const incidentSchema = z.object({
   id: z.string(),
   title: z.string(),

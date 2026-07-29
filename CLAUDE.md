@@ -26,7 +26,7 @@ build list.
 - Environments and services
 - Event ingestion: manual, CLI, generic webhook, GitHub Actions, Prometheus Alertmanager,
   Kubernetes watcher, Argo CD, HCP Terraform, Atlantis
-- Timeline UI with comments, decision log
+- Timeline UI with comments, decision log, service version inventory
 - Incidents: group events, track status, AI postmortems
 - DORA metrics
 - AI: timeline assistant (`/ai/chat`), event summaries, postmortem generation
@@ -115,6 +115,7 @@ Broad shape:
 | Environments | `/environments`, `/environments/stats`, `/services` |
 | Events | `/events`, `/events/:id`, `/events/stream`, `/events/:id/comments`, `/events/:id/summary`, `/events/:id/postmortem` |
 | Decisions | `/comments/:id` (PATCH: mark), `/decisions` |
+| Inventory | `/inventory?environment_id=…&at=…` |
 | Incidents | `/incidents`, `/incidents/:id`, `/incidents/:id/events`, `/incidents/:id/postmortem` |
 | Metrics | `/metrics/dora` |
 | Search | `/search?q=…&environment_id=…` |
@@ -149,7 +150,7 @@ kollaber mcp          # MCP server over stdio
 ## 8. Frontend (Next.js)
 
 App Router, under `ui/app/`. Routes: `/login`, `/register`, `/onboarding`, `/dashboard`,
-`/env/[id]`, `/incidents`, `/decisions`, `/metrics`, `/docs`, `/download`, `/pricing`, `/admin`, and
+`/env/[id]`, `/incidents`, `/decisions`, `/inventory`, `/metrics`, `/docs`, `/download`, `/pricing`, `/admin`, and
 `/settings/{members,teams,billing,notifications,slack,sso,kubernetes,audit-logs}`.
 
 Timeline updates over SSE (`/events/stream`), not polling.
