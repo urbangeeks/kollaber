@@ -1,8 +1,11 @@
 import { SettingsNav, SettingsNavMobile } from "@/components/settings-nav"
+import { DotBackground } from "@/components/dot-background"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
+      <DotBackground />
+
       {/* Mobile horizontal nav — visible below lg */}
       <div className="lg:hidden border-b overflow-x-auto scrollbar-none">
         <div className="px-4 py-2.5 min-w-max">
