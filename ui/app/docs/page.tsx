@@ -7,8 +7,10 @@ const NAV = [
   { id: "notifications", label: "Notifications" },
   { id: "integrations", label: "Integrations" },
   { id: "cli", label: "CLI Reference" },
+  { id: "mcp", label: "MCP Server" },
   { id: "kubernetes", label: "Kubernetes" },
   { id: "webhooks", label: "Webhooks" },
+  { id: "sso", label: "SSO" },
   { id: "self-hosting", label: "Self-hosting" },
   { id: "api", label: "API Reference" },
 ]
@@ -186,7 +188,88 @@ kollaber deploy --env production --service api --version v1.0.0`}</Code>
                 <li><span className="text-green-400 font-mono">DEPLOY</span> — a service release recorded via the CLI, CI, or webhook</li>
                 <li><span className="text-red-400 font-mono">ALERT</span> — an alert ingested via webhook</li>
                 <li><span className="text-blue-400 font-mono">NOTE</span> — a manual note added by a team member</li>
+                <li><span className="text-orange-400 font-mono">ROLLBACK</span> — a release that reverted a previous one</li>
+                <li><span className="text-yellow-400 font-mono">SCALE</span> — a replica or resource change</li>
+                <li><span className="text-white/60 font-mono">TEARDOWN</span> — a service or workload removed</li>
               </ul>
+            </SubSection>
+
+            <SubSection title="Search">
+              <p>
+                The <strong className="text-white">Search</strong> page runs one query across event text and comment
+                bodies at once — a comment match comes back with the event it was written on, because a quote with no
+                context tells you someone wrote &ldquo;rolled it back&rdquo; but not what they rolled back or when.
+                Scope it to a single environment or search the whole org.
+              </p>
+              <p className="mt-3 text-sm">
+                Event text indexes metadata <em>values</em> only, never keys — indexing keys would make a search for{" "}
+                <InlineCode>version</InlineCode> match every deploy you have ever shipped.
+              </p>
+              <p className="mt-3 text-sm">
+                Matching is on whole stemmed words, so <InlineCode>check</InlineCode> does not find{" "}
+                <InlineCode>checkout</InlineCode> and <InlineCode>rollback</InlineCode> does not find{" "}
+                <InlineCode>rolling back</InlineCode>.
+              </p>
+            </SubSection>
+
+            <SubSection title="Suspect changes">
+              <p>
+                On an alert or a failed event, choose <strong className="text-white">Suspect changes</strong>. Kollaber
+                returns the changes that preceded it in the same environment, ranked and scored 0&ndash;100, each with
+                the reasons that produced its score — same service, how long before, whether the change failed.
+              </p>
+              <p className="mt-3 text-sm">
+                The scores are heuristics for <em>ordering</em>, never a causal claim, which is why every response
+                shows its working. Nothing extra is collected to produce them; it is a query over events you already
+                have.
+              </p>
+            </SubSection>
+
+            <SubSection title="DORA metrics">
+              <p>
+                The <strong className="text-white">Metrics</strong> page reports the four DORA metrics — deploy
+                frequency, lead time for changes, change failure rate, and time to restore service — over a window you
+                choose, with a trend line for each.
+              </p>
+              <p className="mt-3 text-sm">
+                Lead time needs a commit timestamp on deploys: pass{" "}
+                <InlineCode>--committed-at</InlineCode> to <InlineCode>kollaber deploy</InlineCode>, or a{" "}
+                <InlineCode>committed_at</InlineCode> field in webhook metadata. Time to restore is derived from
+                incidents and is always org-wide; scoping to an environment narrows the other three only.
+              </p>
+            </SubSection>
+
+            <SubSection title="Postmortem generator">
+              <p>
+                From the timeline header, pick an environment and a time window and Kollaber returns a markdown
+                document: the event sequence, every comment thread grouped under the event it belongs to, the
+                participants, and an AI narrative summary.
+              </p>
+              <p className="mt-3 text-sm">
+                The factual half is assembled from your own rows and is returned on every plan, with or without an
+                Anthropic key configured; only the narrative section needs the Pro entitlement. A{" "}
+                <InlineCode>narrative_status</InlineCode> field says which of those held, so a missing summary reads as
+                an explained gap rather than a failed request.
+              </p>
+              <p className="mt-3 text-sm">
+                Comments are selected by their <em>event&rsquo;s</em> timestamp, not their own — analysis written a
+                week after an outage is exactly the considered thinking a postmortem wants. One document caps at 500
+                events and 1000 comments, and the narrative works from the most recent 120 events.
+              </p>
+            </SubSection>
+
+            <SubSection title="Weekly digest">
+              <p>
+                A Monday recap of the week that ended: deploys and failures per environment, rollbacks, alerts,
+                incidents opened and resolved, and the events that drew the most discussion. Opt in under{" "}
+                <strong className="text-white">Settings → Notifications</strong>, alongside the rest of Kollaber&rsquo;s
+                email.
+              </p>
+              <p className="mt-3 text-sm">
+                Threads are ranked by comments written <em>during</em> the week rather than by the event&rsquo;s own
+                age, so a months-old event the team argued about on Tuesday still surfaces. A week with nothing in it
+                sends nothing, and quiet environments are dropped from the email.
+              </p>
             </SubSection>
 
             <SubSection title="Commenting on events">
@@ -554,6 +637,83 @@ kollaber ask --env production           # interactive session`}</Code>
                 <div className="flex gap-3"><Badge>--no-save</Badge><span>One-off question; don&apos;t read or write saved history</span></div>
               </div>
             </SubSection>
+
+            <SubSection title="kollaber dora">
+              <p>Report the four DORA metrics from the terminal or a CI job.</p>
+              <Code>{`kollaber dora                             # last 30 days, all environments
+kollaber dora --days 7                    # last 7 days
+kollaber dora --env production --days 90  # scope to one environment`}</Code>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex gap-3"><Badge>--env</Badge><span>Environment name or UUID (optional; org-wide if omitted)</span></div>
+                <div className="flex gap-3"><Badge>--days</Badge><span>Window in days (default 30, max 365)</span></div>
+              </div>
+              <p className="mt-3 text-sm">
+                Lead time needs a commit timestamp on deploys. Time to restore is derived from incidents and is always
+                org-wide — <InlineCode>--env</InlineCode> narrows the other three metrics only.
+              </p>
+            </SubSection>
+
+            <SubSection title="kollaber mcp">
+              <p>
+                Run the Model Context Protocol server over stdio — see{" "}
+                <a href="#mcp" className="text-[#60a5fa] hover:underline">MCP Server</a> below.
+              </p>
+              <Code>kollaber mcp</Code>
+            </SubSection>
+          </Section>
+
+          {/* ── MCP Server ── */}
+          <Section id="mcp" title="MCP Server">
+            <p>
+              <InlineCode>kollaber mcp</InlineCode> runs a{" "}
+              <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" className="text-[#60a5fa] hover:underline">Model Context Protocol</a>{" "}
+              server over stdio, so coding agents can query your timeline while you debug — without leaving the editor.
+            </p>
+
+            <SubSection title="Setup">
+              <p>The server reuses the token the CLI already saved, so authenticate once:</p>
+              <Code>{`kollaber login
+claude mcp add kollaber -- kollaber mcp`}</Code>
+              <p>Any MCP client works:</p>
+              <Code>{`{ "mcpServers": { "kollaber": { "command": "kollaber", "args": ["mcp"] } } }`}</Code>
+              <p className="text-sm">
+                Then ask things like <em>&ldquo;what deployed to production in the last hour?&rdquo;</em> or{" "}
+                <em>&ldquo;what changed right before this alert fired?&rdquo;</em>
+              </p>
+            </SubSection>
+
+            <SubSection title="Tools">
+              <div className="space-y-1 text-sm">
+                <div className="flex gap-3"><Badge>list_environments</Badge><span>Environments with ids and cluster names</span></div>
+                <div className="flex gap-3"><Badge>get_timeline</Badge><span>Events, filterable by environment, type, service, status, time range</span></div>
+                <div className="flex gap-3"><Badge>get_event</Badge><span>One event with full metadata and its comment thread</span></div>
+                <div className="flex gap-3"><Badge>find_related_events</Badge><span>Events surrounding an event, split into before / after</span></div>
+                <div className="flex gap-3"><Badge>list_incidents</Badge><span>Incidents, optionally filtered by status</span></div>
+                <div className="flex gap-3"><Badge>get_dora_metrics</Badge><span>Deploy frequency, lead time, change failure rate, time to restore</span></div>
+                <div className="flex gap-3"><Badge>add_note</Badge><span>Write a note to an environment&rsquo;s timeline</span></div>
+                <div className="flex gap-3"><Badge>add_comment</Badge><span>Comment on an existing event</span></div>
+              </div>
+              <p className="mt-3 text-sm">
+                The six read tools are annotated <InlineCode>readOnlyHint</InlineCode>, so clients can run them without
+                prompting. <InlineCode>add_note</InlineCode> and <InlineCode>add_comment</InlineCode> write to a shared
+                team timeline and are not.
+              </p>
+              <p className="mt-3 text-sm">
+                <InlineCode>find_related_events</InlineCode> is the one worth knowing about — anchor it on an alert and
+                it returns the deploys that preceded it, which is the question you actually have at 3am. Events sharing
+                the anchor&rsquo;s timestamp to the second land in a separate <InlineCode>concurrent</InlineCode> bucket
+                rather than being reported as causes, since the API serializes timestamps at second precision and
+                cannot order them.
+              </p>
+            </SubSection>
+
+            <SubSection title="Plans">
+              <p className="text-sm">
+                Unlike <InlineCode>kollaber ask</InlineCode>, which runs inference against the server&rsquo;s Anthropic
+                key and needs the Team plan, the MCP server runs on your own client&rsquo;s model — so it works on
+                every plan, self-hosted included.
+              </p>
+            </SubSection>
           </Section>
 
           {/* ── Kubernetes ── */}
@@ -768,6 +928,60 @@ webhooks:
             </SubSection>
           </Section>
 
+          {/* ── SSO ── */}
+          <Section id="sso" title="SSO">
+            <p>
+              Kollaber supports <strong className="text-white">OIDC</strong> single sign-on against any compliant
+              identity provider — Okta, Entra ID, Google Workspace, Auth0, Keycloak. Available on the Pro plan and
+              above, and unlocked on self-hosted installs.
+            </p>
+
+            <SubSection title="1. Register Kollaber with your IdP">
+              <p>
+                Create an OIDC application and set the redirect URI to your Kollaber API origin plus{" "}
+                <InlineCode>/auth/sso/callback</InlineCode>:
+              </p>
+              <Code>https://kollaber.io/auth/sso/callback</Code>
+              <p className="text-sm">
+                Self-hosted, this is derived from the <InlineCode>API_URL</InlineCode> environment variable, so set it
+                to the origin your users reach. Request the <InlineCode>openid</InlineCode> and{" "}
+                <InlineCode>email</InlineCode> scopes — the email claim is what Kollaber matches on.
+              </p>
+            </SubSection>
+
+            <SubSection title="2. Configure it in Kollaber">
+              <p>
+                Go to <strong className="text-white">Settings → SSO</strong> and fill in the issuer URL, client ID,
+                client secret, and the email domain your organization owns. Discovery is done against the issuer, so
+                the issuer URL is the only endpoint you need to supply.
+              </p>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex gap-3"><Badge>issuer_url</Badge><span>e.g. <InlineCode>https://acme.okta.com</InlineCode></span></div>
+                <div className="flex gap-3"><Badge>client_id</Badge><span>From the IdP application</span></div>
+                <div className="flex gap-3"><Badge>client_secret</Badge><span>From the IdP application</span></div>
+                <div className="flex gap-3"><Badge>domain</Badge><span>e.g. <InlineCode>acme.com</InlineCode></span></div>
+                <div className="flex gap-3"><Badge>enabled</Badge><span>Turn the flow on once the rest is verified</span></div>
+              </div>
+              <p className="mt-3 text-sm">
+                A domain can belong to one organization only — claiming one already registered elsewhere returns a
+                conflict rather than silently redirecting your users into someone else&rsquo;s tenant.
+              </p>
+            </SubSection>
+
+            <SubSection title="3. Sign in">
+              <p>Users start the flow at your organization&rsquo;s slug:</p>
+              <Code>https://kollaber.io/auth/sso?org=acme</Code>
+              <p className="text-sm">
+                Kollaber redirects to the IdP, verifies the returned ID token, and issues its own JWT. The email claim
+                must end in the configured domain — a token for{" "}
+                <InlineCode>someone@gmail.com</InlineCode> against a config that owns{" "}
+                <InlineCode>acme.com</InlineCode> is refused, so a misconfigured IdP that will authenticate anyone
+                cannot become an open door into your timeline. An account is created on first sign-in if the email is
+                new.
+              </p>
+            </SubSection>
+          </Section>
+
           {/* ── Self-hosting ── */}
           <Section id="self-hosting" title="Self-hosting">
             <p>
@@ -938,18 +1152,28 @@ webhooks:
               <div className="space-y-2">
                 <ApiRow method="POST" path="/auth/register" desc="Create a new account" />
                 <ApiRow method="POST" path="/auth/login" desc="Log in and receive a JWT" />
+                <ApiRow method="POST" path="/auth/otp/send" desc="Email a one-time login code" />
+                <ApiRow method="POST" path="/auth/otp/verify" desc="Exchange a one-time code for a JWT" />
+                <ApiRow method="GET"  path="/auth/github" desc="Start the GitHub OAuth flow" />
+                <ApiRow method="GET"  path="/auth/github/callback" desc="GitHub OAuth redirect target" />
+                <ApiRow method="GET"  path="/auth/sso" desc="Start the OIDC SSO flow for an org (?org=slug)" />
+                <ApiRow method="GET"  path="/auth/sso/callback" desc="OIDC redirect target; issues a Kollaber JWT" />
                 <ApiRow method="POST" path="/auth/token" desc="Generate a long-lived CLI token (authenticated)" />
                 <ApiRow method="GET"  path="/auth/orgs"  desc="List organizations for the current user (authenticated)" />
+                <ApiRow method="POST" path="/auth/orgs"  desc="Create an organization (authenticated)" />
+                <ApiRow method="PUT"  path="/auth/orgs/:id" desc="Rename an organization (authenticated)" />
                 <ApiRow method="POST" path="/auth/switch" desc="Switch active organization (authenticated)" />
               </div>
             </SubSection>
 
             <SubSection title="Environments">
               <div className="space-y-2">
-                <ApiRow method="GET"    path="/environments"     desc="List all environments (authenticated)" />
-                <ApiRow method="POST"   path="/environments"     desc="Create an environment (authenticated)" />
-                <ApiRow method="PUT"    path="/environments/:id" desc="Update an environment (authenticated)" />
-                <ApiRow method="DELETE" path="/environments/:id" desc="Delete an environment (authenticated)" />
+                <ApiRow method="GET"    path="/environments"       desc="List all environments (authenticated)" />
+                <ApiRow method="POST"   path="/environments"       desc="Create an environment (authenticated)" />
+                <ApiRow method="PUT"    path="/environments/:id"   desc="Update an environment (authenticated)" />
+                <ApiRow method="DELETE" path="/environments/:id"   desc="Delete an environment (authenticated)" />
+                <ApiRow method="GET"    path="/environments/stats" desc="Per-environment event counts (authenticated)" />
+                <ApiRow method="GET"    path="/services"           desc="Distinct service names seen in events (authenticated)" />
               </div>
             </SubSection>
 
@@ -957,6 +1181,9 @@ webhooks:
               <div className="space-y-2">
                 <ApiRow method="GET"  path="/events"                desc="List events, filter by environment_id and limit (authenticated)" />
                 <ApiRow method="POST" path="/events"                desc="Create an event (authenticated)" />
+                <ApiRow method="GET"  path="/events/:id"            desc="Get one event with its full metadata (authenticated)" />
+                <ApiRow method="GET"  path="/events/:id/suspects"   desc="Changes that preceded this event, ranked and scored (authenticated)" />
+                <ApiRow method="GET"  path="/events/stream"         desc="Live event and comment feed over Server-Sent Events (authenticated)" />
                 <ApiRow method="POST" path="/webhooks/events"       desc="Ingest an event via webhook (unauthenticated)" />
                 <ApiRow method="POST" path="/webhooks/alertmanager" desc="Ingest Prometheus Alertmanager alerts (shared secret)" />
                 <ApiRow method="POST" path="/webhooks/argocd"       desc="Ingest an Argo CD notification (shared secret)" />
@@ -966,6 +1193,38 @@ webhooks:
               <p className="mt-3 text-sm">
                 Query parameters for <InlineCode>GET /events</InlineCode>:{" "}
                 <InlineCode>environment_id</InlineCode> (required) and <InlineCode>limit</InlineCode> (default 50).
+              </p>
+              <p className="mt-3 text-sm">
+                Query parameters for <InlineCode>GET /events/:id/suspects</InlineCode>:{" "}
+                <InlineCode>window_minutes</InlineCode> (default 180, max 1440) and{" "}
+                <InlineCode>limit</InlineCode> (default 5, max 20). Every suspect carries a{" "}
+                <InlineCode>score</InlineCode>, a <InlineCode>confidence</InlineCode>, and the{" "}
+                <InlineCode>reasons</InlineCode> that produced them — the ranking is a heuristic for ordering, never a
+                causal claim.
+              </p>
+            </SubSection>
+
+            <SubSection title="Search">
+              <div className="space-y-2">
+                <ApiRow method="GET" path="/search" desc="Full-text search across event text and comment bodies (authenticated)" />
+              </div>
+              <p className="mt-3 text-sm">
+                Query parameters: <InlineCode>q</InlineCode> (required),{" "}
+                <InlineCode>environment_id</InlineCode> (optional; org-wide if omitted), and{" "}
+                <InlineCode>limit</InlineCode> (default 25, max 100). Each hit has a{" "}
+                <InlineCode>kind</InlineCode> of <InlineCode>event</InlineCode> or{" "}
+                <InlineCode>comment</InlineCode>; comment hits carry the event they were written on.
+              </p>
+            </SubSection>
+
+            <SubSection title="Metrics">
+              <div className="space-y-2">
+                <ApiRow method="GET" path="/metrics/dora" desc="The four DORA metrics with trend series (authenticated)" />
+              </div>
+              <p className="mt-3 text-sm">
+                Query parameters: <InlineCode>days</InlineCode> (default 30, max 365) and{" "}
+                <InlineCode>environment_id</InlineCode>. Time to restore is always org-wide;{" "}
+                <InlineCode>time_to_restore_scope</InlineCode> in the response says so.
               </p>
             </SubSection>
 
@@ -1021,6 +1280,18 @@ webhooks:
                 <ApiRow method="GET" path="/settings/teams"         desc="Get org Teams webhook URL (authenticated)" />
                 <ApiRow method="PUT" path="/settings/teams"         desc="Set org Teams webhook URL (admin)" />
                 <ApiRow method="POST" path="/settings/teams/test"   desc="Send a test Teams message (admin)" />
+                <ApiRow method="GET" path="/settings/sso"           desc="Get the org's OIDC SSO config; the secret is never returned (admin)" />
+                <ApiRow method="PUT" path="/settings/sso"           desc="Save the org's OIDC SSO config (admin, Pro plan)" />
+                <ApiRow method="GET" path="/audit-logs"             desc="Who did what in this org (authenticated)" />
+              </div>
+            </SubSection>
+
+            <SubSection title="Billing">
+              <div className="space-y-2">
+                <ApiRow method="GET"  path="/billing"           desc="Current plan, seat count, and entitlements (authenticated)" />
+                <ApiRow method="POST" path="/billing/checkout"  desc="Start a Stripe checkout session (owner)" />
+                <ApiRow method="POST" path="/billing/portal"    desc="Open the Stripe customer portal (owner)" />
+                <ApiRow method="POST" path="/webhooks/stripe"   desc="Stripe subscription lifecycle events (signature-verified)" />
               </div>
             </SubSection>
 
@@ -1044,6 +1315,23 @@ webhooks:
                 <ApiRow method="POST" path="/events/:id/summary"     desc="Generate an AI summary of an event (authenticated)" />
                 <ApiRow method="POST" path="/events/:id/postmortem"  desc="Generate an AI postmortem for an event (Pro plan, authenticated)" />
               </div>
+            </SubSection>
+
+            <SubSection title="Postmortems">
+              <div className="space-y-2">
+                <ApiRow method="POST" path="/postmortems" desc="Environment plus a time window in, a markdown document out (authenticated)" />
+              </div>
+              <p className="mt-3 text-sm">
+                Body: <InlineCode>environment_id</InlineCode>, <InlineCode>from</InlineCode>,{" "}
+                <InlineCode>to</InlineCode>, and an optional <InlineCode>narrative</InlineCode> boolean. Unlike the AI
+                routes above, the factual document is returned on <em>every</em> plan with or without an Anthropic key
+                — only the narrative section is gated on Pro, and{" "}
+                <InlineCode>narrative_status</InlineCode> in the response says which applied.
+              </p>
+              <p className="mt-3 text-sm">
+                Caps at 500 events and 1000 comments per document; the response sets{" "}
+                <InlineCode>truncated</InlineCode> when the window overflows the event cap.
+              </p>
             </SubSection>
           </Section>
 

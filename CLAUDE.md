@@ -21,7 +21,7 @@ build list.
 
 **Shipped:**
 
-- Auth: JWT, email OTP, GitHub OAuth, SAML/OIDC SSO
+- Auth: JWT, email OTP, GitHub OAuth, OIDC SSO (`internal/api/sso.go` — OIDC only, no SAML)
 - Multi-tenancy: orgs, members, invites, RBAC (Owner / Admin / Member / Viewer)
 - Environments and services
 - Event ingestion: manual, CLI, generic webhook, GitHub Actions, Prometheus Alertmanager,

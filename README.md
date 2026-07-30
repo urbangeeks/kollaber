@@ -9,14 +9,43 @@ Capture deploys, alerts, and manual notes in a shared timeline your whole team c
 
 ## What it does
 
+Kollaber is **change intelligence + operational memory**. It collects no metrics, logs, or
+traces — it sits downstream of your observability stack and answers a different question:
+*what changed, and what did we decide about it?* See [`ROADMAP.md`](ROADMAP.md) for the
+positioning this does and does not admit.
+
+**The timeline**
+
 - **Timeline** — every deploy, alert, and note in one chronological view per environment
 - **Comments** — annotate any event with root cause, rollback decisions, follow-ups
+- **Full-text search** — one query across event text and comment bodies, org-wide or scoped to an environment
+- **Suspect changes** — anchor on an alert and get the changes that preceded it, ranked and scored with the reasons behind each score
+
+**Making it durable**
+
+- **Decision log** — promote a comment to a decision; the log keeps it with the event it was written on
+- **Service inventory** — what every service was running at any moment, derived from deploy history
+- **Incidents** — group events, track status, generate AI postmortems
+- **Postmortem generator** — an environment and a time window in, a markdown document out
+- **DORA metrics** — deploy frequency, lead time, change failure rate, time to restore
+- **Change freezes** — declare a window; changes that land inside it are flagged and `kollaber deploy` exits 2
+
+**Getting data in and out**
+
 - **CLI** — send deploy events and notes from your terminal or CI pipeline
 - **AI timeline assistant** — ask natural-language questions about your events, in the dashboard or from the CLI (Team plan and up)
 - **MCP server** — expose the timeline to Claude Code, Cursor, and other coding agents with `kollaber mcp`
-- **Webhooks** — integrate GitHub Actions or any HTTP tool without installing anything
+- **Webhooks** — GitHub Actions, Argo CD, HCP Terraform, Atlantis, or any HTTP tool, without installing anything
 - **Alert ingestion** — point Prometheus Alertmanager at Kollaber and firing alerts land next to the deploys that caused them
+- **Kubernetes watcher** — rollouts and `CrashLoopBackOff` pods from any cluster, via Helm
+- **Grafana annotations** — render Kollaber events as vertical markers on dashboards you already have
+
+**Team and org**
+
 - **Role-based access** — Owner / Admin / Member / Viewer tiers per organization
+- **SSO** — OIDC single sign-on, domain-matched (Pro plan and up)
+- **Notifications** — Slack, Microsoft Teams, email, and a weekly digest
+- **Audit logs** — who did what, per org
 
 ## Quick start (local)
 
@@ -64,6 +93,11 @@ kollaber deploy --env production --service api --version v1.2.3
 # Pass the commit time to power the DORA lead-time metric
 kollaber deploy --env production --service api --version v1.2.3 \
   --committed-at "$(git show -s --format=%cI HEAD)"
+
+# Exit codes: 0 recorded, 2 recorded but landed inside a change freeze, 1 anything
+# else. The event is always created — the distinct code is so CI can tell a freeze
+# apart from a network failure. --allow-frozen exits 0 for a release meant to ship.
+kollaber deploy --env production --service api --version v1.2.3 --allow-frozen
 
 # Add a note
 kollaber note --env production "Rolling back — 5xx spike in us-east-1"
@@ -232,6 +266,110 @@ it resolves — not one every four hours. The response reports both counts:
 
 This also makes retries safe: a delivery that failed mid-batch can be re-sent
 without duplicating the alerts that already landed.
+
+### Argo CD
+
+Argo CD's notification service builds the request body from a template *you* write, so unlike
+every other integration here the payload is a contract we publish rather than one we are handed.
+Add a service and a template to `argocd-notifications-cm`:
+
+```yaml
+service.webhook.kollaber: |
+  url: https://kollaber.io/webhooks/argocd?environment_id=<your-env-id>
+  headers:
+  - name: X-Kollaber-Secret
+    value: $kollaber-webhook-secret
+
+template.kollaber-sync: |
+  webhook:
+    kollaber:
+      method: POST
+      body: |
+        {
+          "app": "{{.app.metadata.name}}",
+          "revision": "{{.app.status.sync.revision}}",
+          "sync_status": "{{.app.status.sync.status}}",
+          "health_status": "{{.app.status.health.status}}",
+          "operation_phase": "{{.app.status.operationState.phase}}",
+          "project": "{{.app.spec.project}}",
+          "namespace": "{{.app.spec.destination.namespace}}"
+        }
+```
+
+Then subscribe an Application:
+`notifications.argoproj.io/subscribe.on-sync-succeeded.kollaber`.
+
+Only `app` is required — a Go template renders an unset field as an empty string, so an app that
+has never synced would otherwise 400 on its first notification. Status comes from
+`operation_phase` first and `health_status` second: a sync that succeeded onto a degraded app is
+a successful change, with the health left in the metadata. Add `"type": "teardown"` to the body
+on an `on-app-deleted` subscription; it defaults to `deploy`.
+
+### HCP Terraform
+
+In the workspace: **Settings → Notifications → Create a notification**, choose **Webhook**.
+
+```text
+URL:      https://kollaber.io/webhooks/terraform?environment_id=<your-env-id>
+Token:    your WEBHOOK_SECRET
+Triggers: Completed, Errored
+```
+
+Terraform signs the body with HMAC-SHA512 in `X-TFE-Notification-Signature` — bare hex, no
+algorithm prefix, a different hash and framing from the SHA-256 the other webhooks use. The
+workspace name becomes the service.
+
+Only terminal outcomes are recorded: `applied` as a success, `errored` as a failure. Plan,
+cancel, and discard notifications are accepted and skipped, so enabling extra triggers is
+harmless — and the verification payload sent when you save the notification config falls through
+the same path. A plan is not a change: recording one would put a marker on the timeline for a run
+that touched nothing, count it as a deployment in DORA, and hand suspect detection a change that
+never happened.
+
+> **Known limitation:** the notification payload carries no destroy flag, so a `terraform destroy`
+> run is recorded as a deploy rather than a teardown.
+
+### Atlantis
+
+```yaml
+# repos.yaml
+webhooks:
+  - event: apply
+    kind: http
+    url: https://kollaber.io/webhooks/atlantis?environment_id=<your-env-id>
+```
+
+```bash
+# server flag, or ATLANTIS_WEBHOOK_HTTP_HEADERS
+--webhook-http-headers='{"Authorization":"Bearer $WEBHOOK_SECRET"}'
+```
+
+Atlantis posts only after an apply has run, so every delivery is a real change with no plan-stage
+noise to filter. The service name is the project from `atlantis.yaml`, falling back to the
+directory and then the repository; the PR number, branch, commit, and the user who ran
+`atlantis apply` are kept in the metadata. Use `workspace-regex` and `branch-regex` on the webhook
+to point different workspaces at different Kollaber environments.
+
+## Grafana annotations
+
+`/annotations` serves change and alert events as Grafana annotations, so Kollaber markers render
+as vertical lines on dashboards your team already has. Both verbs return the same array: `POST`
+speaks the simple-json datasource contract, `GET` takes the window on the query string for
+Infinity and for curl.
+
+Auth reuses the 90-day CLI token rather than introducing a datasource key — Grafana sends a static
+`Authorization` header, the token already carries the org, and every new credential type is one
+more thing to revoke and audit.
+
+```bash
+curl -sS -H "Authorization: Bearer $KOLLABER_TOKEN" \
+  "https://kollaber.io/annotations?from=2026-07-01T00:00:00Z&to=2026-07-02T00:00:00Z&environment_id=<uuid>"
+```
+
+Query parameters: `from` and `to` (RFC3339 or epoch milliseconds, default the last 24 hours),
+`environment_id`, `service`, and `type` (comma-separated). The type set defaults to every type
+*except* `note`, derived by exclusion — so a new event type shows up on dashboards automatically
+rather than being silently missing. Naming a type explicitly still returns it, notes included.
 
 ## Development
 

@@ -10,8 +10,11 @@ import {
   Activity,
   Bell,
   Zap,
-  Users,
-  Webhook,
+  Search,
+  History,
+  BarChart3,
+  Terminal,
+  Snowflake,
   CheckCircle2,
   Container,
   Check,
@@ -34,22 +37,32 @@ const FEATURES = [
   {
     icon: Activity,
     title: "Deploy Tracking",
-    desc: "Every CI/CD run is automatically recorded in your shared team timeline.",
+    desc: "Every CI/CD run recorded in a shared team timeline — CLI, GitHub Actions, Argo CD, Terraform, or Atlantis.",
   },
   {
     icon: Zap,
+    title: "Suspect Changes",
+    desc: "Anchor on an alert and get the changes that preceded it, ranked and scored — each one showing the reasons behind its score.",
+  },
+  {
+    icon: Bell,
     title: "Alert Correlation",
-    desc: "Overlay CloudWatch, Datadog, or PagerDuty alerts directly onto your releases.",
+    desc: "Point Prometheus Alertmanager at Kollaber and firing alerts land next to the deploys that caused them.",
   },
   {
-    icon: Users,
-    title: "Team Notes",
-    desc: "Context matters. Drop manual markers for maintenance or configuration changes.",
+    icon: Search,
+    title: "Search & Decisions",
+    desc: "One query across every event and comment. Promote the ones that mattered to a decision log that still reads six months later.",
   },
   {
-    icon: Webhook,
-    title: "CLI + Webhooks",
-    desc: "First-class CLI tool and flexible webhooks for any tool in your stack.",
+    icon: History,
+    title: "Service Inventory",
+    desc: "What every service was running at any moment, derived from deploy history. Paste the link straight into an incident thread.",
+  },
+  {
+    icon: BarChart3,
+    title: "DORA Metrics",
+    desc: "Deploy frequency, lead time, change failure rate, and time to restore — from the events you are already sending.",
   },
   {
     icon: Container,
@@ -57,16 +70,21 @@ const FEATURES = [
     desc: "Auto-detect rollouts from any cluster. Deploy the watcher via Helm in under a minute.",
   },
   {
-    icon: Bell,
-    title: "Slack, Teams & Email",
-    desc: "Get notified where your team already works — Slack, Microsoft Teams, or email — the moment something happens.",
+    icon: Terminal,
+    title: "MCP for Coding Agents",
+    desc: "kollaber mcp exposes your timeline to Claude Code, Cursor, and friends — so your agent can ask what changed without leaving the editor.",
+  },
+  {
+    icon: Snowflake,
+    title: "Change Freezes",
+    desc: "Declare a window and Kollaber flags what lands inside it. Advisory by design — it never blocks your pipeline.",
   },
 ]
 
 const STATS = [
   { label: "binary to deploy", value: 1, prefix: "" },
   { label: "min to integrate", value: 5, prefix: "< " },
-  { label: "event types tracked", value: 3, prefix: "" },
+  { label: "event types tracked", value: 6, prefix: "" },
 ]
 
 const STEPS = [
@@ -82,8 +100,8 @@ const STEPS = [
   },
   {
     step: "03",
-    title: "Filter, comment, and get notified",
-    body: "Slice the timeline by type, service, or date range — and get Slack, Teams, or email alerts the moment something lands.",
+    title: "Find what changed, and why",
+    body: "Rank the suspect changes behind an alert, search every event and comment, and keep the decisions your team made — with Slack, Teams, or email alerts the moment something lands.",
   },
 ]
 
@@ -336,7 +354,7 @@ export default function Home() {
 
               {/* Filter chips */}
               <div className="flex flex-wrap gap-1.5 border-b border-white/10 px-4 py-2.5">
-                {["Deploy", "Alert", "Note", "Teardown", "Rollback"].map((t) => (
+                {["Deploy", "Alert", "Note", "Teardown", "Rollback", "Scale"].map((t) => (
                   <span
                     key={t}
                     className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/50"
