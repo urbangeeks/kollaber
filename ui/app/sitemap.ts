@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 
+import { INTEGRATIONS } from "@/lib/integrations"
 import { siteUrl } from "@/lib/seo"
 
 export const dynamic = "force-static"
@@ -22,6 +23,15 @@ const routes: Route[] = [
   { path: "/pricing", priority: 0.8, changeFrequency: "monthly", lastModified: "2026-07-31" },
   { path: "/download", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-07-31" },
   { path: "/docs", priority: 0.7, changeFrequency: "weekly", lastModified: "2026-07-31" },
+  { path: "/integrations", priority: 0.8, changeFrequency: "monthly", lastModified: "2026-07-31" },
+  // One entry per integration page, derived so a new integration cannot be
+  // added to the site without also appearing in the sitemap.
+  ...INTEGRATIONS.map(({ slug }): Route => ({
+    path: `/integrations/${slug}`,
+    priority: 0.7,
+    changeFrequency: "monthly",
+    lastModified: "2026-07-31",
+  })),
   { path: "/login", priority: 0.5, changeFrequency: "yearly", lastModified: "2026-07-31" },
   { path: "/register", priority: 0.6, changeFrequency: "yearly", lastModified: "2026-07-31" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: "2026-07-31" },

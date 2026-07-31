@@ -100,3 +100,57 @@ export function pricingSchema(plans: readonly PricingPlan[]): JsonLdObject {
     }),
   }
 }
+
+/**
+ * Setup instructions for an integration page. Only steps are modelled — the
+ * surrounding prose is not part of the HowTo, so the structured data stays a
+ * faithful summary of what the page actually walks through.
+ */
+export function howToSchema(args: {
+  name: string
+  description: string
+  path: string
+  steps: { title: string; body: string }[]
+}): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: args.name,
+    description: args.description,
+    url: absoluteUrl(args.path),
+    step: args.steps.map((step, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: step.title,
+      text: step.body,
+      url: `${absoluteUrl(args.path)}#step-${index + 1}`,
+    })),
+  }
+}
+
+export function faqPageSchema(faqs: { q: string; a: string }[]): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: { "@type": "Answer", text: faq.a },
+    })),
+  }
+}
+
+export function breadcrumbSchema(
+  crumbs: { name: string; path: string }[],
+): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: absoluteUrl(crumb.path),
+    })),
+  }
+}
