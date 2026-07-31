@@ -4,14 +4,11 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { siteDescription, siteUrl } from "@/lib/seo"
 import { cn } from "@/lib/utils";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://kollaber.io"
-
 const title = "Kollaber — The shared timeline for infrastructure teams"
-const description =
-  "Stop correlating incidents in Slack. Capture deploys, alerts, and manual notes in one collaborative view designed for modern DevOps and SRE teams."
+const description = siteDescription
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -32,6 +29,9 @@ export const metadata: Metadata = {
     "Kubernetes",
   ],
   authors: [{ name: "Kollaber" }],
+  // Canonical for "/" itself — the landing page is a client component and so
+  // cannot export metadata. Every other public route overrides this in its own
+  // metadata; app routes inherit it but are disallowed in robots.ts.
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",

@@ -32,6 +32,8 @@ import { BlurFade } from "@/components/ui/blur-fade"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { NumberTicker } from "@/components/ui/number-ticker"
 import { Button } from "@/components/ui/button"
+import { JsonLd } from "@/components/json-ld"
+import { softwareApplicationSchema } from "@/lib/seo"
 
 const FEATURES = [
   {
@@ -201,6 +203,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#60a5fa]/30 font-sans antialiased">
+
+      {/* Product structured data. Lives here rather than in the root layout so
+          it is emitted for the marketing page only, and not for app routes. */}
+      <JsonLd schema={softwareApplicationSchema()} />
 
       {/* 1. STICKY NAV */}
       <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md">

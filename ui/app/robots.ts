@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next"
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://kollaber.io"
+import { siteUrl } from "@/lib/seo"
 
 export const dynamic = "force-static"
 
@@ -10,7 +9,23 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/dashboard", "/admin", "/settings", "/env", "/onboarding", "/auth", "/invite"],
+      // Authenticated app routes. Anything not listed in sitemap.ts belongs
+      // here — an unlisted, uncrawled route otherwise inherits the root
+      // canonical and competes with "/" in the index.
+      disallow: [
+        "/dashboard",
+        "/admin",
+        "/settings",
+        "/env",
+        "/onboarding",
+        "/auth",
+        "/invite",
+        "/incidents",
+        "/decisions",
+        "/inventory",
+        "/metrics",
+        "/search",
+      ],
     },
     sitemap: `${siteUrl}/sitemap.xml`,
     host: siteUrl,

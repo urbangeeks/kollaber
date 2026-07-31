@@ -1,7 +1,21 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+
+// The root layout appends " — Kollaber", so the brand is left out here.
+const title = "Download the CLI"
+const description =
+  "Install the Kollaber CLI for macOS, Linux, and Windows. Record deploys, read the timeline, and add notes from your terminal or CI pipeline."
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/download" },
+  openGraph: { title, description, url: "/download" },
+  twitter: { title, description },
+}
 
 const REPO = "https://github.com/urbangeeks/kollaber"
 const LATEST = `${REPO}/releases/latest`

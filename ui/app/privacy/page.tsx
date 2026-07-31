@@ -2,8 +2,15 @@ import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
 
+const description =
+  "How Kollaber collects, uses, shares, and protects information about you and your organization's infrastructure events."
+
 export const metadata: Metadata = {
   title: "Privacy Policy",
+  description,
+  alternates: { canonical: "/privacy" },
+  openGraph: { title: "Privacy Policy", description, url: "/privacy" },
+  twitter: { title: "Privacy Policy", description },
 }
 
 const SECTIONS = [

@@ -2,8 +2,15 @@ import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
 
+const description =
+  "The terms governing use of Kollaber, including accounts, acceptable use, billing, and liability."
+
 export const metadata: Metadata = {
   title: "Terms of Service",
+  description,
+  alternates: { canonical: "/terms" },
+  openGraph: { title: "Terms of Service", description, url: "/terms" },
+  twitter: { title: "Terms of Service", description },
 }
 
 const SECTIONS = [

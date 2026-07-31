@@ -1,5 +1,18 @@
 import Link from "next/link"
 import Image from "next/image"
+import type { Metadata } from "next"
+
+const title = "Documentation"
+const description =
+  "Set up Kollaber: ingest deploys and alerts from GitHub Actions, Argo CD, Terraform, Alertmanager and Kubernetes, then query the timeline from the CLI, the dashboard, or an MCP-connected coding agent."
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/docs" },
+  openGraph: { title, description, url: "/docs" },
+  twitter: { title, description },
+}
 
 const NAV = [
   { id: "getting-started", label: "Getting Started" },
