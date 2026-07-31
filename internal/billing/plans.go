@@ -137,7 +137,7 @@ var PricingTable = []PricingInfo{
 		PricePerSeat: -1,
 		Description:  "Custom contracts, SLAs, and dedicated support.",
 		Features: []string{
-			"SAML / SCIM",
+			"Self-hosted deployment",
 			"Custom data retention",
 			"Data residency",
 			"Dedicated support",

@@ -74,7 +74,7 @@ export const PLANS: Plan[] = [
       "AI summaries + postmortems",
       "AI timeline assistant",
       "Kubernetes watcher ingestion",
-      "SSO (SAML / OIDC)",
+      "SSO (OIDC)",
       "Audit logs",
       "Priority support",
     ],
