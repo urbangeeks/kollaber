@@ -153,6 +153,21 @@ export default async function IntegrationPage({
           </div>
         </section>
 
+        <section className="mb-12">
+          <h2 className="mb-4 text-2xl font-bold">Other integrations</h2>
+          <div className="flex flex-wrap gap-2">
+            {INTEGRATIONS.filter((other) => other.slug !== integration.slug).map((other) => (
+              <Link
+                key={other.slug}
+                href={`/integrations/${other.slug}`}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-white/60 transition-colors hover:border-white/30 hover:text-white"
+              >
+                {other.name}
+              </Link>
+            ))}
+          </div>
+        </section>
+
         <div className="rounded-lg border border-white/10 bg-white/5 p-6">
           <h2 className="text-lg font-semibold text-white">
             Start recording {integration.name} changes

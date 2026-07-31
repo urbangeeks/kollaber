@@ -219,6 +219,7 @@ export default function Home() {
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
+            <Link href="/integrations" className="transition-colors hover:text-white">Integrations</Link>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
           </div>
           <div className="flex items-center gap-3">
@@ -268,6 +269,11 @@ export default function Home() {
                 className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
                 onClick={() => setMobileMenuOpen(false)}
               >Pricing</a>
+              <Link
+                href="/integrations"
+                className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >Integrations</Link>
               <Link
                 href="/docs"
                 className="rounded-md px-2 py-2.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
@@ -688,6 +694,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-white/30">
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
+            <Link href="/integrations" className="transition-colors hover:text-white">Integrations</Link>
             <Link href="/docs" className="transition-colors hover:text-white">Docs</Link>
             <Link href="/terms" className="transition-colors hover:text-white">Terms</Link>
             <Link href="/privacy" className="transition-colors hover:text-white">Privacy</Link>

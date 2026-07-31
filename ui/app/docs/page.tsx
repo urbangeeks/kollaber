@@ -734,7 +734,11 @@ claude mcp add kollaber -- kollaber mcp`}</Code>
             <p>
               The <strong className="text-white">kube-watcher</strong> is a lightweight agent that watches your
               Kubernetes cluster and automatically fires events to your Kollaber timeline — no manual CLI calls or
-              CI steps needed.
+              CI steps needed. See the{" "}
+              <Link href="/integrations/kubernetes" className="text-[#a78bfa] hover:underline">
+                Kubernetes setup guide
+              </Link>{" "}
+              for a walkthrough.
             </p>
             <ul className="mt-2 space-y-1 pl-4 text-sm">
               <li><span className="text-green-400 font-mono">DEPLOY</span> — fired when a Deployment, StatefulSet, or DaemonSet completes a rollout, capturing the image tag, replica count, and rollout duration</li>
@@ -817,7 +821,11 @@ kube-watcher \\
           <Section id="webhooks" title="Webhooks">
             <p>
               Send events directly from your CI/CD pipeline or any HTTP-capable tool by posting to the webhook
-              endpoint — no CLI install required.
+              endpoint — no CLI install required. Each source below also has a{" "}
+              <Link href="/integrations" className="text-[#a78bfa] hover:underline">
+                setup guide
+              </Link>{" "}
+              with the full walkthrough.
             </p>
 
             <SubSection title="Endpoint">
